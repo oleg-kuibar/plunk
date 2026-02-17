@@ -36,7 +36,7 @@ export default defineConfig({
 })
 ```
 
-> plunk prints this hint automatically when you run `plunk add` in a project with a `vite.config.*` file.
+> `plunk add` automatically adds packages to `optimizeDeps.exclude` when it detects a Vite config. `plunk remove` removes them. You can also run `plunk init` to set up the section ahead of time.
 
 ### Why?
 

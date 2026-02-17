@@ -2,8 +2,10 @@ import { defineCommand } from "citty";
 import { resolve } from "node:path";
 import { consola } from "consola";
 import { removeInjected, restoreBackup } from "../core/injector.js";
-import { getLink, removeLink, readConsumerState } from "../core/tracker.js";
+import { getLink, removeLink } from "../core/tracker.js";
 import { unregisterConsumer } from "../core/tracker.js";
+import { detectBundler } from "../utils/bundler-detect.js";
+import { removeFromOptimizeDepsExclude } from "../utils/vite-config.js";
 
 export default defineCommand({
   meta: {
@@ -40,6 +42,12 @@ export default defineCommand({
       if (restored) {
         consola.success(`Restored original ${packageName} from backup`);
       }
+    }
+
+    // Auto-update Vite config
+    const bundler = await detectBundler(consumerPath);
+    if (bundler.type === "vite" && bundler.configFile) {
+      await removeFromOptimizeDepsExclude(bundler.configFile, packageName);
     }
 
     // Update state

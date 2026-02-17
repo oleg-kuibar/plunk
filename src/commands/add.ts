@@ -1,12 +1,13 @@
 import { defineCommand } from "citty";
-import { resolve } from "node:path";
+import { resolve, basename } from "node:path";
 import { consola } from "consola";
 import { findStoreEntry } from "../core/store.js";
 import { publish } from "../core/publisher.js";
 import { inject, backupExisting, checkMissingDeps } from "../core/injector.js";
 import { addLink, registerConsumer } from "../core/tracker.js";
 import { detectPackageManager } from "../utils/pm-detect.js";
-import { exists } from "../utils/fs.js";
+import { detectBundler } from "../utils/bundler-detect.js";
+import { addToOptimizeDepsExclude } from "../utils/vite-config.js";
 import type { LinkEntry } from "../types.js";
 
 export default defineCommand({
@@ -86,16 +87,22 @@ export default defineCommand({
       );
     }
 
-    // Vite hint
-    const viteConfigExists =
-      (await exists(resolve("vite.config.ts"))) ||
-      (await exists(resolve("vite.config.js"))) ||
-      (await exists(resolve("vite.config.mts")));
-    if (viteConfigExists) {
-      consola.info(
-        `Vite detected. Add to vite.config:\n` +
-          `  optimizeDeps: { exclude: ['${packageName}'] }`
+    // Auto-update Vite config
+    const bundler = await detectBundler(consumerPath);
+    if (bundler.type === "vite" && bundler.configFile) {
+      const result = await addToOptimizeDepsExclude(
+        bundler.configFile,
+        packageName
       );
+      if (result.modified) {
+        consola.success(
+          `Added ${packageName} to optimizeDeps.exclude in ${basename(bundler.configFile)}`
+        );
+      } else if (result.error) {
+        consola.info(
+          `Add to vite.config manually: optimizeDeps: { exclude: ['${packageName}'] }`
+        );
+      }
     }
   },
 });

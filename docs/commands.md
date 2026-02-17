@@ -2,19 +2,25 @@
 
 ## `plunk init`
 
-Set up plunk in the current project. Idempotent, safe to run repeatedly.
+Set up plunk in the current project. Interactive — detects your package manager and bundler, and auto-configures where possible. Idempotent, safe to run repeatedly.
 
 ```bash
 npx plunk init
 ```
 
-Adds `.plunk/` to `.gitignore`, wires up `"postinstall": "plunk restore || true"` in `package.json`, and creates the `.plunk/` state directory.
+What it does:
+
+1. **Detects package manager** from lockfiles (pnpm, bun, yarn, npm) and confirms with you
+2. **Adds `.plunk/` to `.gitignore`**
+3. **Wires up `"postinstall": "plunk restore || true"`** in `package.json`
+4. **Creates `.plunk/` state directory** and stores the confirmed package manager
+5. **Detects bundler** — if Vite, offers to set up `optimizeDeps.exclude` automatically. Other bundlers (Webpack, Turbopack, etc.) need no config.
 
 Flags:
 
 | Flag | Description |
 |---|---|
-| `-y, --yes` | Skip confirmation prompts |
+| `-y, --yes` | Skip confirmation prompts, use detected defaults |
 
 ---
 
@@ -61,7 +67,7 @@ Under the hood:
 4. Creates `.bin/` entries if the package has a `bin` field
 5. Records the link in `.plunk/state.json` and `~/.plunk/consumers.json`
 6. Warns if the linked package has dependencies missing from the consumer
-7. Prints a Vite `optimizeDeps.exclude` hint if it sees a vite config
+7. Auto-adds the package to `optimizeDeps.exclude` in vite.config if Vite is detected
 
 ---
 
@@ -111,7 +117,7 @@ plunk remove my-lib
 plunk remove @scope/my-lib
 ```
 
-Removes injected files from `node_modules/`, cleans up `.bin/` entries, restores the backup (original npm-installed version) if one exists, and removes tracking state.
+Removes injected files from `node_modules/`, cleans up `.bin/` entries, restores the backup (original npm-installed version) if one exists, removes the package from `optimizeDeps.exclude` in vite.config if applicable, and removes tracking state.
 
 ---
 
