@@ -75,13 +75,13 @@ Copies files to a global store, then from the store into `node_modules/`. State 
 ```mermaid
 graph TB
     subgraph "npm link (broken)"
-        App1[app] --> React1[react@18 ①]
+        App1[app] --> React1["react@18 ①"]
         App1 --> Lib1["my-lib (symlink)"]
-        Lib1 --> React2[react@18 ②]
+        Lib1 --> React2["react@18 ②"]
     end
 
     subgraph "plunk (works)"
-        App2[app] --> React3[react@18]
+        App2[app] --> React3["react@18"]
         App2 --> Lib2["my-lib (copied)"]
         Lib2 -.-> React3
     end
