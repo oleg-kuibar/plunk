@@ -8,6 +8,7 @@ import { inject } from "../core/injector.js";
 import { Timer } from "../utils/timer.js";
 import { suppressHumanOutput, output } from "../utils/output.js";
 import { verbose } from "../utils/logger.js";
+import { detectPackageManager, detectYarnNodeLinker, hasYarnrcYml } from "../utils/pm-detect.js";
 
 const restoreLimit = pLimit(4);
 
@@ -29,6 +30,23 @@ export default defineCommand({
     const timer = new Timer();
     const consumerPath = resolve(".");
     const state = await readConsumerState(consumerPath);
+
+    // Check for Yarn PnP incompatibility
+    const pm = await detectPackageManager(consumerPath);
+    if (pm === "yarn") {
+      const linker = await detectYarnNodeLinker(consumerPath);
+      if (linker === "pnp" || (linker === null && await hasYarnrcYml(consumerPath))) {
+        consola.error(
+          `Yarn PnP mode is not compatible with plunk.\n\n` +
+          `plunk works by copying files into node_modules/, but PnP eliminates\n` +
+          `node_modules/ entirely. To use plunk with Yarn Berry, add this to\n` +
+          `.yarnrc.yml:\n\n` +
+          `  nodeLinker: node-modules\n\n` +
+          `Then run: yarn install`
+        );
+        process.exit(1);
+      }
+    }
 
     const links = Object.entries(state.links);
     if (links.length === 0) {

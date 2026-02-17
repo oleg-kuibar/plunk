@@ -13,6 +13,7 @@ import {
 } from "../utils/fs.js";
 import { createBinLinks, removeBinLinks } from "../utils/bin-linker.js";
 import { verbose } from "../utils/logger.js";
+import { detectYarnNodeLinker } from "../utils/pm-detect.js";
 
 export interface InjectResult {
   copied: number;
@@ -143,11 +144,15 @@ async function resolveTargetDir(
 ): Promise<string> {
   const directPath = getNodeModulesPackagePath(consumerPath, packageName);
 
-  if (pm !== "pnpm") {
+  const needsSymlinkResolution =
+    pm === "pnpm" ||
+    (pm === "yarn" && (await detectYarnNodeLinker(consumerPath)) === "pnpm");
+
+  if (!needsSymlinkResolution) {
     return directPath;
   }
 
-  // pnpm: follow symlink into .pnpm/ virtual store
+  // pnpm / yarn pnpm-linker: follow symlink into .pnpm/ virtual store
   try {
     const realPath = await resolveRealPath(directPath);
     if (realPath !== resolve(directPath)) {

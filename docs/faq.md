@@ -118,7 +118,29 @@ This deletes the store, the consumers registry, and all metadata. Existing linke
 
 Yarn PnP (Plug'n'Play) does not use `node_modules/` at all, so plunk's copy-based approach does not apply. plunk requires a traditional `node_modules/` layout.
 
-If you use Yarn, make sure PnP is disabled (use `nodeLinker: node-modules` in `.yarnrc.yml`).
+plunk detects this automatically and exits early with a clear error message:
+
+```
+Error: Yarn PnP mode is not compatible with plunk.
+
+plunk works by copying files into node_modules/, but PnP eliminates
+node_modules/ entirely. To use plunk with Yarn Berry, add this to
+.yarnrc.yml:
+
+  nodeLinker: node-modules
+
+Then run: yarn install
+```
+
+If you use Yarn Berry, set the linker mode in `.yarnrc.yml`:
+
+```yaml
+nodeLinker: node-modules
+```
+
+Then run `yarn install` to recreate `node_modules/`.
+
+Note: Yarn Berry's `nodeLinker: pnpm` mode (symlink-based virtual store, same layout as pnpm) is also supported. plunk detects this and follows the `.pnpm/` symlink chain automatically.
 
 ## Can I use plunk with private packages?
 

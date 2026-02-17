@@ -9,6 +9,7 @@ import {
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { exists } from "../utils/fs.js";
+import { detectYarnNodeLinker } from "../utils/pm-detect.js";
 
 let testPlunkHome: string;
 let testLib: string;
@@ -243,6 +244,90 @@ describe("scoped packages", () => {
     const entry = await findStoreEntry("@my-scope/my-lib");
     expect(entry).not.toBeNull();
     expect(entry!.version).toBe("2.0.0");
+  });
+});
+
+describe("yarn support", () => {
+  it("injects into yarn pnpm-linker .pnpm/ virtual store", async () => {
+    const { publish } = await import("../core/publisher.js");
+    const { getStoreEntry } = await import("../core/store.js");
+    const { inject } = await import("../core/injector.js");
+
+    // Set up consumer as a yarn project with pnpm linker
+    await writeFile(join(testConsumer, "yarn.lock"), "");
+    await writeFile(join(testConsumer, ".yarnrc.yml"), "nodeLinker: pnpm\n");
+
+    // Create pnpm-style virtual store structure
+    const pnpmPkgDir = join(
+      testConsumer,
+      "node_modules",
+      ".pnpm",
+      "test-lib@1.0.0",
+      "node_modules",
+      "test-lib"
+    );
+    await mkdir(pnpmPkgDir, { recursive: true });
+    await writeFile(join(pnpmPkgDir, "package.json"), JSON.stringify({ name: "test-lib", version: "1.0.0" }));
+
+    await publish(testLib);
+    const entry = await getStoreEntry("test-lib", "1.0.0");
+    expect(entry).not.toBeNull();
+
+    const result = await inject(entry!, testConsumer, "yarn");
+    expect(result.copied).toBeGreaterThan(0);
+
+    // Files should be in the .pnpm/ virtual store, not the direct path
+    const injectedFile = join(pnpmPkgDir, "dist", "index.js");
+    expect(await exists(injectedFile)).toBe(true);
+  });
+
+  it("injects directly for yarn node-modules linker", async () => {
+    const { publish } = await import("../core/publisher.js");
+    const { getStoreEntry } = await import("../core/store.js");
+    const { inject } = await import("../core/injector.js");
+
+    // Set up consumer as a yarn project with node-modules linker
+    await writeFile(join(testConsumer, "yarn.lock"), "");
+    await writeFile(join(testConsumer, ".yarnrc.yml"), "nodeLinker: node-modules\n");
+
+    await publish(testLib);
+    const entry = await getStoreEntry("test-lib", "1.0.0");
+    expect(entry).not.toBeNull();
+
+    const result = await inject(entry!, testConsumer, "yarn");
+    expect(result.copied).toBeGreaterThan(0);
+
+    const injectedFile = join(testConsumer, "node_modules", "test-lib", "dist", "index.js");
+    expect(await exists(injectedFile)).toBe(true);
+  });
+
+  it("injects directly for yarn classic (no .yarnrc.yml)", async () => {
+    const { publish } = await import("../core/publisher.js");
+    const { getStoreEntry } = await import("../core/store.js");
+    const { inject } = await import("../core/injector.js");
+
+    await writeFile(join(testConsumer, "yarn.lock"), "");
+
+    await publish(testLib);
+    const entry = await getStoreEntry("test-lib", "1.0.0");
+    expect(entry).not.toBeNull();
+
+    const result = await inject(entry!, testConsumer, "yarn");
+    expect(result.copied).toBeGreaterThan(0);
+
+    const injectedFile = join(testConsumer, "node_modules", "test-lib", "dist", "index.js");
+    expect(await exists(injectedFile)).toBe(true);
+  });
+
+  it("detectYarnNodeLinker returns correct values in integration context", async () => {
+    await writeFile(join(testConsumer, ".yarnrc.yml"), "nodeLinker: pnpm\n");
+    expect(await detectYarnNodeLinker(testConsumer)).toBe("pnpm");
+
+    await writeFile(join(testConsumer, ".yarnrc.yml"), "nodeLinker: node-modules\n");
+    expect(await detectYarnNodeLinker(testConsumer)).toBe("node-modules");
+
+    await writeFile(join(testConsumer, ".yarnrc.yml"), "nodeLinker: pnp\n");
+    expect(await detectYarnNodeLinker(testConsumer)).toBe("pnp");
   });
 });
 

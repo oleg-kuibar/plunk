@@ -6,7 +6,7 @@ import { readConsumerState, readConsumersRegistry } from "../core/tracker.js";
 import { listStoreEntries, getStoreEntry } from "../core/store.js";
 import { exists } from "../utils/fs.js";
 import { getStorePath, getConsumersPath } from "../utils/paths.js";
-import { detectPackageManager } from "../utils/pm-detect.js";
+import { detectPackageManager, detectYarnNodeLinker, hasYarnrcYml } from "../utils/pm-detect.js";
 import { detectBundler } from "../utils/bundler-detect.js";
 import { suppressHumanOutput, output } from "../utils/output.js";
 
@@ -122,7 +122,46 @@ export default defineCommand({
       message: pm,
     });
 
-    // Check 7: Bundler detection
+    // Check 7: Yarn nodeLinker
+    if (pm === "yarn") {
+      const linker = await detectYarnNodeLinker(consumerPath);
+      const yarnrcExists = await hasYarnrcYml(consumerPath);
+
+      if (!yarnrcExists) {
+        results.push({
+          name: "Yarn linker",
+          status: "pass",
+          message: "Yarn Classic, node_modules mode",
+        });
+      } else if (linker === "node-modules") {
+        results.push({
+          name: "Yarn linker",
+          status: "pass",
+          message: "Yarn Berry with node-modules linker",
+        });
+      } else if (linker === "pnpm") {
+        results.push({
+          name: "Yarn linker",
+          status: "pass",
+          message: "Yarn pnpm linker mode (plunk handles this)",
+        });
+      } else if (linker === "pnp") {
+        results.push({
+          name: "Yarn linker",
+          status: "fail",
+          message: "Yarn PnP is not compatible. Set `nodeLinker: node-modules` in .yarnrc.yml",
+        });
+      } else {
+        // .yarnrc.yml exists but no nodeLinker key — Berry defaults to PnP
+        results.push({
+          name: "Yarn linker",
+          status: "warn",
+          message: "Yarn Berry defaults to PnP. Add `nodeLinker: node-modules` to .yarnrc.yml",
+        });
+      }
+    }
+
+    // Check 8: Bundler detection
     const bundler = await detectBundler(consumerPath);
     if (bundler.type) {
       results.push({

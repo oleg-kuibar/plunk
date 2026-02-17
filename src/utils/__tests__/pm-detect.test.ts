@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { detectPackageManager } from "../pm-detect.js";
+import { detectPackageManager, detectYarnNodeLinker, hasYarnrcYml } from "../pm-detect.js";
 
 describe("detectPackageManager", () => {
   let tempDir: string;
@@ -43,5 +43,80 @@ describe("detectPackageManager", () => {
     await writeFile(join(tempDir, "pnpm-lock.yaml"), "");
     await writeFile(join(tempDir, "package-lock.json"), "{}");
     expect(await detectPackageManager(tempDir)).toBe("pnpm");
+  });
+});
+
+describe("detectYarnNodeLinker", () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), "plunk-test-"));
+  });
+
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it("returns 'pnpm' when nodeLinker is pnpm", async () => {
+    await writeFile(join(tempDir, ".yarnrc.yml"), "nodeLinker: pnpm\n");
+    expect(await detectYarnNodeLinker(tempDir)).toBe("pnpm");
+  });
+
+  it("returns 'node-modules' when nodeLinker is node-modules", async () => {
+    await writeFile(join(tempDir, ".yarnrc.yml"), "nodeLinker: node-modules\n");
+    expect(await detectYarnNodeLinker(tempDir)).toBe("node-modules");
+  });
+
+  it("returns 'pnp' when nodeLinker is pnp", async () => {
+    await writeFile(join(tempDir, ".yarnrc.yml"), "nodeLinker: pnp\n");
+    expect(await detectYarnNodeLinker(tempDir)).toBe("pnp");
+  });
+
+  it("returns null when .yarnrc.yml is missing", async () => {
+    expect(await detectYarnNodeLinker(tempDir)).toBeNull();
+  });
+
+  it("returns null when .yarnrc.yml has no nodeLinker key", async () => {
+    await writeFile(join(tempDir, ".yarnrc.yml"), "yarnPath: .yarn/releases/yarn-4.0.0.cjs\n");
+    expect(await detectYarnNodeLinker(tempDir)).toBeNull();
+  });
+
+  it("handles comments and extra whitespace", async () => {
+    const content = [
+      "# Some comment",
+      "  ",
+      "yarnPath: .yarn/releases/yarn-4.0.0.cjs",
+      "# nodeLinker: pnp",
+      "nodeLinker:   pnpm  ",
+      "",
+    ].join("\n");
+    await writeFile(join(tempDir, ".yarnrc.yml"), content);
+    expect(await detectYarnNodeLinker(tempDir)).toBe("pnpm");
+  });
+
+  it("handles quoted values", async () => {
+    await writeFile(join(tempDir, ".yarnrc.yml"), 'nodeLinker: "node-modules"\n');
+    expect(await detectYarnNodeLinker(tempDir)).toBe("node-modules");
+  });
+});
+
+describe("hasYarnrcYml", () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), "plunk-test-"));
+  });
+
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it("returns true when .yarnrc.yml exists", async () => {
+    await writeFile(join(tempDir, ".yarnrc.yml"), "");
+    expect(await hasYarnrcYml(tempDir)).toBe(true);
+  });
+
+  it("returns false when .yarnrc.yml is missing", async () => {
+    expect(await hasYarnrcYml(tempDir)).toBe(false);
   });
 });

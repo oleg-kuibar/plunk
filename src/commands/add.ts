@@ -5,7 +5,7 @@ import { findStoreEntry } from "../core/store.js";
 import { publish } from "../core/publisher.js";
 import { inject, backupExisting, checkMissingDeps } from "../core/injector.js";
 import { addLink, registerConsumer } from "../core/tracker.js";
-import { detectPackageManager } from "../utils/pm-detect.js";
+import { detectPackageManager, detectYarnNodeLinker, hasYarnrcYml } from "../utils/pm-detect.js";
 import { detectBundler } from "../utils/bundler-detect.js";
 import { addToOptimizeDepsExclude } from "../utils/vite-config.js";
 import { addToTranspilePackages } from "../utils/nextjs-config.js";
@@ -57,6 +57,22 @@ export default defineCommand({
     const pm = await detectPackageManager(consumerPath);
     verbose(`[add] Detected package manager: ${pm}`);
     consola.info(`Detected package manager: ${pm}`);
+
+    // Check for Yarn PnP incompatibility
+    if (pm === "yarn") {
+      const linker = await detectYarnNodeLinker(consumerPath);
+      if (linker === "pnp" || (linker === null && await hasYarnrcYml(consumerPath))) {
+        consola.error(
+          `Yarn PnP mode is not compatible with plunk.\n\n` +
+          `plunk works by copying files into node_modules/, but PnP eliminates\n` +
+          `node_modules/ entirely. To use plunk with Yarn Berry, add this to\n` +
+          `.yarnrc.yml:\n\n` +
+          `  nodeLinker: node-modules\n\n` +
+          `Then run: yarn install`
+        );
+        process.exit(1);
+      }
+    }
 
     // Backup existing installed version
     const hasBackup = await backupExisting(consumerPath, packageName, pm);
