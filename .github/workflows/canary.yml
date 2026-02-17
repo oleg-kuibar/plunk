@@ -1,0 +1,47 @@
+name: Canary
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://npm.pkg.github.com
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      # Build example packages for e2e tests
+      - name: Build example packages
+        run: |
+          cd examples/packages/api-client && pnpm install && pnpm tsup
+          cd ../ui-kit && pnpm install && pnpm tsup
+
+      - run: pnpm test
+
+      # Stamp canary version: 0.1.0-canary.<short-sha>
+      - name: Set canary version
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          VERSION=$(node -p "require('./package.json').version")
+          CANARY="${VERSION}-canary.${SHORT_SHA}"
+          npm version "$CANARY" --no-git-tag-version
+          echo "CANARY_VERSION=$CANARY" >> $GITHUB_ENV
+
+      - run: pnpm publish --no-git-checks --access public --tag canary
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
