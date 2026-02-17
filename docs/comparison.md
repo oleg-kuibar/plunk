@@ -11,9 +11,9 @@ graph LR
     A["my-lib/"] -- "npm link" --> B["global<br/>node_modules/my-lib"]
     B -- "npm link my-lib" --> C["app/node_modules/my-lib<br/>(symlink → global)"]
 
-    style A fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
-    style B fill:#bbdefb,stroke:#1565c0,color:#0d47a1
-    style C fill:#ffcdd2,stroke:#c62828,color:#b71c1c
+    style A fill:#2e7d32,stroke:#66bb6a,color:#e8f5e9
+    style B fill:#1565c0,stroke:#64b5f6,color:#e3f2fd
+    style C fill:#c62828,stroke:#ef5350,color:#ffebee
 ```
 
 Creates a symlink chain: library → global `node_modules` → consumer's `node_modules`. The catch is that Node.js resolves `require()` from the *real* path, not the link location.
@@ -27,11 +27,11 @@ graph LR
     B -- "yalc add" --> D["app/.yalc/my-lib<br/>(yalc store)"]
     B -- "yalc add" --> E["app/package.json<br/>(modified dep)"]
 
-    style A fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
-    style B fill:#bbdefb,stroke:#1565c0,color:#0d47a1
-    style C fill:#ffecb3,stroke:#f57f17,color:#e65100
-    style D fill:#e1bee7,stroke:#6a1b9a,color:#4a148c
-    style E fill:#ffcdd2,stroke:#c62828,color:#b71c1c
+    style A fill:#2e7d32,stroke:#66bb6a,color:#e8f5e9
+    style B fill:#1565c0,stroke:#64b5f6,color:#e3f2fd
+    style C fill:#e65100,stroke:#ffb74d,color:#fff3e0
+    style D fill:#6a1b9a,stroke:#ba68c8,color:#f3e5f5
+    style E fill:#c62828,stroke:#ef5350,color:#ffebee
 ```
 
 Copies files but also rewrites the consumer's `package.json` to point to `.yalc/`. This shows up in `git diff`, CI might pick it up, and `npm publish` from the consumer could accidentally include the local override.
@@ -43,9 +43,9 @@ graph LR
     A["my-lib/"] -- "plunk publish" --> B["~/.plunk/store/<br/>my-lib@1.0.0"]
     B -- "plunk add" --> C["app/node_modules/my-lib<br/>(copied files)"]
 
-    style A fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
-    style B fill:#bbdefb,stroke:#1565c0,color:#0d47a1
-    style C fill:#ffecb3,stroke:#f57f17,color:#e65100
+    style A fill:#2e7d32,stroke:#66bb6a,color:#e8f5e9
+    style B fill:#1565c0,stroke:#64b5f6,color:#e3f2fd
+    style C fill:#e65100,stroke:#ffb74d,color:#fff3e0
 ```
 
 Copies files to a global store, then from the store into `node_modules/`. State is tracked in a gitignored `.plunk/` directory. Your `package.json` is never modified.
@@ -86,13 +86,13 @@ graph TB
         Lib2 -.-> React3
     end
 
-    style App1 fill:#ffecb3,stroke:#f57f17,color:#e65100
-    style React1 fill:#ffcdd2,stroke:#c62828,color:#b71c1c
-    style React2 fill:#ffcdd2,stroke:#c62828,color:#b71c1c
-    style Lib1 fill:#e1bee7,stroke:#6a1b9a,color:#4a148c
-    style App2 fill:#ffecb3,stroke:#f57f17,color:#e65100
-    style React3 fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
-    style Lib2 fill:#b2ebf2,stroke:#00838f,color:#004d40
+    style App1 fill:#e65100,stroke:#ffb74d,color:#fff3e0
+    style React1 fill:#c62828,stroke:#ef5350,color:#ffebee
+    style React2 fill:#c62828,stroke:#ef5350,color:#ffebee
+    style Lib1 fill:#6a1b9a,stroke:#ba68c8,color:#f3e5f5
+    style App2 fill:#e65100,stroke:#ffb74d,color:#fff3e0
+    style React3 fill:#2e7d32,stroke:#66bb6a,color:#e8f5e9
+    style Lib2 fill:#00838f,stroke:#4dd0e1,color:#e0f2f1
 ```
 
 With symlinks, `my-lib`'s `require('react')` resolves from the library's real location, which has its own `node_modules/react`. Now you have two React instances. Hooks fail silently, `instanceof` returns false, context doesn't propagate. It's one of those bugs where everything looks right but nothing works.

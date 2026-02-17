@@ -13,13 +13,13 @@ npx plunk init
 
 ```mermaid
 sequenceDiagram
-    box rgb(200,230,201) Source
+    box rgb(46,125,50) Source
         participant Lib as Library
     end
-    box rgb(187,222,251) Store
+    box rgb(21,101,192) Store
         participant Store as ~/.plunk/store
     end
-    box rgb(255,236,179) Consumer
+    box rgb(230,81,0) Consumer
         participant App as App (node_modules)
     end
 
@@ -104,13 +104,13 @@ graph LR
     D --> F[Copy to all consumers]
     F --> G[Bundler HMR triggers]
 
-    style A fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
-    style B fill:#ffecb3,stroke:#f57f17,color:#e65100
-    style C fill:#bbdefb,stroke:#1565c0,color:#0d47a1
-    style D fill:#e1bee7,stroke:#6a1b9a,color:#4a148c
-    style E fill:#ffcdd2,stroke:#c62828,color:#b71c1c
-    style F fill:#ffecb3,stroke:#f57f17,color:#e65100
-    style G fill:#b2ebf2,stroke:#00838f,color:#004d40
+    style A fill:#2e7d32,stroke:#66bb6a,color:#e8f5e9
+    style B fill:#e65100,stroke:#ffb74d,color:#fff3e0
+    style C fill:#1565c0,stroke:#64b5f6,color:#e3f2fd
+    style D fill:#6a1b9a,stroke:#ba68c8,color:#f3e5f5
+    style E fill:#c62828,stroke:#ef5350,color:#ffebee
+    style F fill:#e65100,stroke:#ffb74d,color:#fff3e0
+    style G fill:#00838f,stroke:#4dd0e1,color:#e0f2f1
 ```
 
 If a build fails, plunk logs the error and keeps watching. Fix the code, save again.

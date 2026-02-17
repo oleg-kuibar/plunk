@@ -24,14 +24,14 @@ graph TB
     B -- "plunk publish<br/>(copy built files)" --> C
     C -- "plunk add<br/>(incremental copy)" --> D
 
-    style A fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
-    style B fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
-    style C fill:#bbdefb,stroke:#1565c0,color:#0d47a1
-    style C1 fill:#bbdefb,stroke:#1565c0,color:#0d47a1
-    style C2 fill:#bbdefb,stroke:#1565c0,color:#0d47a1
-    style D fill:#ffecb3,stroke:#f57f17,color:#e65100
-    style D1 fill:#ffecb3,stroke:#f57f17,color:#e65100
-    style D2 fill:#ffecb3,stroke:#f57f17,color:#e65100
+    style A fill:#2e7d32,stroke:#66bb6a,color:#e8f5e9
+    style B fill:#2e7d32,stroke:#66bb6a,color:#e8f5e9
+    style C fill:#1565c0,stroke:#64b5f6,color:#e3f2fd
+    style C1 fill:#1565c0,stroke:#64b5f6,color:#e3f2fd
+    style C2 fill:#1565c0,stroke:#64b5f6,color:#e3f2fd
+    style D fill:#e65100,stroke:#ffb74d,color:#fff3e0
+    style D1 fill:#e65100,stroke:#ffb74d,color:#fff3e0
+    style D2 fill:#e65100,stroke:#ffb74d,color:#fff3e0
 ```
 
 ## Store
@@ -85,14 +85,14 @@ flowchart TD
     J --> K[Rewrite workspace: protocol versions]
     K --> L[Write .plunk-meta.json]
 
-    style A fill:#bbdefb,stroke:#1565c0,color:#0d47a1
-    style B fill:#e1bee7,stroke:#6a1b9a,color:#4a148c
-    style G fill:#e1bee7,stroke:#6a1b9a,color:#4a148c
-    style H fill:#e1bee7,stroke:#6a1b9a,color:#4a148c
-    style I fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
-    style J fill:#bbdefb,stroke:#1565c0,color:#0d47a1
-    style K fill:#b2ebf2,stroke:#00838f,color:#004d40
-    style L fill:#ffecb3,stroke:#f57f17,color:#e65100
+    style A fill:#1565c0,stroke:#64b5f6,color:#e3f2fd
+    style B fill:#6a1b9a,stroke:#ba68c8,color:#f3e5f5
+    style G fill:#6a1b9a,stroke:#ba68c8,color:#f3e5f5
+    style H fill:#6a1b9a,stroke:#ba68c8,color:#f3e5f5
+    style I fill:#2e7d32,stroke:#66bb6a,color:#e8f5e9
+    style J fill:#1565c0,stroke:#64b5f6,color:#e3f2fd
+    style K fill:#00838f,stroke:#4dd0e1,color:#e0f2f1
+    style L fill:#e65100,stroke:#ffb74d,color:#fff3e0
 ```
 
 File resolution follows `npm pack` rules:
@@ -116,9 +116,9 @@ graph LR
     Store["store/my-lib@1.0/package/"] -- "incremental copy" --> NM["node_modules/my-lib/"]
     NM --- Bin[".bin/my-cli"]
 
-    style Store fill:#bbdefb,stroke:#1565c0,color:#0d47a1
-    style NM fill:#ffecb3,stroke:#f57f17,color:#e65100
-    style Bin fill:#b2ebf2,stroke:#00838f,color:#004d40
+    style Store fill:#1565c0,stroke:#64b5f6,color:#e3f2fd
+    style NM fill:#e65100,stroke:#ffb74d,color:#fff3e0
+    style Bin fill:#00838f,stroke:#4dd0e1,color:#e0f2f1
 ```
 
 Clear the target directory, copy files from the store. The writes generate filesystem events that bundler watchers pick up.
@@ -132,9 +132,9 @@ graph LR
     NM["node_modules/my-lib"] -- "symlink" --> PNPM[".pnpm/my-lib@1.0/<br/>node_modules/my-lib"]
     Store["store/my-lib@1.0/package/"] -- "incremental copy" --> PNPM
 
-    style Store fill:#bbdefb,stroke:#1565c0,color:#0d47a1
-    style PNPM fill:#ffecb3,stroke:#f57f17,color:#e65100
-    style NM fill:#e1bee7,stroke:#6a1b9a,color:#4a148c
+    style Store fill:#1565c0,stroke:#64b5f6,color:#e3f2fd
+    style PNPM fill:#e65100,stroke:#ffb74d,color:#fff3e0
+    style NM fill:#6a1b9a,stroke:#ba68c8,color:#f3e5f5
 ```
 
 plunk resolves `node_modules/<pkg>` → follows the symlink into `.pnpm/` → replaces files at the real directory. The top-level symlink is preserved.
@@ -149,6 +149,18 @@ plunk resolves `node_modules/<pkg>` → follows the symlink into `.pnpm/` → re
 | `package-lock.json` | npm |
 
 Detection checks in priority order (pnpm > bun > yarn > npm). Falls back to npm if no lockfile is found.
+
+#### Yarn Berry `nodeLinker` modes
+
+When yarn is detected, plunk also reads `.yarnrc.yml` to determine the linker mode:
+
+| `nodeLinker` value | Behavior |
+|---|---|
+| `node-modules` | Flat `node_modules/` — same as npm, works directly |
+| `pnpm` | `.pnpm/` virtual store with symlinks — plunk follows the symlink chain (same as pnpm) |
+| `pnp` | No `node_modules/` — incompatible, plunk exits with an error |
+| *(absent, `.yarnrc.yml` exists)* | Berry defaults to PnP — plunk exits with an error |
+| *(no `.yarnrc.yml`)* | Yarn Classic — flat `node_modules/`, works directly |
 
 ## Copies
 
@@ -166,15 +178,15 @@ flowchart TD
     G --> J{File removed from source?}
     J -- Yes --> K[Delete from dest]
 
-    style A fill:#bbdefb,stroke:#1565c0,color:#0d47a1
-    style B fill:#e1bee7,stroke:#6a1b9a,color:#4a148c
-    style C fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
-    style D fill:#ffecb3,stroke:#f57f17,color:#e65100
-    style E fill:#bbdefb,stroke:#1565c0,color:#0d47a1
-    style H fill:#e1bee7,stroke:#6a1b9a,color:#4a148c
-    style I fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
-    style J fill:#e1bee7,stroke:#6a1b9a,color:#4a148c
-    style K fill:#ffcdd2,stroke:#c62828,color:#b71c1c
+    style A fill:#1565c0,stroke:#64b5f6,color:#e3f2fd
+    style B fill:#6a1b9a,stroke:#ba68c8,color:#f3e5f5
+    style C fill:#2e7d32,stroke:#66bb6a,color:#e8f5e9
+    style D fill:#e65100,stroke:#ffb74d,color:#fff3e0
+    style E fill:#1565c0,stroke:#64b5f6,color:#e3f2fd
+    style H fill:#6a1b9a,stroke:#ba68c8,color:#f3e5f5
+    style I fill:#2e7d32,stroke:#66bb6a,color:#e8f5e9
+    style J fill:#6a1b9a,stroke:#ba68c8,color:#f3e5f5
+    style K fill:#c62828,stroke:#ef5350,color:#ffebee
 ```
 
 1. Each `copyFile` call uses `COPYFILE_FICLONE`, which is instant on APFS (macOS), btrfs (Linux), and ReFS (Windows). On other filesystems it falls back to a regular copy.

@@ -6,13 +6,13 @@ Since plunk copies real files into `node_modules/`, bundler compatibility is mos
 
 ```mermaid
 sequenceDiagram
-    box rgb(187,222,251) plunk
+    box rgb(21,101,192) plunk
         participant W as plunk watch
     end
-    box rgb(225,190,231) System
+    box rgb(106,27,154) System
         participant FS as Filesystem
     end
-    box rgb(178,235,242) Dev tooling
+    box rgb(0,131,143) Dev tooling
         participant B as Bundler
     end
 
@@ -107,14 +107,14 @@ graph LR
     E1 --> T[Turbopack]
     E1 --> R[Rollup]
 
-    style P fill:#bbdefb,stroke:#1565c0,color:#0d47a1
-    style FS fill:#e1bee7,stroke:#6a1b9a,color:#4a148c
-    style E1 fill:#b2ebf2,stroke:#00838f,color:#004d40
-    style V fill:#ffecb3,stroke:#f57f17,color:#e65100
-    style W fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
-    style ES fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
-    style T fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
-    style R fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
+    style P fill:#1565c0,stroke:#64b5f6,color:#e3f2fd
+    style FS fill:#6a1b9a,stroke:#ba68c8,color:#f3e5f5
+    style E1 fill:#00838f,stroke:#4dd0e1,color:#e0f2f1
+    style V fill:#e65100,stroke:#ffb74d,color:#fff3e0
+    style W fill:#2e7d32,stroke:#66bb6a,color:#e8f5e9
+    style ES fill:#2e7d32,stroke:#66bb6a,color:#e8f5e9
+    style T fill:#2e7d32,stroke:#66bb6a,color:#e8f5e9
+    style R fill:#2e7d32,stroke:#66bb6a,color:#e8f5e9
 ```
 
 *Vite requires `optimizeDeps.exclude` config. Everything else works without changes.*

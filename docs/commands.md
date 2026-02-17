@@ -102,10 +102,10 @@ With `--watch`, it runs continuously: file change → debounce → build → pub
 
 ```mermaid
 stateDiagram-v2
-    classDef steady fill:#bbdefb,stroke:#1565c0,color:#0d47a1
-    classDef waiting fill:#ffecb3,stroke:#f57f17,color:#e65100
-    classDef process fill:#e1bee7,stroke:#6a1b9a,color:#4a148c
-    classDef success fill:#b2ebf2,stroke:#00838f,color:#004d40
+    classDef steady fill:#1565c0,stroke:#64b5f6,color:#e3f2fd
+    classDef waiting fill:#e65100,stroke:#ffb74d,color:#fff3e0
+    classDef process fill:#6a1b9a,stroke:#ba68c8,color:#f3e5f5
+    classDef success fill:#00838f,stroke:#4dd0e1,color:#e0f2f1
 
     [*] --> Watching
     Watching --> Debouncing: File changed
