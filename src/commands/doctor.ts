@@ -1,0 +1,189 @@
+import { defineCommand } from "citty";
+import { resolve, join } from "node:path";
+import { consola } from "consola";
+import pc from "picocolors";
+import { readConsumerState, readConsumersRegistry } from "../core/tracker.js";
+import { listStoreEntries, getStoreEntry } from "../core/store.js";
+import { exists } from "../utils/fs.js";
+import { getStorePath, getConsumersPath } from "../utils/paths.js";
+import { detectPackageManager } from "../utils/pm-detect.js";
+import { detectBundler } from "../utils/bundler-detect.js";
+import { suppressHumanOutput, output } from "../utils/output.js";
+
+interface CheckResult {
+  name: string;
+  status: "pass" | "fail" | "warn";
+  message: string;
+}
+
+export default defineCommand({
+  meta: {
+    name: "doctor",
+    description: "Run diagnostic checks on your plunk setup",
+  },
+  async run() {
+    suppressHumanOutput();
+    const consumerPath = resolve(".");
+    const results: CheckResult[] = [];
+
+    consola.info("Running plunk diagnostics...\n");
+
+    // Check 1: Store directory exists
+    const storePath = getStorePath();
+    if (await exists(storePath)) {
+      const entries = await listStoreEntries();
+      results.push({
+        name: "Store directory",
+        status: "pass",
+        message: `${entries.length} entries in ${storePath}`,
+      });
+    } else {
+      results.push({
+        name: "Store directory",
+        status: "warn",
+        message: `Store not found at ${storePath}. Run 'plunk publish' to create it.`,
+      });
+    }
+
+    // Check 2: Global registry
+    const consumersPath = getConsumersPath();
+    if (await exists(consumersPath)) {
+      const registry = await readConsumersRegistry();
+      const total = Object.values(registry).flat().length;
+      results.push({
+        name: "Global registry",
+        status: "pass",
+        message: `${Object.keys(registry).length} packages, ${total} consumer registrations`,
+      });
+    } else {
+      results.push({
+        name: "Global registry",
+        status: "warn",
+        message: "No consumers registered yet. Use 'plunk add' to link packages.",
+      });
+    }
+
+    // Check 3: Consumer state
+    const state = await readConsumerState(consumerPath);
+    const links = Object.entries(state.links);
+    if (links.length > 0) {
+      results.push({
+        name: "Consumer state",
+        status: "pass",
+        message: `${links.length} linked package(s)`,
+      });
+
+      // Check 4: Store entries for linked packages
+      for (const [name, link] of links) {
+        const entry = await getStoreEntry(name, link.version);
+        if (!entry) {
+          results.push({
+            name: `Store: ${name}`,
+            status: "fail",
+            message: `Store entry missing for ${name}@${link.version}. Re-publish it.`,
+          });
+        } else if (entry.meta.contentHash !== link.contentHash) {
+          results.push({
+            name: `Store: ${name}`,
+            status: "warn",
+            message: `Store has newer content. Run 'plunk update' to sync.`,
+          });
+        } else {
+          results.push({
+            name: `Store: ${name}`,
+            status: "pass",
+            message: `${name}@${link.version} in sync`,
+          });
+        }
+
+        // Check 5: node_modules presence
+        const nmPath = join(consumerPath, "node_modules", name);
+        if (!(await exists(nmPath))) {
+          results.push({
+            name: `node_modules: ${name}`,
+            status: "fail",
+            message: `Missing from node_modules. Run 'plunk restore'.`,
+          });
+        }
+      }
+    } else {
+      results.push({
+        name: "Consumer state",
+        status: "warn",
+        message: "No packages linked. Use 'plunk add' to link a package.",
+      });
+    }
+
+    // Check 6: Package manager
+    const pm = await detectPackageManager(consumerPath);
+    results.push({
+      name: "Package manager",
+      status: "pass",
+      message: pm,
+    });
+
+    // Check 7: Bundler detection
+    const bundler = await detectBundler(consumerPath);
+    if (bundler.type) {
+      results.push({
+        name: "Bundler",
+        status: "pass",
+        message: `${bundler.type}${bundler.configFile ? ` (${bundler.configFile})` : ""}`,
+      });
+    } else {
+      results.push({
+        name: "Bundler",
+        status: "warn",
+        message: "No bundler config detected",
+      });
+    }
+
+    // Check 8: .gitignore includes .plunk/
+    const gitignorePath = join(consumerPath, ".gitignore");
+    if (await exists(gitignorePath)) {
+      const { readFile } = await import("node:fs/promises");
+      const content = await readFile(gitignorePath, "utf-8");
+      if (content.includes(".plunk")) {
+        results.push({
+          name: ".gitignore",
+          status: "pass",
+          message: ".plunk/ is ignored",
+        });
+      } else {
+        results.push({
+          name: ".gitignore",
+          status: "warn",
+          message: ".plunk/ not in .gitignore. Run 'plunk init' to fix.",
+        });
+      }
+    }
+
+    // Render results
+    const icons = {
+      pass: pc.green("PASS"),
+      fail: pc.red("FAIL"),
+      warn: pc.yellow("WARN"),
+    };
+
+    for (const r of results) {
+      console.log(`  ${icons[r.status]} ${r.name}: ${pc.dim(r.message)}`);
+    }
+
+    const failCount = results.filter((r) => r.status === "fail").length;
+    const warnCount = results.filter((r) => r.status === "warn").length;
+    console.log("");
+    if (failCount > 0) {
+      consola.error(`${failCount} issue(s) found that need attention`);
+    } else if (warnCount > 0) {
+      consola.warn(`${warnCount} warning(s), but no critical issues`);
+    } else {
+      consola.success("All checks passed!");
+    }
+
+    output({
+      results: results.map(({ name, status, message }) => ({ name, status, message })),
+      failures: failCount,
+      warnings: warnCount,
+    });
+  },
+});

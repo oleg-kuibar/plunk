@@ -4,6 +4,7 @@ import { consola } from "consola";
 import pc from "picocolors";
 import { readConsumerState } from "../core/tracker.js";
 import { listStoreEntries } from "../core/store.js";
+import { suppressHumanOutput, output } from "../utils/output.js";
 
 export default defineCommand({
   meta: {
@@ -18,6 +19,7 @@ export default defineCommand({
     },
   },
   async run({ args }) {
+    suppressHumanOutput();
     if (args.store) {
       await listStore();
     } else {
@@ -32,15 +34,19 @@ async function listProject() {
 
   if (links.length === 0) {
     consola.info("No linked packages in this project");
+    output({ packages: [] });
     return;
   }
 
   consola.info(`Linked packages (${links.length}):\n`);
+  const packages = [];
   for (const [name, link] of links) {
     console.log(
       `  ${pc.cyan(name)} ${pc.dim("@" + link.version)}  ← ${pc.dim(link.sourcePath)}`
     );
+    packages.push({ name, version: link.version, sourcePath: link.sourcePath });
   }
+  output({ packages });
 }
 
 async function listStore() {
@@ -48,17 +54,26 @@ async function listStore() {
 
   if (entries.length === 0) {
     consola.info("Plunk store is empty");
+    output({ entries: [] });
     return;
   }
 
   consola.info(`Store entries (${entries.length}):\n`);
+  const storeEntries = [];
   for (const entry of entries) {
     const age = getRelativeTime(new Date(entry.meta.publishedAt));
     console.log(
       `  ${pc.cyan(entry.name)} ${pc.dim("@" + entry.version)}  ${pc.dim(`published ${age}`)}`
     );
     console.log(`    ${pc.dim(`from: ${entry.meta.sourcePath}`)}`);
+    storeEntries.push({
+      name: entry.name,
+      version: entry.version,
+      publishedAt: entry.meta.publishedAt,
+      sourcePath: entry.meta.sourcePath,
+    });
   }
+  output({ entries: storeEntries });
 }
 
 function getRelativeTime(date: Date): string {

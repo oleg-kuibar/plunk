@@ -3,6 +3,7 @@ import { join, relative, resolve } from "node:path";
 import picomatch from "picomatch";
 import { consola } from "consola";
 import type { PackageJson } from "../types.js";
+import { isNodeError } from "./fs.js";
 
 /**
  * Resolve the list of publishable files for a package.
@@ -23,11 +24,12 @@ export async function resolvePackFiles(
   // package.json is always included
   files.push(join(absDir, "package.json"));
 
+  // Walk directory tree once, cache result
+  const allFiles = await collectAllFiles(absDir);
+  const allRelPaths = allFiles.map((f) => relative(absDir, f).replace(/\\/g, "/"));
+
   if (pkg.files && pkg.files.length > 0) {
     // Use the `files` field — each entry can be a literal path, directory, or glob
-    const allFiles = await collectAllFiles(absDir);
-    const allRelPaths = allFiles.map((f) => relative(absDir, f).replace(/\\/g, "/"));
-
     for (const pattern of pkg.files) {
       // First try as a literal file or directory
       const target = join(absDir, pattern);
@@ -35,14 +37,22 @@ export async function resolvePackFiles(
       try {
         const s = await stat(target);
         if (s.isDirectory()) {
-          const dirFiles = await collectAllFiles(target);
-          files.push(...dirFiles);
+          // Filter cached array by prefix instead of re-walking
+          const prefix = relative(absDir, target).replace(/\\/g, "/") + "/";
+          for (let i = 0; i < allRelPaths.length; i++) {
+            if (allRelPaths[i].startsWith(prefix)) {
+              files.push(allFiles[i]);
+            }
+          }
           matched = true;
         } else {
           files.push(target);
           matched = true;
         }
-      } catch {
+      } catch (err) {
+        if (isNodeError(err) && err.code !== "ENOENT") {
+          throw err;
+        }
         // Not a literal path — try as a glob pattern
       }
 
@@ -63,12 +73,10 @@ export async function resolvePackFiles(
     }
   } else {
     // No `files` field — include everything except common ignores
-    const allFiles = await collectAllFiles(absDir);
     const ignoreMatchers = await loadNpmIgnore(absDir);
-    for (const f of allFiles) {
-      const rel = relative(absDir, f).replace(/\\/g, "/");
-      if (!shouldIgnore(rel, ignoreMatchers)) {
-        files.push(f);
+    for (let i = 0; i < allRelPaths.length; i++) {
+      if (!shouldIgnore(allRelPaths[i], ignoreMatchers)) {
+        files.push(allFiles[i]);
       }
     }
   }
@@ -79,7 +87,10 @@ export async function resolvePackFiles(
     try {
       await stat(p);
       if (!files.includes(p)) files.push(p);
-    } catch {
+    } catch (err) {
+      if (isNodeError(err) && err.code !== "ENOENT") {
+        throw err;
+      }
       // doesn't exist
     }
   }
@@ -166,7 +177,10 @@ async function loadNpmIgnore(dir: string): Promise<IgnoreMatchers> {
         matchers.literals.add(trimmed.replace(/\/$/, ""));
       }
     }
-  } catch {
+  } catch (err) {
+    if (isNodeError(err) && err.code !== "ENOENT") {
+      throw err;
+    }
     // no .npmignore
   }
   return matchers;
@@ -178,15 +192,23 @@ function hasGlobChars(pattern: string): boolean {
 
 async function collectAllFiles(dir: string): Promise<string[]> {
   const results: string[] = [];
-  const entries = await readdir(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (entry.name === "node_modules" || entry.name === ".git") continue;
-      results.push(...(await collectAllFiles(full)));
-    } else {
-      results.push(full);
+  try {
+    const entries = await readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === "node_modules" || entry.name === ".git") continue;
+        results.push(...(await collectAllFiles(full)));
+      } else {
+        results.push(full);
+      }
     }
+  } catch (err) {
+    if (isNodeError(err) && err.code === "ENOENT") {
+      // directory was removed during scan
+      return [];
+    }
+    throw err;
   }
   return results;
 }

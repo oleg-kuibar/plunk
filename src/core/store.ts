@@ -1,14 +1,17 @@
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
+import { consola } from "consola";
 import type { PlunkMeta, StoreEntry } from "../types.js";
 import {
   getStorePath,
   getStoreEntryPath,
   getStorePackagePath,
   getStoreMetaPath,
+  encodePackageName,
   decodePackageName,
 } from "../utils/paths.js";
-import { ensureDir, exists, removeDir, atomicWriteFile } from "../utils/fs.js";
+import { ensureDir, exists, removeDir, atomicWriteFile, isNodeError } from "../utils/fs.js";
+import { isPlunkMeta } from "../utils/validators.js";
 
 /** Read the .plunk-meta.json for a store entry */
 export async function readMeta(
@@ -18,8 +21,16 @@ export async function readMeta(
   const metaPath = getStoreMetaPath(name, version);
   try {
     const content = await readFile(metaPath, "utf-8");
-    return JSON.parse(content) as PlunkMeta;
-  } catch {
+    const parsed = JSON.parse(content);
+    if (!isPlunkMeta(parsed)) {
+      consola.warn(`Invalid metadata for ${name}@${version}, ignoring`);
+      return null;
+    }
+    return parsed;
+  } catch (err) {
+    if (isNodeError(err) && err.code !== "ENOENT") {
+      consola.warn(`Failed to read metadata for ${name}@${version}: ${err}`);
+    }
     return null;
   }
 }
@@ -51,8 +62,30 @@ export async function getStoreEntry(
 export async function findStoreEntry(
   name: string
 ): Promise<StoreEntry | null> {
-  const entries = await listStoreEntries();
-  const matching = entries.filter((e) => e.name === name);
+  const storePath = getStorePath();
+  if (!(await exists(storePath))) return null;
+
+  // Pre-filter directories by encoded name prefix
+  const encodedPrefix = encodePackageName(name) + "@";
+  const dirs = await readdir(storePath, { withFileTypes: true });
+  const matching: StoreEntry[] = [];
+
+  for (const dir of dirs) {
+    if (!dir.isDirectory()) continue;
+    if (!dir.name.startsWith(encodedPrefix)) continue;
+
+    const version = dir.name.slice(encodedPrefix.length);
+    const meta = await readMeta(name, version);
+    if (!meta) continue;
+
+    matching.push({
+      name,
+      version,
+      packageDir: getStorePackagePath(name, version),
+      meta,
+    });
+  }
+
   if (matching.length === 0) return null;
   // Sort by publishedAt descending
   matching.sort(

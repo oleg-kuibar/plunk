@@ -1,9 +1,15 @@
 import { defineCommand } from "citty";
 import { resolve } from "node:path";
 import { consola } from "consola";
+import pLimit from "p-limit";
 import { readConsumerState } from "../core/tracker.js";
 import { getStoreEntry } from "../core/store.js";
 import { inject } from "../core/injector.js";
+import { Timer } from "../utils/timer.js";
+import { suppressHumanOutput, output } from "../utils/output.js";
+import { verbose } from "../utils/logger.js";
+
+const restoreLimit = pLimit(4);
 
 export default defineCommand({
   meta: {
@@ -19,6 +25,8 @@ export default defineCommand({
     },
   },
   async run({ args }) {
+    suppressHumanOutput();
+    const timer = new Timer();
     const consumerPath = resolve(".");
     const state = await readConsumerState(consumerPath);
 
@@ -27,36 +35,50 @@ export default defineCommand({
       if (!args.silent) {
         consola.info("No linked packages in this project");
       }
+      output({ restored: 0, failed: 0 });
       return;
     }
 
     let restored = 0;
     let failed = 0;
 
-    for (const [packageName, link] of links) {
-      const entry = await getStoreEntry(packageName, link.version);
-      if (!entry) {
-        consola.warn(
-          `Store entry missing for ${packageName}@${link.version}. Re-publish it.`
-        );
-        failed++;
-        continue;
-      }
+    const results = await Promise.all(
+      links.map(([packageName, link]) =>
+        restoreLimit(async () => {
+          const entry = await getStoreEntry(packageName, link.version);
+          if (!entry) {
+            consola.warn(
+              `Store entry missing for ${packageName}@${link.version}. Re-publish it.`
+            );
+            return { packageName, success: false };
+          }
 
-      try {
-        const result = await inject(entry, consumerPath, link.packageManager);
+          try {
+            const result = await inject(entry, consumerPath, link.packageManager);
+            verbose(`[restore] ${packageName}@${link.version}: ${result.copied} files`);
+            return { packageName, success: true, copied: result.copied };
+          } catch (err) {
+            consola.error(`Failed to restore ${packageName}: ${err}`);
+            return { packageName, success: false };
+          }
+        })
+      )
+    );
+
+    for (const r of results) {
+      if (r.success) {
         consola.success(
-          `Restored ${packageName}@${link.version} (${result.copied} files)`
+          `Restored ${r.packageName} (${(r as { copied: number }).copied} files)`
         );
         restored++;
-      } catch (err) {
-        consola.error(`Failed to restore ${packageName}: ${err}`);
+      } else {
         failed++;
       }
     }
 
     consola.info(
-      `Restore complete: ${restored} restored, ${failed} failed`
+      `Restore complete: ${restored} restored, ${failed} failed in ${timer.elapsed()}`
     );
+    output({ restored, failed, elapsed: timer.elapsedMs() });
   },
 });

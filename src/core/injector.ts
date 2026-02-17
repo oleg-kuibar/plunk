@@ -9,8 +9,10 @@ import {
   ensureDir,
   exists,
   copyDir,
+  isNodeError,
 } from "../utils/fs.js";
 import { createBinLinks, removeBinLinks } from "../utils/bin-linker.js";
+import { verbose } from "../utils/logger.js";
 
 export interface InjectResult {
   copied: number;
@@ -36,15 +38,23 @@ export async function inject(
     pm
   );
 
+  verbose(`[inject] ${storeEntry.name}@${storeEntry.version} → ${targetDir}`);
+
   await ensureDir(targetDir);
   const { copied, removed, skipped } = await incrementalCopy(
     storeEntry.packageDir,
     targetDir
   );
 
+  verbose(`[inject] ${copied} copied, ${removed} removed, ${skipped} skipped`);
+
   // Read the published package.json for bin links
   const pkg = await readPackageJson(storeEntry.packageDir);
   const binLinks = pkg ? await createBinLinks(consumerPath, storeEntry.name, pkg) : 0;
+
+  if (binLinks > 0) {
+    verbose(`[inject] Created ${binLinks} bin link(s)`);
+  }
 
   return { copied, removed, skipped, binLinks };
 }
@@ -141,15 +151,20 @@ async function resolveTargetDir(
   try {
     const realPath = await resolveRealPath(directPath);
     if (realPath !== resolve(directPath)) {
+      verbose(`[inject] pnpm: resolved symlink → ${realPath}`);
       return realPath;
     }
-  } catch {
+  } catch (err) {
+    if (isNodeError(err) && err.code !== "ENOENT") {
+      consola.debug(`pnpm symlink resolution error: ${err}`);
+    }
     // Symlink doesn't exist yet, fall through
   }
 
   // If no existing pnpm structure, try to find in .pnpm/
   const pnpmDir = join(consumerPath, "node_modules", ".pnpm");
   if (await exists(pnpmDir)) {
+    verbose(`[inject] pnpm: scanning .pnpm/ for ${packageName}`);
     // Look for the package in .pnpm/ directory
     const entries = await readdir(pnpmDir);
     const encodedName = packageName.replace("/", "+");
@@ -162,6 +177,7 @@ async function resolveTargetDir(
           packageName
         );
         if (await exists(candidate)) {
+          verbose(`[inject] pnpm: found in .pnpm/ → ${candidate}`);
           return candidate;
         }
       }
@@ -169,6 +185,7 @@ async function resolveTargetDir(
   }
 
   // Fall back to direct path
+  consola.warn(`pnpm: falling back to direct node_modules path for ${packageName}`);
   return directPath;
 }
 
@@ -177,8 +194,11 @@ async function resolveRealPath(linkPath: string): Promise<string> {
   try {
     await stat(linkPath);
     return await realpath(linkPath);
-  } catch {
-    return resolve(linkPath);
+  } catch (err) {
+    if (isNodeError(err) && err.code === "ENOENT") {
+      return resolve(linkPath);
+    }
+    throw err;
   }
 }
 
@@ -186,7 +206,10 @@ async function readPackageJson(dir: string): Promise<PackageJson | null> {
   try {
     const content = await readFile(join(dir, "package.json"), "utf-8");
     return JSON.parse(content) as PackageJson;
-  } catch {
+  } catch (err) {
+    if (isNodeError(err) && err.code !== "ENOENT") {
+      consola.warn(`Failed to read package.json in ${dir}: ${err}`);
+    }
     return null;
   }
 }

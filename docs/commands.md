@@ -31,9 +31,16 @@ Publish a package to the local plunk store (`~/.plunk/store/`).
 ```bash
 plunk publish              # publish current directory
 plunk publish ../my-lib    # publish from a path
+plunk publish --private    # allow private packages
 ```
 
 Reads the `files` field from `package.json` to determine what to include (same logic as `npm pack`). Computes a content hash — if nothing changed since the last publish, it skips instantly.
+
+Flags:
+
+| Flag | Description |
+|---|---|
+| `--private` | Allow publishing packages with `"private": true` in package.json |
 
 Included files:
 
@@ -168,6 +175,108 @@ plunk status
 ```
 
 For each linked package, checks that the store entry exists, the content hash still matches, and the files are present in `node_modules/`. Tells you what to do if something is off.
+
+---
+
+## `plunk update [package]`
+
+Pull the latest versions from the store for linked packages.
+
+```bash
+plunk update              # update all linked packages
+plunk update my-lib       # update a specific package
+```
+
+For each linked package, checks if the store has a newer content hash. If so, re-injects the updated files into `node_modules/`. Packages already up to date are skipped.
+
+Useful when another tool or teammate has published to the store, and you want to pull the changes without re-running `plunk add`.
+
+---
+
+## `plunk clean`
+
+Remove unreferenced store entries and stale consumer registrations. Also available as `plunk gc`.
+
+```bash
+plunk clean
+plunk gc          # alias for plunk clean
+```
+
+Performs two cleanup passes:
+
+1. **Stale consumers** — removes entries in `~/.plunk/consumers.json` that point to directories that no longer exist on disk.
+2. **Unreferenced store entries** — removes packages from `~/.plunk/store/` that are not linked by any active consumer.
+
+Safe to run at any time. Does not affect packages that are actively linked.
+
+---
+
+## `plunk doctor`
+
+Run diagnostic checks on your plunk setup.
+
+```bash
+plunk doctor
+```
+
+Checks performed:
+
+| Check | What it verifies |
+|---|---|
+| Store directory | Exists and reports entry count |
+| Global registry | `consumers.json` exists and reports registration count |
+| Consumer state | `.plunk/state.json` has linked packages |
+| Store entries | Each linked package has a matching store entry |
+| Content hash | Store and consumer hashes are in sync |
+| node_modules | Linked packages are present in `node_modules/` |
+| Package manager | Detected from lockfile |
+| Bundler | Detected from config files |
+| .gitignore | `.plunk/` is listed |
+
+Each check reports PASS, WARN, or FAIL with an actionable message. Use `--json` for machine-readable output.
+
+---
+
+## `plunk migrate`
+
+Migrate from yalc to plunk.
+
+```bash
+plunk migrate
+```
+
+Detects yalc usage in the current project and cleans it up:
+
+1. Reads `yalc.lock` to identify previously linked packages
+2. Removes `file:.yalc/` references from `package.json`
+3. Deletes the `.yalc/` directory
+4. Deletes `yalc.lock`
+5. Prints next steps (`plunk init`, `plunk add`)
+
+If no yalc usage is detected, it exits without changes. See [Migrating from yalc](migrating-from-yalc.md) for a full guide.
+
+---
+
+## Global flags
+
+These flags can be passed to any plunk command:
+
+| Flag | Alias | Description |
+|---|---|---|
+| `--verbose` | `-v` | Enable verbose debug logging. Logs file hashes, symlink resolution, store operations, and timing. |
+| `--dry-run` | | Preview changes without writing files. |
+| `--json` | | Output machine-readable JSON to stdout. Suppresses human-readable log output. |
+
+Examples:
+
+```bash
+plunk push --verbose              # detailed debug output
+plunk publish --dry-run           # preview without writing
+plunk status --json               # structured output for scripts
+plunk push --json --verbose 2>debug.log   # JSON to stdout, debug logs to stderr
+```
+
+When `--json` is active, structured output goes to stdout and all human-readable messages from consola are suppressed. Verbose logs (when combined with `--json`) still go to stderr, so you can capture them separately.
 
 ---
 

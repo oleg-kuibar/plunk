@@ -1,8 +1,9 @@
-import { mkdir, symlink, writeFile, chmod, readlink, rm } from "node:fs/promises";
-import { join, relative, dirname } from "node:path";
+import { mkdir, symlink, writeFile, chmod, rm } from "node:fs/promises";
+import { join, relative } from "node:path";
 import { platform } from "node:os";
 import type { PackageJson } from "../types.js";
-import { exists } from "./fs.js";
+import { exists, isNodeError } from "./fs.js";
+import { verbose } from "./logger.js";
 
 /**
  * Resolve the bin entries from a package.json.
@@ -26,7 +27,7 @@ export function resolveBinEntries(
 
 /**
  * Create bin links in node_modules/.bin/ for a package.
- * On Unix: symlinks
+ * On Unix: symlinks (with shell wrapper fallback for permission errors)
  * On Windows: .cmd wrapper scripts
  */
 export async function createBinLinks(
@@ -73,8 +74,21 @@ export async function createBinLinks(
       } catch {
         // ignore
       }
-      await symlink(targetRelative, linkPath);
-      await chmod(targetAbsolute, 0o755);
+
+      try {
+        await symlink(targetRelative, linkPath);
+        await chmod(targetAbsolute, 0o755);
+      } catch (err) {
+        if (isNodeError(err) && (err.code === "EPERM" || err.code === "EACCES")) {
+          // Symlink not permitted — fall back to shell wrapper script
+          verbose(`[bin-linker] Symlink failed (${err.code}), using shell wrapper for ${binName}`);
+          const shContent = `#!/bin/sh\nexec node "${targetRelative}" "$@"\n`;
+          await writeFile(linkPath, shContent);
+          await chmod(linkPath, 0o755);
+        } else {
+          throw err;
+        }
+      }
     }
 
     count++;

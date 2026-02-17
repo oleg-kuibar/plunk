@@ -1,7 +1,20 @@
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import { platform } from "node:os";
 import { consola } from "consola";
 import type { WatchOptions } from "../types.js";
+
+/** Module-level reference to active child process for signal cleanup */
+let activeChild: ChildProcess | null = null;
+let activeWatcher: { close: () => Promise<void> } | null = null;
+let activeDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Kill the active build process if one is running */
+export function killActiveBuild(): void {
+  if (activeChild && !activeChild.killed) {
+    activeChild.kill("SIGTERM");
+    activeChild = null;
+  }
+}
 
 /**
  * Start watching a directory for changes and trigger a callback.
@@ -26,6 +39,7 @@ export async function startWatcher(
   const debouncedOnChange = () => {
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(async () => {
+      activeDebounceTimer = null;
       if (running) return;
       running = true;
       try {
@@ -43,6 +57,7 @@ export async function startWatcher(
         running = false;
       }
     }, debounceMs);
+    activeDebounceTimer = debounceTimer;
   };
 
   const watcher = watch(watchPaths, {
@@ -58,14 +73,31 @@ export async function startWatcher(
   watcher.on("add", debouncedOnChange);
   watcher.on("unlink", debouncedOnChange);
 
-  consola.info(`Watching for changes in: ${patterns.join(", ")}`);
-
-  return {
+  const watcherHandle = {
     close: async () => {
       if (debounceTimer) clearTimeout(debounceTimer);
+      activeDebounceTimer = null;
+      killActiveBuild();
       await watcher.close();
+      activeWatcher = null;
     },
   };
+
+  activeWatcher = watcherHandle;
+
+  // Register signal handlers for graceful shutdown
+  const cleanup = async () => {
+    consola.info("Stopping watcher...");
+    await watcherHandle.close();
+    process.exit(0);
+  };
+
+  process.on("SIGINT", cleanup);
+  process.on("SIGTERM", cleanup);
+
+  consola.info(`Watching for changes in: ${patterns.join(", ")}`);
+
+  return watcherHandle;
 }
 
 /**
@@ -83,7 +115,10 @@ function runBuildCommand(cmd: string, cwd: string): Promise<boolean> {
       stdio: "inherit",
     });
 
+    activeChild = child;
+
     child.on("close", (code) => {
+      activeChild = null;
       if (code === 0) {
         consola.success("Build succeeded");
         resolve(true);
@@ -94,6 +129,7 @@ function runBuildCommand(cmd: string, cwd: string): Promise<boolean> {
     });
 
     child.on("error", (err) => {
+      activeChild = null;
       consola.error(`Build error: ${err.message}`);
       resolve(false);
     });

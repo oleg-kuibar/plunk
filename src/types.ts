@@ -60,4 +60,6 @@ export interface PackageJson {
   main?: string;
   module?: string;
   exports?: unknown;
+  private?: boolean;
+  scripts?: Record<string, string>;
 }

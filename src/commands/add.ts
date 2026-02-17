@@ -8,6 +8,11 @@ import { addLink, registerConsumer } from "../core/tracker.js";
 import { detectPackageManager } from "../utils/pm-detect.js";
 import { detectBundler } from "../utils/bundler-detect.js";
 import { addToOptimizeDepsExclude } from "../utils/vite-config.js";
+import { addToTranspilePackages } from "../utils/nextjs-config.js";
+import { Timer } from "../utils/timer.js";
+import { suppressHumanOutput, output } from "../utils/output.js";
+import { errorWithSuggestion } from "../utils/errors.js";
+import { verbose } from "../utils/logger.js";
 import type { LinkEntry } from "../types.js";
 
 export default defineCommand({
@@ -27,6 +32,8 @@ export default defineCommand({
     },
   },
   async run({ args }) {
+    suppressHumanOutput();
+    const timer = new Timer();
     const consumerPath = resolve(".");
     const packageName = args.package;
 
@@ -40,7 +47,7 @@ export default defineCommand({
     // Find package in store
     const entry = await findStoreEntry(packageName);
     if (!entry) {
-      consola.error(
+      errorWithSuggestion(
         `Package "${packageName}" not found in store. Run 'plunk publish' in the package directory first, or use --from <path>.`
       );
       process.exit(1);
@@ -48,6 +55,7 @@ export default defineCommand({
 
     // Detect package manager
     const pm = await detectPackageManager(consumerPath);
+    verbose(`[add] Detected package manager: ${pm}`);
     consola.info(`Detected package manager: ${pm}`);
 
     // Backup existing installed version
@@ -87,22 +95,46 @@ export default defineCommand({
       );
     }
 
-    // Auto-update Vite config
+    // Auto-update bundler config
     const bundler = await detectBundler(consumerPath);
     if (bundler.type === "vite" && bundler.configFile) {
-      const result = await addToOptimizeDepsExclude(
+      const configResult = await addToOptimizeDepsExclude(
         bundler.configFile,
         packageName
       );
-      if (result.modified) {
+      if (configResult.modified) {
         consola.success(
           `Added ${packageName} to optimizeDeps.exclude in ${basename(bundler.configFile)}`
         );
-      } else if (result.error) {
+      } else if (configResult.error) {
         consola.info(
           `Add to vite.config manually: optimizeDeps: { exclude: ['${packageName}'] }`
         );
       }
+    } else if (bundler.type === "next" && bundler.configFile) {
+      const configResult = await addToTranspilePackages(
+        bundler.configFile,
+        packageName
+      );
+      if (configResult.modified) {
+        consola.success(
+          `Added ${packageName} to transpilePackages in ${basename(bundler.configFile)}`
+        );
+      } else if (configResult.error) {
+        consola.info(
+          `Add to next.config manually: transpilePackages: ['${packageName}']`
+        );
+      }
     }
+
+    consola.info(`Done in ${timer.elapsed()}`);
+    output({
+      package: packageName,
+      version: entry.version,
+      copied: result.copied,
+      skipped: result.skipped,
+      binLinks: result.binLinks,
+      elapsed: timer.elapsedMs(),
+    });
   },
 });

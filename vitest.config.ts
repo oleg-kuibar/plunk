@@ -4,5 +4,10 @@ export default defineConfig({
   test: {
     globals: true,
     testTimeout: 15000,
+    coverage: {
+      thresholds: {
+        lines: 70,
+      },
+    },
   },
 });

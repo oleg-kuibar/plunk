@@ -7,6 +7,8 @@ import { exists, ensureDir } from "../utils/fs.js";
 import { detectPackageManager } from "../utils/pm-detect.js";
 import { detectBundler } from "../utils/bundler-detect.js";
 import { ensureOptimizeDepsSection } from "../utils/vite-config.js";
+import { Timer } from "../utils/timer.js";
+import { suppressHumanOutput, output } from "../utils/output.js";
 import {
   readConsumerState,
   writeConsumerState,
@@ -26,6 +28,8 @@ export default defineCommand({
     },
   },
   async run({ args }) {
+    suppressHumanOutput();
+    const timer = new Timer();
     const projectDir = resolve(".");
     const skipPrompts = args.yes;
     consola.info(`Initializing plunk in ${pc.cyan(projectDir)}\n`);
@@ -126,9 +130,15 @@ export default defineCommand({
           );
         }
       }
+    } else if (bundler.type === "next" && bundler.configFile) {
+      consola.success(
+        `Detected bundler: ${pc.cyan("Next.js")} (${basename(bundler.configFile)})`
+      );
+      consola.info(
+        `Next.js transpilePackages will be auto-configured when you run ${pc.cyan("plunk add")}`
+      );
     } else if (bundler.type) {
       const names: Record<string, string> = {
-        next: "Next.js",
         webpack: "Webpack",
         turbo: "Turbopack",
         rollup: "Rollup",
@@ -145,11 +155,14 @@ export default defineCommand({
       `  1. ${pc.cyan("cd ../my-lib && plunk publish")}`
     );
     console.log(
-      `  2. ${pc.cyan("plunk add my-lib")}${bundler.type === "vite" ? "                     ← auto-updates vite config" : ""}`
+      `  2. ${pc.cyan("plunk add my-lib")}${bundler.type === "vite" ? "                     ← auto-updates vite config" : bundler.type === "next" ? "                     ← auto-updates next config" : ""}`
     );
     console.log(
       `  3. ${pc.cyan(`cd ../my-lib && plunk push --watch --build "${pm === "npm" ? "npm run build" : `${pm} build`}"`)}`
     );
+
+    consola.info(`Done in ${timer.elapsed()}`);
+    output({ packageManager: pm, bundler: bundler.type, elapsed: timer.elapsedMs() });
   },
 });
 
