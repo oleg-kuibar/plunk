@@ -10,6 +10,9 @@ export default defineConfig([
     target: "node20",
     banner: { js: "#!/usr/bin/env node" },
     noExternal: [/.*/],
+    esbuildOptions(options) {
+      options.inject = ["src/cjs-shim.ts"];
+    },
   },
   {
     entry: { index: "src/index.ts" },
@@ -19,5 +22,8 @@ export default defineConfig([
     splitting: false,
     target: "node20",
     noExternal: [/.*/],
+    esbuildOptions(options) {
+      options.inject = ["src/cjs-shim.ts"];
+    },
   },
 ]);
