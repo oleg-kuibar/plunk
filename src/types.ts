@@ -26,6 +26,7 @@ export interface LinkEntry {
 /** Consumer project state file (.plunk/state.json) */
 export interface ConsumerState {
   version: "1";
+  packageManager?: PackageManager;
   links: Record<string, LinkEntry>;
 }
 
