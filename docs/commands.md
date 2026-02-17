@@ -102,6 +102,11 @@ With `--watch`, it runs continuously: file change → debounce → build → pub
 
 ```mermaid
 stateDiagram-v2
+    classDef steady fill:#bbdefb,stroke:#1565c0,color:#0d47a1
+    classDef waiting fill:#ffecb3,stroke:#f57f17,color:#e65100
+    classDef process fill:#e1bee7,stroke:#6a1b9a,color:#4a148c
+    classDef success fill:#b2ebf2,stroke:#00838f,color:#004d40
+
     [*] --> Watching
     Watching --> Debouncing: File changed
     Debouncing --> Building: Debounce elapsed
@@ -111,6 +116,12 @@ stateDiagram-v2
     Publishing --> Injecting: Hash changed
     Publishing --> Watching: No changes (skip)
     Injecting --> Watching: Copied to all consumers
+
+    Watching:::steady
+    Debouncing:::waiting
+    Building:::process
+    Publishing:::process
+    Injecting:::success
 ```
 
 ---
@@ -124,7 +135,7 @@ plunk remove my-lib
 plunk remove @scope/my-lib
 ```
 
-Removes injected files from `node_modules/`, cleans up `.bin/` entries, restores the backup (original npm-installed version) if one exists, removes the package from `optimizeDeps.exclude` in vite.config if applicable, and removes tracking state.
+Removes injected files from `node_modules/` and cleans up `.bin/` entries. Restores the backup (original npm-installed version) if one exists. Also removes the package from `optimizeDeps.exclude` in vite.config and cleans up tracking state.
 
 ---
 

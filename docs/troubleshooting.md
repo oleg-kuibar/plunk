@@ -51,11 +51,11 @@ See [Bundler Guide](bundlers.md) for full details.
 
 **Steps:**
 
-1. Run `plunk status` to check the health of linked packages. It will tell you if the store entry is stale, if the content hash is mismatched, or if files are missing from `node_modules/`.
+1. Run `plunk status` to check the health of linked packages. It reports stale entries, hash mismatches, and missing files.
 
 2. Run `plunk update` to pull the latest versions from the store into `node_modules/`.
 
-3. If the problem persists, run `plunk doctor` for a full diagnostic. It checks the store, global registry, consumer state, `node_modules/` presence, package manager, bundler, and `.gitignore` configuration.
+3. If the problem persists, run `plunk doctor` for a full diagnostic.
 
 4. As a last resort, remove and re-add the package:
 
@@ -147,7 +147,7 @@ plunk publish
 
 ## General debugging with --verbose
 
-When something is not working as expected, pass `--verbose` (or `-v`) to any plunk command for detailed debug output:
+Pass `--verbose` (or `-v`) to any plunk command for detailed debug output:
 
 ```bash
 plunk push --verbose
@@ -164,7 +164,7 @@ Verbose mode logs:
 - Consumer registry lookups
 - Timing information for each phase
 
-Combine with `--json` for machine-readable structured output that includes all of the above:
+Combine with `--json` for machine-readable output:
 
 ```bash
 plunk status --json

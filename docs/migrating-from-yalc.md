@@ -1,6 +1,6 @@
 # Migrating from yalc
 
-This guide covers switching from yalc to plunk. The migration is straightforward because both tools solve the same problem (local package development), but plunk avoids the things that make yalc fragile.
+Both tools solve the same problem (local package development), so the migration is mostly mechanical. This page walks through it.
 
 ## Key differences
 
@@ -139,10 +139,8 @@ plunk uses a `postinstall` script (`plunk restore || true`) to automatically re-
 
 ### Verify with doctor
 
-After migrating, run the diagnostic command to confirm everything is set up correctly:
+After migrating, run `plunk doctor` to confirm the setup:
 
 ```bash
 plunk doctor
 ```
-
-This checks the store, consumer state, `node_modules/` presence, package manager detection, bundler detection, and `.gitignore` configuration.

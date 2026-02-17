@@ -6,9 +6,15 @@ Since plunk copies real files into `node_modules/`, bundler compatibility is mos
 
 ```mermaid
 sequenceDiagram
-    participant W as plunk watch
-    participant FS as Filesystem
-    participant B as Bundler
+    box rgb(187,222,251) plunk
+        participant W as plunk watch
+    end
+    box rgb(225,190,231) System
+        participant FS as Filesystem
+    end
+    box rgb(178,235,242) Dev tooling
+        participant B as Bundler
+    end
 
     W->>FS: fs.copyFile() → node_modules/my-lib/dist/index.js
     FS->>B: inotify/FSEvents/ReadDirectoryChangesW
@@ -101,12 +107,14 @@ graph LR
     E1 --> T[Turbopack]
     E1 --> R[Rollup]
 
-    style P fill:#e3f2fd,stroke:#1e88e5
-    style V fill:#fff3e0,stroke:#fb8c00
-    style W fill:#e8f5e9,stroke:#43a047
-    style ES fill:#e8f5e9,stroke:#43a047
-    style T fill:#e8f5e9,stroke:#43a047
-    style R fill:#e8f5e9,stroke:#43a047
+    style P fill:#bbdefb,stroke:#1565c0,color:#0d47a1
+    style FS fill:#e1bee7,stroke:#6a1b9a,color:#4a148c
+    style E1 fill:#b2ebf2,stroke:#00838f,color:#004d40
+    style V fill:#ffecb3,stroke:#f57f17,color:#e65100
+    style W fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
+    style ES fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
+    style T fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
+    style R fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
 ```
 
 *Vite requires `optimizeDeps.exclude` config. Everything else works without changes.*

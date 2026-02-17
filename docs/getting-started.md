@@ -13,9 +13,15 @@ npx plunk init
 
 ```mermaid
 sequenceDiagram
-    participant Lib as Library
-    participant Store as ~/.plunk/store
-    participant App as App (node_modules)
+    box rgb(200,230,201) Source
+        participant Lib as Library
+    end
+    box rgb(187,222,251) Store
+        participant Store as ~/.plunk/store
+    end
+    box rgb(255,236,179) Consumer
+        participant App as App (node_modules)
+    end
 
     Note over Lib: pnpm build
     Lib->>Store: plunk publish
@@ -98,10 +104,13 @@ graph LR
     D --> F[Copy to all consumers]
     F --> G[Bundler HMR triggers]
 
-    style A fill:#e8f5e9,stroke:#43a047
-    style C fill:#e3f2fd,stroke:#1e88e5
-    style F fill:#fff3e0,stroke:#fb8c00
-    style G fill:#fce4ec,stroke:#e53935
+    style A fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
+    style B fill:#ffecb3,stroke:#f57f17,color:#e65100
+    style C fill:#bbdefb,stroke:#1565c0,color:#0d47a1
+    style D fill:#e1bee7,stroke:#6a1b9a,color:#4a148c
+    style E fill:#ffcdd2,stroke:#c62828,color:#b71c1c
+    style F fill:#ffecb3,stroke:#f57f17,color:#e65100
+    style G fill:#b2ebf2,stroke:#00838f,color:#004d40
 ```
 
 If a build fails, plunk logs the error and keeps watching. Fix the code, save again.

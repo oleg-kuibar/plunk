@@ -24,9 +24,14 @@ graph TB
     B -- "plunk publish<br/>(copy built files)" --> C
     C -- "plunk add<br/>(incremental copy)" --> D
 
-    style A fill:#e8f5e9,stroke:#43a047
-    style C fill:#e3f2fd,stroke:#1e88e5
-    style D fill:#fff3e0,stroke:#fb8c00
+    style A fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
+    style B fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
+    style C fill:#bbdefb,stroke:#1565c0,color:#0d47a1
+    style C1 fill:#bbdefb,stroke:#1565c0,color:#0d47a1
+    style C2 fill:#bbdefb,stroke:#1565c0,color:#0d47a1
+    style D fill:#ffecb3,stroke:#f57f17,color:#e65100
+    style D1 fill:#ffecb3,stroke:#f57f17,color:#e65100
+    style D2 fill:#ffecb3,stroke:#f57f17,color:#e65100
 ```
 
 ## Store
@@ -80,8 +85,14 @@ flowchart TD
     J --> K[Rewrite workspace: protocol versions]
     K --> L[Write .plunk-meta.json]
 
-    style I fill:#e8f5e9,stroke:#43a047
-    style J fill:#e3f2fd,stroke:#1e88e5
+    style A fill:#bbdefb,stroke:#1565c0,color:#0d47a1
+    style B fill:#e1bee7,stroke:#6a1b9a,color:#4a148c
+    style G fill:#e1bee7,stroke:#6a1b9a,color:#4a148c
+    style H fill:#e1bee7,stroke:#6a1b9a,color:#4a148c
+    style I fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
+    style J fill:#bbdefb,stroke:#1565c0,color:#0d47a1
+    style K fill:#b2ebf2,stroke:#00838f,color:#004d40
+    style L fill:#ffecb3,stroke:#f57f17,color:#e65100
 ```
 
 File resolution follows `npm pack` rules:
@@ -105,8 +116,9 @@ graph LR
     Store["store/my-lib@1.0/package/"] -- "incremental copy" --> NM["node_modules/my-lib/"]
     NM --- Bin[".bin/my-cli"]
 
-    style Store fill:#e3f2fd,stroke:#1e88e5
-    style NM fill:#fff3e0,stroke:#fb8c00
+    style Store fill:#bbdefb,stroke:#1565c0,color:#0d47a1
+    style NM fill:#ffecb3,stroke:#f57f17,color:#e65100
+    style Bin fill:#b2ebf2,stroke:#00838f,color:#004d40
 ```
 
 Clear the target directory, copy files from the store. The writes generate filesystem events that bundler watchers pick up.
@@ -120,9 +132,9 @@ graph LR
     NM["node_modules/my-lib"] -- "symlink" --> PNPM[".pnpm/my-lib@1.0/<br/>node_modules/my-lib"]
     Store["store/my-lib@1.0/package/"] -- "incremental copy" --> PNPM
 
-    style Store fill:#e3f2fd,stroke:#1e88e5
-    style PNPM fill:#fff3e0,stroke:#fb8c00
-    style NM fill:#f3e5f5,stroke:#8e24aa
+    style Store fill:#bbdefb,stroke:#1565c0,color:#0d47a1
+    style PNPM fill:#ffecb3,stroke:#f57f17,color:#e65100
+    style NM fill:#e1bee7,stroke:#6a1b9a,color:#4a148c
 ```
 
 plunk resolves `node_modules/<pkg>` → follows the symlink into `.pnpm/` → replaces files at the real directory. The top-level symlink is preserved.
@@ -154,8 +166,15 @@ flowchart TD
     G --> J{File removed from source?}
     J -- Yes --> K[Delete from dest]
 
-    style C fill:#e8f5e9,stroke:#43a047
-    style I fill:#e8f5e9,stroke:#43a047
+    style A fill:#bbdefb,stroke:#1565c0,color:#0d47a1
+    style B fill:#e1bee7,stroke:#6a1b9a,color:#4a148c
+    style C fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
+    style D fill:#ffecb3,stroke:#f57f17,color:#e65100
+    style E fill:#bbdefb,stroke:#1565c0,color:#0d47a1
+    style H fill:#e1bee7,stroke:#6a1b9a,color:#4a148c
+    style I fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
+    style J fill:#e1bee7,stroke:#6a1b9a,color:#4a148c
+    style K fill:#ffcdd2,stroke:#c62828,color:#b71c1c
 ```
 
 1. Each `copyFile` call uses `COPYFILE_FICLONE`, which is instant on APFS (macOS), btrfs (Linux), and ReFS (Windows). On other filesystems it falls back to a regular copy.

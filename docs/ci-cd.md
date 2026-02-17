@@ -1,6 +1,6 @@
 # Using plunk in CI/CD
 
-plunk can be used in CI pipelines to test against local (unpublished) versions of packages. This is useful for monorepos, pre-release testing, or verifying that a library change does not break downstream consumers before publishing to npm.
+plunk can run in CI pipelines to test against local (unpublished) versions of packages — useful when you want to verify a library change doesn't break consumers before publishing to npm.
 
 ## Key flags for CI
 
@@ -41,7 +41,7 @@ plunk publish --dry-run
 plunk push --dry-run
 ```
 
-Useful for validation steps in CI where you want to confirm the operation would succeed without actually modifying the filesystem.
+Good for validation steps where you want to confirm the operation succeeds without writing files.
 
 ### --verbose
 
@@ -82,11 +82,11 @@ PLUNK_HOME=/tmp/plunk-ci plunk publish
 PLUNK_HOME=/tmp/plunk-ci plunk add my-lib
 ```
 
-The store, global consumers registry, and all metadata will be created under the specified directory.
+Everything (store, registry, metadata) goes under that directory.
 
 ## GitHub Actions example
 
-Below is a workflow that builds a library, publishes it to plunk, injects it into a consumer app, and runs the consumer's test suite.
+A full workflow: build a library, inject it into a consumer, run the consumer's tests.
 
 ```yaml
 name: Test with local packages
@@ -188,7 +188,7 @@ Add a dry-run step to catch packaging issues without modifying anything:
         run: npx plunk publish packages/my-lib --dry-run --json
 ```
 
-This confirms that the `files` field, `.npmignore`, and package metadata are correct before actually publishing to the store.
+Catches `files` field or `.npmignore` mistakes before writing to the store.
 
 ## Tips
 

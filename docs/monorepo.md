@@ -1,6 +1,6 @@
 # Monorepo and multi-consumer setup
 
-plunk works well with monorepos and multi-project setups where a single library is consumed by several applications. This guide covers common patterns.
+plunk works with monorepos and multi-project setups where a library is consumed by several apps.
 
 ## How plunk handles multiple consumers
 

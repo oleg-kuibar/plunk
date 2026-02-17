@@ -23,7 +23,7 @@ When plunk copies files, it uses `fs.copyFile` with the `COPYFILE_FICLONE` flag.
 
 On filesystems that do not support CoW (ext4, NTFS), it falls back to a regular file copy. This is transparent -- you do not need to configure anything.
 
-Additionally, plunk uses incremental copying: it hashes both source and destination files (SHA-256) and only copies files whose content actually changed. Files removed from the source are deleted from the destination.
+plunk also uses incremental copying: it hashes both source and destination files (SHA-256) and only copies files whose content changed. Files removed from the source are deleted from the destination.
 
 ## How is plunk different from yalc?
 
@@ -128,7 +128,7 @@ Yes. By default, plunk skips packages that have `"private": true` in `package.js
 plunk publish --private
 ```
 
-This is common for internal packages in monorepos that are not meant for the npm registry but still need local development testing.
+Typical for internal monorepo packages that aren't published to npm.
 
 ## What happens when I run npm install / pnpm install?
 

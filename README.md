@@ -22,10 +22,10 @@ graph LR
     B -- "plunk add" --> C["app/node_modules/<br/>my-lib/"]
     B -- "plunk push" --> D["app-2/node_modules/<br/>my-lib/"]
 
-    style A fill:#e8f5e9,stroke:#43a047
-    style B fill:#e3f2fd,stroke:#1e88e5
-    style C fill:#fff3e0,stroke:#fb8c00
-    style D fill:#fff3e0,stroke:#fb8c00
+    style A fill:#c8e6c9,stroke:#2e7d32,color:#1b5e20
+    style B fill:#bbdefb,stroke:#1565c0,color:#0d47a1
+    style C fill:#ffecb3,stroke:#f57f17,color:#e65100
+    style D fill:#ffecb3,stroke:#f57f17,color:#e65100
 ```
 
 1. `publish` copies built files to a local store at `~/.plunk/store/`
