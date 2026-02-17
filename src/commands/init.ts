@@ -1,9 +1,16 @@
 import { defineCommand } from "citty";
-import { resolve, join } from "node:path";
-import { readFile, writeFile, stat } from "node:fs/promises";
+import { resolve, join, basename } from "node:path";
+import { readFile, writeFile } from "node:fs/promises";
 import { consola } from "consola";
 import pc from "picocolors";
 import { exists, ensureDir } from "../utils/fs.js";
+import { detectPackageManager } from "../utils/pm-detect.js";
+import { detectBundler } from "../utils/bundler-detect.js";
+import { ensureOptimizeDepsSection } from "../utils/vite-config.js";
+import {
+  readConsumerState,
+  writeConsumerState,
+} from "../core/tracker.js";
 
 export default defineCommand({
   meta: {
@@ -20,66 +27,129 @@ export default defineCommand({
   },
   async run({ args }) {
     const projectDir = resolve(".");
+    const skipPrompts = args.yes;
     consola.info(`Initializing plunk in ${pc.cyan(projectDir)}\n`);
 
-    const actions: string[] = [];
+    // 1. Detect and confirm package manager
+    const detectedPm = await detectPackageManager(projectDir);
+    const lockfileNames: Record<string, string> = {
+      pnpm: "pnpm-lock.yaml",
+      bun: "bun.lockb",
+      yarn: "yarn.lock",
+      npm: "package-lock.json",
+    };
+    consola.success(
+      `Detected package manager: ${pc.cyan(detectedPm)}` +
+        (lockfileNames[detectedPm]
+          ? ` (from ${lockfileNames[detectedPm]})`
+          : "")
+    );
 
-    // 1. Add .plunk/ to .gitignore
+    let pm = detectedPm;
+    if (!skipPrompts) {
+      const confirm = await consola.prompt(`Use ${detectedPm}?`, {
+        type: "confirm",
+        initial: true,
+      });
+      if (confirm === false) {
+        const choices = (["npm", "pnpm", "yarn", "bun"] as const).filter(
+          (p) => p !== detectedPm
+        );
+        const selected = await consola.prompt("Select package manager:", {
+          type: "select",
+          options: choices.map((p) => ({ label: p, value: p })),
+        });
+        if (typeof selected === "string") {
+          pm = selected as typeof pm;
+        }
+      }
+    }
+
+    // 2. Add .plunk/ to .gitignore
     const gitignorePath = join(projectDir, ".gitignore");
     const gitignoreUpdated = await ensureGitignore(gitignorePath);
     if (gitignoreUpdated) {
-      actions.push("Added .plunk/ to .gitignore");
+      consola.success("Added .plunk/ to .gitignore");
     }
 
-    // 2. Add plunk restore to postinstall
+    // 3. Add plunk restore to postinstall
     const pkgPath = join(projectDir, "package.json");
     if (await exists(pkgPath)) {
       const postinstallAdded = await addPostinstall(pkgPath);
       if (postinstallAdded) {
-        actions.push('Added "postinstall": "plunk restore" to package.json scripts');
+        consola.success(
+          'Added "postinstall": "plunk restore" to package.json scripts'
+        );
       }
     }
 
-    // 3. Create .plunk/ directory
+    // 4. Create .plunk/ directory and state
     const plunkDir = join(projectDir, ".plunk");
     if (!(await exists(plunkDir))) {
       await ensureDir(plunkDir);
       await writeFile(
         join(plunkDir, "state.json"),
-        JSON.stringify({ version: "1", links: {} }, null, 2)
+        JSON.stringify({ version: "1", packageManager: pm, links: {} }, null, 2)
       );
-      actions.push("Created .plunk/ directory with empty state");
-    }
-
-    // 4. Print Vite hint if applicable
-    const hasVite =
-      (await exists(join(projectDir, "vite.config.ts"))) ||
-      (await exists(join(projectDir, "vite.config.js"))) ||
-      (await exists(join(projectDir, "vite.config.mts")));
-
-    // Summary
-    if (actions.length === 0) {
-      consola.success("plunk is already set up in this project");
+      consola.success("Created .plunk/ state directory");
     } else {
-      for (const action of actions) {
-        consola.success(action);
+      // Update existing state with package manager
+      const state = await readConsumerState(projectDir);
+      if (state.packageManager !== pm) {
+        state.packageManager = pm;
+        await writeConsumerState(projectDir, state);
       }
     }
 
-    console.log("");
-    consola.info(`${pc.bold("Next steps:")}`);
-    console.log(`  1. Publish a package:  ${pc.cyan("cd ../my-lib && plunk publish")}`);
-    console.log(`  2. Link it here:       ${pc.cyan("plunk add my-lib")}`);
-    console.log(`  3. Or in one step:     ${pc.cyan("plunk add my-lib --from ../my-lib")}`);
-    console.log(`  4. Push changes:       ${pc.cyan("cd ../my-lib && plunk push --watch --build 'npm run build'")}`);
-
-    if (hasVite) {
-      console.log("");
-      consola.info(
-        `${pc.bold("Vite detected.")} Add linked packages to your vite.config:\n` +
-          `  ${pc.cyan("optimizeDeps: { exclude: ['my-lib'] }")}`
+    // 5. Detect bundler and auto-configure
+    const bundler = await detectBundler(projectDir);
+    if (bundler.type === "vite" && bundler.configFile) {
+      consola.success(
+        `Detected bundler: ${pc.cyan("Vite")} (${basename(bundler.configFile)})`
+      );
+      let shouldConfigure = true;
+      if (!skipPrompts) {
+        const confirm = await consola.prompt(
+          "Auto-configure optimizeDeps.exclude?",
+          { type: "confirm", initial: true }
+        );
+        shouldConfigure = confirm !== false;
+      }
+      if (shouldConfigure) {
+        const result = await ensureOptimizeDepsSection(bundler.configFile);
+        if (result.modified) {
+          consola.success(`Updated ${basename(bundler.configFile)}`);
+        } else if (result.error) {
+          consola.info(
+            `Could not auto-configure: ${result.error}. Add manually:\n` +
+              `  ${pc.cyan("optimizeDeps: { exclude: ['my-lib'] }")}`
+          );
+        }
+      }
+    } else if (bundler.type) {
+      const names: Record<string, string> = {
+        next: "Next.js",
+        webpack: "Webpack",
+        turbo: "Turbopack",
+        rollup: "Rollup",
+      };
+      consola.success(
+        `Detected bundler: ${pc.cyan(names[bundler.type] || bundler.type)} — no config needed, works out of the box`
       );
     }
+
+    // Next steps
+    console.log("");
+    consola.info(`${pc.bold("Next steps:")}`);
+    console.log(
+      `  1. ${pc.cyan("cd ../my-lib && plunk publish")}`
+    );
+    console.log(
+      `  2. ${pc.cyan("plunk add my-lib")}${bundler.type === "vite" ? "                     ← auto-updates vite config" : ""}`
+    );
+    console.log(
+      `  3. ${pc.cyan(`cd ../my-lib && plunk push --watch --build "${pm === "npm" ? "npm run build" : `${pm} build`}"`)}`
+    );
   },
 });
 
@@ -107,8 +177,12 @@ async function ensureGitignore(gitignorePath: string): Promise<boolean> {
   if (alreadyIgnored) return false;
 
   // Append .plunk/ to .gitignore
-  const separator = content.length > 0 && !content.endsWith("\n") ? "\n" : "";
-  const section = content.length > 0 ? "\n# plunk local links\n.plunk/\n" : "# plunk local links\n.plunk/\n";
+  const separator =
+    content.length > 0 && !content.endsWith("\n") ? "\n" : "";
+  const section =
+    content.length > 0
+      ? "\n# plunk local links\n.plunk/\n"
+      : "# plunk local links\n.plunk/\n";
   await writeFile(gitignorePath, content + separator + section);
   return true;
 }
