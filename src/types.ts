@@ -27,6 +27,7 @@ export interface LinkEntry {
 export interface ConsumerState {
   version: "1";
   packageManager?: PackageManager;
+  role?: "consumer" | "library";
   links: Record<string, LinkEntry>;
 }
 

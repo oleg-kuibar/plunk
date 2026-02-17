@@ -25,6 +25,13 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+
+      # Build example packages for e2e tests
+      - name: Build example packages
+        run: |
+          cd examples/packages/api-client && pnpm install && pnpm tsup
+          cd ../ui-kit && pnpm install && pnpm tsup
+
       - run: pnpm test
 
       - run: pnpm publish --no-git-checks --provenance --access public
