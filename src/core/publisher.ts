@@ -70,7 +70,6 @@ export async function publish(packageDir: string): Promise<PublishResult> {
 
   // Handle workspace:* protocol in package.json dependencies
   const processedPkg = rewriteWorkspaceProtocol(pkg);
-  let processedPkgJson = false;
 
   for (const file of files) {
     const rel = relative(packageDir, file);
@@ -78,10 +77,8 @@ export async function publish(packageDir: string): Promise<PublishResult> {
 
     if (rel === "package.json" && processedPkg !== pkg) {
       // Write the rewritten package.json
-      await ensureDir(join(storePackageDir));
       const { writeFile } = await import("node:fs/promises");
       await writeFile(dest, JSON.stringify(processedPkg, null, 2));
-      processedPkgJson = true;
     } else {
       await copyWithCoW(file, dest);
     }
@@ -125,6 +122,7 @@ function rewriteWorkspaceProtocol(pkg: PackageJson): PackageJson {
     const deps = pkg[depField];
     if (!deps) continue;
 
+    let fieldChanged = false;
     const newDeps = { ...deps };
     for (const [name, version] of Object.entries(deps)) {
       if (version.startsWith("workspace:")) {
@@ -136,10 +134,11 @@ function rewriteWorkspaceProtocol(pkg: PackageJson): PackageJson {
           // workspace:1.0.0 → 1.0.0
           newDeps[name] = versionPart;
         }
+        fieldChanged = true;
         changed = true;
       }
     }
-    if (changed) {
+    if (fieldChanged) {
       (result as Record<string, unknown>)[depField] = newDeps;
     }
   }

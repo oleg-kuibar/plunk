@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import type {
   ConsumerState,
   ConsumersRegistry,
@@ -10,7 +10,7 @@ import {
   getConsumerStatePath,
   getConsumerPlunkDir,
 } from "../utils/paths.js";
-import { ensureDir, exists } from "../utils/fs.js";
+import { ensureDir, exists, atomicWriteFile } from "../utils/fs.js";
 
 // ── Consumer State (.plunk/state.json in each consumer project) ──
 
@@ -39,7 +39,7 @@ export async function writeConsumerState(
 ): Promise<void> {
   await ensureDir(getConsumerPlunkDir(consumerPath));
   const statePath = getConsumerStatePath(consumerPath);
-  await writeFile(statePath, JSON.stringify(state, null, 2));
+  await atomicWriteFile(statePath, JSON.stringify(state, null, 2));
 }
 
 /** Add or update a link entry in the consumer state */
@@ -91,7 +91,7 @@ async function writeConsumersRegistry(
 ): Promise<void> {
   const regPath = getConsumersPath();
   await ensureDir(getConsumersPath().replace(/[/\\][^/\\]+$/, ""));
-  await writeFile(regPath, JSON.stringify(registry, null, 2));
+  await atomicWriteFile(regPath, JSON.stringify(registry, null, 2));
 }
 
 /** Register a consumer for a package */

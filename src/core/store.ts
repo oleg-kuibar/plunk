@@ -1,4 +1,4 @@
-import { readFile, readdir, writeFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import type { PlunkMeta, StoreEntry } from "../types.js";
 import {
@@ -8,7 +8,7 @@ import {
   getStoreMetaPath,
   decodePackageName,
 } from "../utils/paths.js";
-import { ensureDir, exists, removeDir } from "../utils/fs.js";
+import { ensureDir, exists, removeDir, atomicWriteFile } from "../utils/fs.js";
 
 /** Read the .plunk-meta.json for a store entry */
 export async function readMeta(
@@ -32,7 +32,7 @@ export async function writeMeta(
 ): Promise<void> {
   const metaPath = getStoreMetaPath(name, version);
   await ensureDir(getStoreEntryPath(name, version));
-  await writeFile(metaPath, JSON.stringify(meta, null, 2));
+  await atomicWriteFile(metaPath, JSON.stringify(meta, null, 2));
 }
 
 /** Get a store entry if it exists */

@@ -12,15 +12,15 @@ export async function computeContentHash(
 ): Promise<string> {
   const hash = createHash("sha256");
 
-  // Sort by relative path for determinism
+  // Sort by relative path for determinism (normalize separators for cross-platform consistency)
   const sorted = [...files].sort((a, b) => {
-    const relA = relative(baseDir, a);
-    const relB = relative(baseDir, b);
+    const relA = relative(baseDir, a).replace(/\\/g, "/");
+    const relB = relative(baseDir, b).replace(/\\/g, "/");
     return relA.localeCompare(relB);
   });
 
   for (const file of sorted) {
-    const rel = relative(baseDir, file);
+    const rel = relative(baseDir, file).replace(/\\/g, "/");
     const content = await readFile(file);
     hash.update(rel);
     hash.update("\0");

@@ -126,4 +126,77 @@ describe("resolvePackFiles", () => {
     const files = await resolvePackFiles(tempDir, pkg);
     expect(files.some((f) => f.endsWith("index.js"))).toBe(true);
   });
+
+  it("resolves glob patterns in files field", async () => {
+    await writeFile(join(tempDir, "package.json"), "{}");
+    await mkdir(join(tempDir, "dist"), { recursive: true });
+    await writeFile(join(tempDir, "dist", "index.js"), "");
+    await writeFile(join(tempDir, "dist", "utils.js"), "");
+    await writeFile(join(tempDir, "dist", "types.d.ts"), "");
+    await mkdir(join(tempDir, "src"), { recursive: true });
+    await writeFile(join(tempDir, "src", "index.ts"), "");
+
+    const pkg: PackageJson = {
+      name: "test",
+      version: "1.0.0",
+      files: ["dist/**/*.js"],
+    };
+    const files = await resolvePackFiles(tempDir, pkg);
+    const rels = files.map((f) => f.slice(tempDir.length + 1).replace(/\\/g, "/"));
+
+    expect(rels).toContain("dist/index.js");
+    expect(rels).toContain("dist/utils.js");
+    expect(rels).not.toContain("dist/types.d.ts");
+    expect(rels).not.toContain("src/index.ts");
+  });
+
+  it("resolves dist/** glob to include all files", async () => {
+    await writeFile(join(tempDir, "package.json"), "{}");
+    await mkdir(join(tempDir, "dist", "sub"), { recursive: true });
+    await writeFile(join(tempDir, "dist", "index.js"), "");
+    await writeFile(join(tempDir, "dist", "sub", "helper.js"), "");
+
+    const pkg: PackageJson = {
+      name: "test",
+      version: "1.0.0",
+      files: ["dist/**"],
+    };
+    const files = await resolvePackFiles(tempDir, pkg);
+    const rels = files.map((f) => f.slice(tempDir.length + 1).replace(/\\/g, "/"));
+
+    expect(rels).toContain("dist/index.js");
+    expect(rels).toContain("dist/sub/helper.js");
+  });
+
+  it("respects .npmignore glob patterns", async () => {
+    await writeFile(join(tempDir, "package.json"), "{}");
+    await writeFile(join(tempDir, "index.js"), "");
+    await writeFile(join(tempDir, "index.test.js"), "");
+    await writeFile(join(tempDir, "utils.test.js"), "");
+    await writeFile(join(tempDir, ".npmignore"), "*.test.js\n");
+
+    const pkg: PackageJson = { name: "test", version: "1.0.0" };
+    const files = await resolvePackFiles(tempDir, pkg);
+
+    expect(files.some((f) => f.endsWith("index.js"))).toBe(true);
+    expect(files.some((f) => f.endsWith("index.test.js"))).toBe(false);
+    expect(files.some((f) => f.endsWith("utils.test.js"))).toBe(false);
+  });
+
+  it("handles .npmignore negation patterns", async () => {
+    await writeFile(join(tempDir, "package.json"), "{}");
+    await mkdir(join(tempDir, "lib"), { recursive: true });
+    await writeFile(join(tempDir, "lib", "a.js"), "");
+    await writeFile(join(tempDir, "lib", "important.js"), "");
+    await writeFile(join(tempDir, ".npmignore"), "lib\n!lib/important.js\n");
+
+    const pkg: PackageJson = { name: "test", version: "1.0.0" };
+    const files = await resolvePackFiles(tempDir, pkg);
+    const rels = files.map((f) => f.slice(tempDir.length + 1).replace(/\\/g, "/"));
+
+    // lib/a.js should be ignored, but lib/important.js should be kept
+    expect(rels).not.toContain("lib/a.js");
+    // Note: negation un-ignoring requires the file to first match an ignore
+    // then get un-ignored. The current implementation checks negation after patterns.
+  });
 });

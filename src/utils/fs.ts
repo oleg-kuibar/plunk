@@ -2,8 +2,10 @@ import {
   copyFile,
   mkdir,
   readdir,
+  rename,
   rm,
   stat,
+  writeFile,
   constants,
 } from "node:fs/promises";
 import { join, dirname, relative } from "node:path";
@@ -116,6 +118,19 @@ export async function exists(path: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Write a file atomically by writing to a temp file then renaming.
+ * Prevents corruption if the process crashes mid-write.
+ */
+export async function atomicWriteFile(
+  filePath: string,
+  data: string
+): Promise<void> {
+  const tmpPath = filePath + ".tmp";
+  await writeFile(tmpPath, data);
+  await rename(tmpPath, filePath);
 }
 
 /** Copy an entire directory recursively */

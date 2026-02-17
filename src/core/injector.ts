@@ -1,5 +1,5 @@
-import { readFile, readlink, stat } from "node:fs/promises";
-import { join, resolve, dirname } from "node:path";
+import { readFile, readdir, realpath, stat } from "node:fs/promises";
+import { join, resolve } from "node:path";
 import { consola } from "consola";
 import type { PackageJson, PackageManager, StoreEntry } from "../types.js";
 import { getNodeModulesPackagePath, getConsumerBackupPath } from "../utils/paths.js";
@@ -151,7 +151,6 @@ async function resolveTargetDir(
   const pnpmDir = join(consumerPath, "node_modules", ".pnpm");
   if (await exists(pnpmDir)) {
     // Look for the package in .pnpm/ directory
-    const { readdir } = await import("node:fs/promises");
     const entries = await readdir(pnpmDir);
     const encodedName = packageName.replace("/", "+");
     for (const entry of entries) {
@@ -176,9 +175,7 @@ async function resolveTargetDir(
 /** Resolve a path through symlinks to its real location */
 async function resolveRealPath(linkPath: string): Promise<string> {
   try {
-    const s = await stat(linkPath);
-    // Use realpath to resolve all symlinks
-    const { realpath } = await import("node:fs/promises");
+    await stat(linkPath);
     return await realpath(linkPath);
   } catch {
     return resolve(linkPath);

@@ -1,5 +1,7 @@
 import { readFile, readdir, stat } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
+import picomatch from "picomatch";
+import { consola } from "consola";
 import type { PackageJson } from "../types.js";
 
 /**
@@ -7,7 +9,7 @@ import type { PackageJson } from "../types.js";
  * Mimics `npm pack` logic:
  * 1. If `files` field exists in package.json, use those globs (always includes package.json)
  * 2. If no `files` field, include everything except common ignores
- * 3. Respect .npmignore if present (simplified)
+ * 3. Respect .npmignore if present
  *
  * Returns absolute file paths.
  */
@@ -22,29 +24,50 @@ export async function resolvePackFiles(
   files.push(join(absDir, "package.json"));
 
   if (pkg.files && pkg.files.length > 0) {
-    // Use the `files` field — treat each entry as a file or directory
+    // Use the `files` field — each entry can be a literal path, directory, or glob
+    const allFiles = await collectAllFiles(absDir);
+    const allRelPaths = allFiles.map((f) => relative(absDir, f).replace(/\\/g, "/"));
+
     for (const pattern of pkg.files) {
+      // First try as a literal file or directory
       const target = join(absDir, pattern);
+      let matched = false;
       try {
         const s = await stat(target);
         if (s.isDirectory()) {
           const dirFiles = await collectAllFiles(target);
           files.push(...dirFiles);
+          matched = true;
         } else {
           files.push(target);
+          matched = true;
         }
       } catch {
-        // Pattern might be a glob or not exist — try as glob-like
-        // For simplicity, treat as literal path. If it doesn't exist, skip.
+        // Not a literal path — try as a glob pattern
+      }
+
+      if (!matched) {
+        // Treat as glob pattern
+        const isMatch = picomatch(pattern, { dot: true });
+        let globMatched = 0;
+        for (let i = 0; i < allRelPaths.length; i++) {
+          if (isMatch(allRelPaths[i])) {
+            files.push(allFiles[i]);
+            globMatched++;
+          }
+        }
+        if (globMatched === 0) {
+          consola.warn(`files pattern "${pattern}" matched no files`);
+        }
       }
     }
   } else {
     // No `files` field — include everything except common ignores
     const allFiles = await collectAllFiles(absDir);
-    const ignoreSet = await loadNpmIgnore(absDir);
+    const ignoreMatchers = await loadNpmIgnore(absDir);
     for (const f of allFiles) {
-      const rel = relative(absDir, f);
-      if (!shouldIgnore(rel, ignoreSet)) {
+      const rel = relative(absDir, f).replace(/\\/g, "/");
+      if (!shouldIgnore(rel, ignoreMatchers)) {
         files.push(f);
       }
     }
@@ -95,31 +118,62 @@ const DEFAULT_IGNORES = [
   "vitest.config.js",
 ];
 
-function shouldIgnore(relPath: string, ignoreSet: Set<string>): boolean {
+interface IgnoreMatchers {
+  literals: Set<string>;
+  patterns: picomatch.Matcher[];
+  negations: picomatch.Matcher[];
+}
+
+function shouldIgnore(relPath: string, matchers: IgnoreMatchers): boolean {
   const parts = relPath.split(/[\\/]/);
   for (const part of parts) {
     if (DEFAULT_IGNORES.includes(part)) return true;
-    if (ignoreSet.has(part)) return true;
+    if (matchers.literals.has(part)) return true;
   }
-  // Also check full relative path
-  if (ignoreSet.has(relPath)) return true;
+  // Check full relative path against literals
+  if (matchers.literals.has(relPath)) return true;
+  // Check glob patterns
+  for (const isMatch of matchers.patterns) {
+    if (isMatch(relPath)) return true;
+  }
+  // Check negation patterns (un-ignore)
+  for (const isMatch of matchers.negations) {
+    if (isMatch(relPath)) return false;
+  }
   return false;
 }
 
-async function loadNpmIgnore(dir: string): Promise<Set<string>> {
-  const ignoreSet = new Set<string>();
+async function loadNpmIgnore(dir: string): Promise<IgnoreMatchers> {
+  const matchers: IgnoreMatchers = { literals: new Set(), patterns: [], negations: [] };
   try {
     const content = await readFile(join(dir, ".npmignore"), "utf-8");
     for (const line of content.split("\n")) {
       const trimmed = line.trim();
-      if (trimmed && !trimmed.startsWith("#")) {
-        ignoreSet.add(trimmed);
+      if (!trimmed || trimmed.startsWith("#")) continue;
+
+      if (trimmed.startsWith("!")) {
+        // Negation pattern — un-ignore
+        const pat = trimmed.slice(1);
+        if (hasGlobChars(pat)) {
+          matchers.negations.push(picomatch(pat, { dot: true }));
+        } else {
+          // Negation of a literal isn't handled via Set, use a matcher
+          matchers.negations.push(picomatch(pat, { dot: true }));
+        }
+      } else if (hasGlobChars(trimmed)) {
+        matchers.patterns.push(picomatch(trimmed, { dot: true }));
+      } else {
+        matchers.literals.add(trimmed.replace(/\/$/, ""));
       }
     }
   } catch {
     // no .npmignore
   }
-  return ignoreSet;
+  return matchers;
+}
+
+function hasGlobChars(pattern: string): boolean {
+  return /[*?[\]{}()]/.test(pattern);
 }
 
 async function collectAllFiles(dir: string): Promise<string[]> {
