@@ -1,0 +1,67 @@
+{
+  "name": "plunk",
+  "version": "0.1.0",
+  "description": "Modern local package development tool. Smart file copying into node_modules — no symlinks, no git contamination.",
+  "type": "module",
+  "bin": {
+    "plunk": "./dist/cli.mjs"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "types": "./dist/index.d.mts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "pnpm build"
+  },
+  "keywords": [
+    "npm",
+    "link",
+    "local",
+    "development",
+    "yalc",
+    "package",
+    "monorepo",
+    "pnpm",
+    "yarn",
+    "bun",
+    "symlink",
+    "copy",
+    "hmr"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nicepkg/plunk.git"
+  },
+  "homepage": "https://github.com/nicepkg/plunk#readme",
+  "bugs": {
+    "url": "https://github.com/nicepkg/plunk/issues"
+  },
+  "author": "",
+  "packageManager": "pnpm@10.28.2",
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0",
+    "vitest": "^2.0.0"
+  },
+  "dependencies": {
+    "chokidar": "^4.0.0",
+    "citty": "^0.1.6",
+    "consola": "^3.2.0",
+    "picocolors": "^1.1.0"
+  }
+}
