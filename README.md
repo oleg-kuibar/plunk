@@ -18,9 +18,9 @@ plunk push --watch   # continuous dev mode
 
 ```mermaid
 graph LR
-    A["my-lib/"] -- "plunk publish" --> B["~/.plunk/store/\nmy-lib@1.0.0"]
-    B -- "plunk add" --> C["app/node_modules/\nmy-lib/"]
-    B -- "plunk push" --> D["app-2/node_modules/\nmy-lib/"]
+    A["my-lib/"] -- "plunk publish" --> B["~/.plunk/store/<br/>my-lib@1.0.0"]
+    B -- "plunk add" --> C["app/node_modules/<br/>my-lib/"]
+    B -- "plunk push" --> D["app-2/node_modules/<br/>my-lib/"]
 
     style A fill:#e8f5e9,stroke:#43a047
     style B fill:#e3f2fd,stroke:#1e88e5

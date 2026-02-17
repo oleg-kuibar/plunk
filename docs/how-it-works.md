@@ -21,8 +21,8 @@ graph TB
         D --- D2[package.json]
     end
 
-    B -- "plunk publish\n(copy built files)" --> C
-    C -- "plunk add\n(incremental copy)" --> D
+    B -- "plunk publish<br/>(copy built files)" --> C
+    C -- "plunk add<br/>(incremental copy)" --> D
 
     style A fill:#e8f5e9,stroke:#43a047
     style C fill:#e3f2fd,stroke:#1e88e5
@@ -117,7 +117,7 @@ pnpm's `.pnpm/` virtual store makes this trickier. plunk follows the symlink cha
 
 ```mermaid
 graph LR
-    NM["node_modules/my-lib"] -- "symlink" --> PNPM[".pnpm/my-lib@1.0/\nnode_modules/my-lib"]
+    NM["node_modules/my-lib"] -- "symlink" --> PNPM[".pnpm/my-lib@1.0/<br/>node_modules/my-lib"]
     Store["store/my-lib@1.0/package/"] -- "incremental copy" --> PNPM
 
     style Store fill:#e3f2fd,stroke:#1e88e5
@@ -143,7 +143,7 @@ Detection checks in priority order (pnpm > bun > yarn > npm). Falls back to npm 
 ```mermaid
 flowchart TD
     A[copyFile with FICLONE flag] --> B{Supported?}
-    B -- Yes --> C["Instant copy-on-write\n(APFS, btrfs, ReFS)"]
+    B -- Yes --> C["Instant copy-on-write<br/>(APFS, btrfs, ReFS)"]
     B -- No --> D[Regular fs.copyFile]
 
     E[incrementalCopy] --> F[Hash source files]

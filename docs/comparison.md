@@ -8,8 +8,8 @@ You're developing a library and an app that uses it. You want changes to show up
 
 ```mermaid
 graph LR
-    A["my-lib/"] -- "npm link" --> B["global\nnode_modules/my-lib"]
-    B -- "npm link my-lib" --> C["app/node_modules/my-lib\n(symlink → global)"]
+    A["my-lib/"] -- "npm link" --> B["global<br/>node_modules/my-lib"]
+    B -- "npm link my-lib" --> C["app/node_modules/my-lib<br/>(symlink → global)"]
 
     style A fill:#e8f5e9,stroke:#43a047
     style B fill:#e3f2fd,stroke:#1e88e5
@@ -22,10 +22,10 @@ Creates a symlink chain: library → global `node_modules` → consumer's `node_
 
 ```mermaid
 graph LR
-    A["my-lib/"] -- "yalc publish" --> B["~/.yalc/\nmy-lib/"]
-    B -- "yalc add" --> C["app/node_modules/my-lib\n(copied files)"]
-    B -- "yalc add" --> D["app/.yalc/my-lib\n(yalc store)"]
-    B -- "yalc add" --> E["app/package.json\n(modified dep)"]
+    A["my-lib/"] -- "yalc publish" --> B["~/.yalc/<br/>my-lib/"]
+    B -- "yalc add" --> C["app/node_modules/my-lib<br/>(copied files)"]
+    B -- "yalc add" --> D["app/.yalc/my-lib<br/>(yalc store)"]
+    B -- "yalc add" --> E["app/package.json<br/>(modified dep)"]
 
     style A fill:#e8f5e9,stroke:#43a047
     style B fill:#e3f2fd,stroke:#1e88e5
@@ -39,8 +39,8 @@ Copies files but also rewrites the consumer's `package.json` to point to `.yalc/
 
 ```mermaid
 graph LR
-    A["my-lib/"] -- "plunk publish" --> B["~/.plunk/store/\nmy-lib@1.0.0"]
-    B -- "plunk add" --> C["app/node_modules/my-lib\n(copied files)"]
+    A["my-lib/"] -- "plunk publish" --> B["~/.plunk/store/<br/>my-lib@1.0.0"]
+    B -- "plunk add" --> C["app/node_modules/my-lib<br/>(copied files)"]
 
     style A fill:#e8f5e9,stroke:#43a047
     style B fill:#e3f2fd,stroke:#1e88e5

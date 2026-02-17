@@ -94,7 +94,7 @@ rollup -c --watch
 ```mermaid
 graph LR
     P[plunk push] --> FS[fs.copyFile]
-    FS --> E1[mtime changes at\nnode_modules/ path]
+    FS --> E1[mtime changes at<br/>node_modules/ path]
     E1 --> V[Vite*]
     E1 --> W[Webpack]
     E1 --> ES[esbuild]
