@@ -120,7 +120,7 @@ Removes injected files from `node_modules/`, cleans up `.bin/` entries, restores
 Re-inject all linked packages after `npm install` wipes your overrides.
 
 ```bash
-npm install       # whoops, plunk links gone
+pnpm install      # whoops, plunk links gone
 plunk restore     # all back
 ```
 

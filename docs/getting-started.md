@@ -3,7 +3,7 @@
 ## Install
 
 ```bash
-npm install -g plunk
+pnpm add -g plunk
 
 # or just use npx
 npx plunk init
@@ -17,7 +17,7 @@ sequenceDiagram
     participant Store as ~/.plunk/store
     participant App as App (node_modules)
 
-    Note over Lib: npm run build
+    Note over Lib: pnpm build
     Lib->>Store: plunk publish
     Store->>App: plunk add my-lib
 
@@ -47,7 +47,7 @@ In the library you're developing:
 
 ```bash
 cd my-lib
-npm run build         # build your library first
+pnpm build            # build your library first
 plunk publish
 ```
 
@@ -74,7 +74,7 @@ After making changes to your library:
 
 ```bash
 cd my-lib
-npm run build
+pnpm build
 plunk push
 ```
 
@@ -86,7 +86,7 @@ Instead of manually rebuilding and pushing each time, use watch mode:
 
 ```bash
 cd my-lib
-plunk push --watch --build "npm run build"
+plunk push --watch --build "pnpm build"
 ```
 
 ```mermaid
@@ -108,10 +108,10 @@ If a build fails, plunk logs the error and keeps watching. Fix the code, save ag
 
 ## 6. After `npm install`
 
-Running `npm install` wipes `node_modules/` overrides. Get them back:
+Running `pnpm install` wipes `node_modules/` overrides. Get them back:
 
 ```bash
-npm install        # links wiped
+pnpm install       # links wiped
 plunk restore      # all back
 ```
 

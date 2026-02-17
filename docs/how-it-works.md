@@ -6,7 +6,7 @@ plunk copies files. That's basically it. Publish copies your built library into 
 graph TB
     subgraph "Library repo"
         A[src/] --> B[dist/]
-        A --> |"npm run build"| B
+        A --> |"pnpm build"| B
     end
 
     subgraph "plunk store (~/.plunk/)"

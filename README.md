@@ -44,7 +44,7 @@ npx plunk init
 
 # In your library — build and publish to plunk store
 cd my-lib
-npm run build
+pnpm build
 plunk publish
 
 # Back in your app — link the library
@@ -53,7 +53,7 @@ plunk add my-lib
 
 # Continuous dev: watch → build → push
 cd my-lib
-plunk push --watch --build "npm run build"
+plunk push --watch --build "pnpm build"
 ```
 
 ## At a glance
@@ -70,7 +70,7 @@ plunk push --watch --build "npm run build"
 ## Install
 
 ```bash
-npm install -g plunk    # or pnpm, yarn, bun
+pnpm add -g plunk       # or npm, yarn, bun
 npx plunk init          # set up a consumer project
 ```
 
