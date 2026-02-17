@@ -3,7 +3,7 @@
 ## Development setup
 
 ```bash
-git clone https://github.com/nicepkg/plunk.git
+git clone https://github.com/oleg-kuibar/plunk.git
 cd plunk
 pnpm install
 pnpm build
