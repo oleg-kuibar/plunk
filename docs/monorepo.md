@@ -100,12 +100,13 @@ plunk push --watch --build "pnpm build"
 
 The flow is:
 
-1. Source file changes detected
-2. Debounce (default 300ms, configurable via `--debounce`)
+1. Source file changes detected immediately
+2. Coalesce window (default 100ms, configurable via `--debounce`)
 3. Build command runs (`pnpm build`)
 4. Publish to store (skipped if content hash unchanged)
 5. Copy changed files to all registered consumers
 6. Each consumer's bundler detects the `node_modules/` change and triggers HMR
+7. If changes arrived during steps 3-5, automatically re-runs
 
 In a separate terminal, run your consumer's dev server:
 
@@ -116,9 +117,9 @@ pnpm dev
 
 If a build fails, plunk logs the error and keeps watching. Fix the code and save again.
 
-### Debounce tuning
+### Coalesce tuning
 
-For large builds, increase the debounce to avoid redundant rebuilds while you are making rapid edits:
+For large builds, increase the coalesce window to avoid redundant rebuilds while you are making rapid edits:
 
 ```bash
 plunk push --watch --build "pnpm build" --debounce 500

@@ -78,7 +78,7 @@ flowchart TD
     C --> E[Apply .npmignore exclusions]
     D --> E
     E --> F[Always include package.json, README, LICENSE]
-    F --> G[Compute SHA-256 content hash]
+    F --> G[Compute content hash]
     G --> H{Hash matches store?}
     H -- Yes --> I["Skip (already up to date)"]
     H -- No --> J[Copy files to store]
@@ -166,12 +166,12 @@ When yarn is detected, plunk also reads `.yarnrc.yml` to determine the linker mo
 
 ```mermaid
 flowchart TD
-    A[copyFile with FICLONE flag] --> B{Supported?}
+    A[copyFile with FICLONE_FORCE] --> B{Reflink supported?}
     B -- Yes --> C["Instant copy-on-write<br/>(APFS, btrfs, ReFS)"]
-    B -- No --> D[Regular fs.copyFile]
+    B -- No --> D["Plain fs.copyFile<br/>(cached per volume)"]
 
-    E[incrementalCopy] --> F[Hash source files]
-    F --> G[Hash dest files]
+    E[incrementalCopy] --> F["Hash source files (xxhash)"]
+    F --> G["Hash dest files (xxhash)"]
     G --> H{File changed?}
     H -- Yes --> A
     H -- No --> I[Skip]
@@ -189,8 +189,8 @@ flowchart TD
     style K fill:#c62828,stroke:#ef5350,color:#ffebee
 ```
 
-1. Each `copyFile` call uses `COPYFILE_FICLONE`, which is instant on APFS (macOS), btrfs (Linux), and ReFS (Windows). On other filesystems it falls back to a regular copy.
-2. Before copying, plunk hashes both source and destination files (SHA-256). Only changed files get copied, and files removed from the source get deleted from the destination.
+1. Each `copyFile` first probes for CoW reflink support (`COPYFILE_FICLONE_FORCE`) on the target volume. The result is cached per volume root — if reflinks aren't supported (ext4, NTFS), all subsequent copies on that volume go straight to a plain `copyFile` with no wasted syscalls. On APFS (macOS), btrfs (Linux), and ReFS (Windows), the reflink is instant and uses no additional disk space.
+2. Before copying, plunk compares file sizes (fast reject) then hashes both source and destination files using xxhash (xxh64). Files over 1 MB fall back to SHA-256 streaming. Only changed files get copied, and files removed from the source get deleted from the destination. All file comparisons run in parallel, throttled to the CPU core count.
 3. Files are written directly to their final path in `node_modules/`, which generates the filesystem events bundler watchers need.
 
 ## State
@@ -242,6 +242,7 @@ pnpm's "injected dependencies" feature already proved that copies work for this.
 
 Hardlinks sound perfect (instant, zero disk space) but they don't work here:
 
-1. On macOS (FSEvents) and Windows (ReadDirectoryChangesW), modifying a file through one hardlink path does NOT notify watchers on a different path. Bundlers watching `node_modules/` would never see changes made via the store.
-2. When `npm install` removes `node_modules/<pkg>/` containing hardlinks, it deletes the shared inodes. This corrupts the store and breaks every other consumer.
-3. Even if hardlinks worked perfectly, bundlers like Vite pre-bundle and cache deps, so they wouldn't re-read the files anyway.
+1. **Breaks incremental copy.** plunk compares source and destination file hashes to detect changes. Hardlinks share an inode, so modifying the source silently modifies the destination too — the hashes always match, and plunk never detects that anything changed.
+2. **Breaks bundler watchers.** On macOS (FSEvents) and Windows (ReadDirectoryChangesW), modifying a file through one hardlink path does NOT notify watchers on a different path. Bundlers watching `node_modules/` would never see changes made via the store.
+3. **Corrupts the store.** When `npm install` removes `node_modules/<pkg>/` containing hardlinks, it deletes the shared inodes. This corrupts the store and breaks every other consumer.
+4. **Bundler caching.** Even if hardlinks worked perfectly, bundlers like Vite pre-bundle and cache deps, so they wouldn't re-read the files anyway.

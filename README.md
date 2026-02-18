@@ -33,7 +33,7 @@ graph LR
 3. `push` = publish + copy to all consumers
 4. `--watch` = file change → build → push loop
 
-> Uses `COPYFILE_FICLONE` for instant copy-on-write on APFS/btrfs/ReFS, with regular copy fallback. Only changed files are re-copied.
+> Uses CoW reflinks for instant copy-on-write on APFS/btrfs/ReFS, with automatic fallback. Reflink support is probed once per volume and cached — no wasted syscalls. Only changed files are re-copied (xxhash-based diffing).
 
 ## Quick start
 

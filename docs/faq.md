@@ -15,15 +15,15 @@ See [Comparison](comparison.md) for a detailed side-by-side with `npm link` and 
 
 ## How does copy-on-write (CoW) work?
 
-When plunk copies files, it uses `fs.copyFile` with the `COPYFILE_FICLONE` flag. On filesystems that support it:
+When plunk copies files, it probes each volume for reflink support using `COPYFILE_FICLONE_FORCE`. The result is cached per volume root, so the probe only happens once per process:
 
 - **macOS (APFS):** The copy is instant and uses no additional disk space until one side is modified.
 - **Linux (btrfs, XFS with reflink):** Same behavior.
 - **Windows (ReFS):** Same behavior.
 
-On filesystems that do not support CoW (ext4, NTFS), it falls back to a regular file copy. This is transparent -- you do not need to configure anything.
+On filesystems that do not support reflinks (ext4, NTFS), plunk caches the failure and all subsequent copies on that volume go straight to a plain `copyFile` — no wasted syscalls retrying an unsupported operation.
 
-plunk also uses incremental copying: it hashes both source and destination files (SHA-256) and only copies files whose content changed. Files removed from the source are deleted from the destination.
+plunk also uses incremental copying: it compares file sizes first (fast reject), then hashes both source and destination files using xxhash (xxh64, ~10x faster than SHA-256). Only files whose content changed get copied. Files removed from the source are deleted from the destination. All comparisons run in parallel, throttled to the available CPU core count.
 
 ## How is plunk different from yalc?
 
@@ -37,7 +37,7 @@ The main differences:
 
 4. **Built-in watch mode.** yalc relies on the unmaintained `yalc-watch` package. plunk has `plunk push --watch --build "cmd"` built in.
 
-5. **Incremental copy.** yalc copies all files every time. plunk hashes files and only copies what changed.
+5. **Incremental copy.** yalc copies all files every time. plunk hashes files with xxhash (parallel, ~10x faster than SHA-256) and only copies what changed.
 
 6. **Backup and restore.** plunk backs up the original npm-installed version and restores it on `plunk remove`. yalc does not.
 

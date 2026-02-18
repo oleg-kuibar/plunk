@@ -64,7 +64,7 @@ Copies files to a global store, then from the store into `node_modules/`. State 
 | CI safe | Yes | Risk of leaking | Nothing in git |
 | npm publish safe | Yes | Risk of leaking | Nothing in package.json |
 | Transitive dep warnings | No | No | Yes |
-| Incremental copy | N/A | Full copy each time | Hash-based diff |
+| Incremental copy | N/A | Full copy each time | xxhash diff (parallel) |
 | Backup/restore | No | No | Yes |
 | Scoped packages | Works | Fragile | Works |
 
@@ -137,7 +137,7 @@ plunk writes real files at `node_modules/` paths, which generates filesystem eve
 | yalc | External package (yalc-watch), unmaintained |
 | plunk | Built-in: `plunk push --watch --build "tsup"` |
 
-plunk's watch mode handles the full loop: file change → debounce → build → publish → push. Build failures get logged but the watcher keeps running.
+plunk's watch mode handles the full loop: file change → coalesce (100ms) → build → publish → push. Changes are detected immediately but batched. If new changes arrive while a push is running, plunk automatically re-pushes. Build failures get logged but the watcher keeps running.
 
 ### After npm install
 

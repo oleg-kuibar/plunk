@@ -94,11 +94,13 @@ Flags:
 |---|---|
 | `--watch` | Watch for file changes and auto-push |
 | `--build <cmd>` | Build command to run before publishing (watch mode) |
-| `--debounce <ms>` | Debounce delay in milliseconds (default: `300`) |
+| `--debounce <ms>` | Coalesce delay in milliseconds (default: `100`) |
 
 Without `--watch`, it runs once: publish, then copy changed files to all consumers.
 
-With `--watch`, it runs continuously: file change → debounce → build → publish → copy. Build failures get logged but don't kill the watcher.
+With `--watch`, it runs continuously using a "debounce effects, not detection" strategy: file changes are detected immediately, then coalesced — rapid saves within the debounce window collapse into a single push. If new changes arrive while a push is in progress, plunk automatically re-pushes after it finishes so the final state is always pushed.
+
+When no `--build` command is specified, the watcher monitors paths from the package.json `files` field (typically `dist/`). With a build command, it watches source directories (`src/`, `lib/`, `dist/`). Build failures get logged but don't kill the watcher.
 
 ```mermaid
 stateDiagram-v2
@@ -108,14 +110,15 @@ stateDiagram-v2
     classDef success fill:#00838f,stroke:#4dd0e1,color:#e0f2f1
 
     [*] --> Watching
-    Watching --> Debouncing: File changed
-    Debouncing --> Building: Debounce elapsed
-    Debouncing --> Debouncing: More changes
+    Watching --> Coalescing: File changed
+    Coalescing --> Building: Window elapsed
+    Coalescing --> Coalescing: More changes (reset timer)
     Building --> Publishing: Build succeeded
     Building --> Watching: Build failed (logged)
     Publishing --> Injecting: Hash changed
     Publishing --> Watching: No changes (skip)
     Injecting --> Watching: Copied to all consumers
+    Injecting --> Coalescing: Changes arrived during push
 
     Watching:::steady
     Debouncing:::waiting

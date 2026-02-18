@@ -97,12 +97,13 @@ plunk push --watch --build "pnpm build"
 
 ```mermaid
 graph LR
-    A[File change] --> B[Debounce 300ms]
+    A[File change] --> B[Coalesce 100ms]
     B --> C[Run build cmd]
     C -->|Success| D[Publish to store]
     C -->|Failure| E[Log error, keep watching]
     D --> F[Copy to all consumers]
     F --> G[Bundler HMR triggers]
+    F -->|Changes during push?| B
 
     style A fill:#2e7d32,stroke:#66bb6a,color:#e8f5e9
     style B fill:#e65100,stroke:#ffb74d,color:#fff3e0
@@ -113,7 +114,7 @@ graph LR
     style G fill:#00838f,stroke:#4dd0e1,color:#e0f2f1
 ```
 
-If a build fails, plunk logs the error and keeps watching. Fix the code, save again.
+Changes are detected immediately but coalesced — rapid saves within 100ms collapse into a single push. If new changes arrive while a push is running, plunk automatically re-pushes after it finishes. Build failures are logged but the watcher keeps running.
 
 ## 6. After `npm install`
 
