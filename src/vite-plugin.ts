@@ -25,10 +25,12 @@ export default function plunkPlugin(): Plugin {
           timestamp: true,
         });
 
-        // Clear the entire Vite cache (metadata + pre-bundled deps)
-        await rm(cacheDir, { recursive: true, force: true }).catch(
-          () => {}
-        );
+        // Clear pre-bundled deps + metadata, but leave other .vite/ content
+        // intact so Vite can restart without config-reload errors
+        await Promise.all([
+          rm(join(cacheDir, "deps"), { recursive: true, force: true }),
+          rm(join(cacheDir, "deps_temp"), { recursive: true, force: true }),
+        ]).catch(() => {});
 
         await server.restart();
       });
