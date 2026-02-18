@@ -113,6 +113,7 @@ export default defineCommand({
 
     // 4. Add scripts based on role
     const pkgPath = join(projectDir, "package.json");
+    let libraryBuildCmd: string | undefined;
     if (await exists(pkgPath)) {
       if (role === "consumer") {
         const postinstallAdded = await addPostinstall(pkgPath);
@@ -145,7 +146,9 @@ export default defineCommand({
           );
         }
       } else {
-        const added = await addLibraryScripts(pkgPath, pm);
+        // Detect or prompt for build command
+        libraryBuildCmd = await detectBuildCommand(pkgPath, pm, skipPrompts);
+        const added = await addLibraryScripts(pkgPath, pm, libraryBuildCmd);
         for (const name of added) {
           consola.success(`Added "${name}" script to package.json`);
         }
@@ -231,7 +234,6 @@ export default defineCommand({
       );
     } else {
       // Library next steps
-      const buildCmd = pm === "npm" ? "npm run build" : `${pm} build`;
       console.log("");
       consola.info(`${pc.bold("Next steps:")}`);
       console.log(
@@ -337,15 +339,60 @@ async function addScript(
 }
 
 /**
+ * Detect the build command from package.json scripts, or prompt the user.
+ */
+async function detectBuildCommand(
+  pkgPath: string,
+  pm: PackageManager,
+  skipPrompts: boolean
+): Promise<string> {
+  const runPrefix = pm === "npm" ? "npm run " : `${pm} `;
+  try {
+    const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
+    const scripts = pkg.scripts || {};
+
+    // Check common build script names in priority order
+    for (const name of ["build", "compile", "bundle", "tsc"]) {
+      if (scripts[name]) {
+        const cmd = `${runPrefix}${name}`;
+        consola.success(`Detected build script: ${pc.cyan(cmd)}`);
+        return cmd;
+      }
+    }
+  } catch {
+    // ignore parse errors
+  }
+
+  // No build script found — ask the user
+  if (!skipPrompts) {
+    consola.warn("No build script found in package.json");
+    const input = await consola.prompt(
+      "Build command (e.g. tsc, tsup, rollup -c):",
+      { type: "text", default: "" }
+    );
+    if (typeof input === "string" && input.trim()) {
+      return input.trim();
+    }
+  }
+
+  // Fallback placeholder
+  const fallback = `${runPrefix}build`;
+  consola.warn(
+    `Using ${pc.cyan(fallback)} as placeholder — add a "build" script to package.json`
+  );
+  return fallback;
+}
+
+/**
  * Add library-mode scripts (plunk:publish, plunk:dev) to package.json.
  * Returns array of script names that were added.
  */
 async function addLibraryScripts(
   pkgPath: string,
-  pm: PackageManager
+  _pm: PackageManager,
+  buildCmd: string
 ): Promise<string[]> {
   const added: string[] = [];
-  const buildCmd = pm === "npm" ? "npm run build" : `${pm} build`;
 
   if (await addScript(pkgPath, "plunk:publish", "plunk publish")) {
     added.push("plunk:publish");
