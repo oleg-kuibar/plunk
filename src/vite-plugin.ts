@@ -1,11 +1,10 @@
-import { readFileSync } from "node:fs";
 import { join, normalize } from "node:path";
 import { rm } from "node:fs/promises";
 import type { Plugin } from "vite";
 
 export default function plunkPlugin(): Plugin {
   let plunkStateFile: string;
-  let depsCacheDir: string;
+  let cacheDir: string;
 
   return {
     name: "vite-plugin-plunk",
@@ -13,7 +12,7 @@ export default function plunkPlugin(): Plugin {
 
     configResolved(config) {
       plunkStateFile = normalize(join(config.root, ".plunk", "state.json"));
-      depsCacheDir = join(config.cacheDir, "deps");
+      cacheDir = config.cacheDir;
     },
 
     configureServer(server) {
@@ -26,7 +25,8 @@ export default function plunkPlugin(): Plugin {
           timestamp: true,
         });
 
-        await rm(depsCacheDir, { recursive: true, force: true }).catch(
+        // Clear the entire Vite cache (metadata + pre-bundled deps)
+        await rm(cacheDir, { recursive: true, force: true }).catch(
           () => {}
         );
 
