@@ -9,11 +9,11 @@
   "exports": {
     ".": {
       "import": "./dist/index.mjs",
-      "types": "./dist/index.d.mts"
+      "types": "./dist/index.d.ts"
     },
     "./vite": {
       "import": "./dist/vite-plugin.mjs",
-      "types": "./dist/vite-plugin.d.mts"
+      "types": "./dist/vite-plugin.d.ts"
     }
   },
   "files": [
