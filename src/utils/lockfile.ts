@@ -20,7 +20,8 @@ const LOCK_OPTIONS = {
  */
 export async function withFileLock<T>(
   filePath: string,
-  fn: () => Promise<T>
+  fn: () => Promise<T>,
+  lockOptions?: Partial<typeof LOCK_OPTIONS>
 ): Promise<T> {
   await mkdir(dirname(filePath), { recursive: true });
 
@@ -35,9 +36,11 @@ export async function withFileLock<T>(
     }
   }
 
+  const opts = lockOptions ? { ...LOCK_OPTIONS, ...lockOptions } : LOCK_OPTIONS;
+
   let release: (() => Promise<void>) | undefined;
   try {
-    release = await lock(filePath, LOCK_OPTIONS);
+    release = await lock(filePath, opts);
     return await fn();
   } finally {
     if (release) {

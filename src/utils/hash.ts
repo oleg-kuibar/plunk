@@ -10,6 +10,9 @@ import { verbose } from "./logger.js";
 /** Files larger than this threshold use streaming hash */
 const STREAM_THRESHOLD = 1024 * 1024; // 1MB
 
+/** Files smaller than this are hashed on the main thread (worker overhead not worth it) */
+const WORKER_THRESHOLD = 64 * 1024; // 64KB
+
 /** Concurrency limit for parallel file reads in computeContentHash */
 const limit = pLimit(Math.max(availableParallelism(), 8));
 
@@ -20,6 +23,41 @@ async function getXxhash() {
   if (!xxh) xxh = await xxhash();
   return xxh;
 }
+
+// ── Worker pool (lazy-init) ──
+
+type Pool = { run: (args: [string, number]) => Promise<string>; destroy: () => Promise<void> };
+let pool: Pool | null = null;
+let poolFailed = false;
+
+async function getPool(): Promise<Pool | null> {
+  if (poolFailed) return null;
+  if (pool) return pool;
+
+  try {
+    const { default: Tinypool } = await import("tinypool");
+    const poolSize = Math.min(Math.max(availableParallelism(), 2), 8);
+    const workerUrl = new URL("./hash-worker.mjs", import.meta.url);
+
+    pool = new Tinypool({
+      filename: workerUrl.href,
+      minThreads: 0,
+      maxThreads: poolSize,
+    }) as unknown as Pool;
+
+    verbose(`[hash] Worker pool initialized (max ${poolSize} threads)`);
+    return pool;
+  } catch {
+    poolFailed = true;
+    verbose("[hash] Worker pool unavailable, using main-thread hashing");
+    return null;
+  }
+}
+
+// Graceful cleanup on exit
+process.on("exit", () => {
+  pool?.destroy();
+});
 
 /**
  * Compute an xxh64 content hash for a list of files.
@@ -67,11 +105,34 @@ export async function computeContentHash(
 
 /**
  * Compute xxh64 hash of a single file's content.
- * Uses streaming for files > 1MB, buffered read + xxhash for smaller files.
+ * - Files ≤64KB: hashed on main thread (worker overhead not worth it)
+ * - Files >64KB: offloaded to worker pool
+ * - Files >1MB: SHA-256 streaming (in worker or main thread fallback)
  * Accepts an optional knownSize to skip the stat syscall when the caller already has it.
  */
 export async function hashFile(filePath: string, knownSize?: number): Promise<string> {
   const size = knownSize ?? (await stat(filePath)).size;
+
+  // Small files: main thread is faster than worker overhead
+  if (size <= WORKER_THRESHOLD) {
+    return hashFileMainThread(filePath, size);
+  }
+
+  // Try worker pool for larger files
+  const p = await getPool();
+  if (p) {
+    try {
+      return await p.run([filePath, size]);
+    } catch {
+      // Worker failed, fall back to main thread
+    }
+  }
+
+  return hashFileMainThread(filePath, size);
+}
+
+/** Hash a file on the main thread */
+async function hashFileMainThread(filePath: string, size: number): Promise<string> {
   if (size > STREAM_THRESHOLD) {
     return hashFileStream(filePath);
   }

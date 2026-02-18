@@ -7,7 +7,7 @@ export default defineConfig([
     outExtension: () => ({ js: ".mjs" }),
     clean: true,
     splitting: true,
-    target: "node20",
+    target: "node22",
     banner: {
       js: '#!/usr/bin/env node\nimport{createRequire as __cr}from"node:module";globalThis.require=__cr(import.meta.url);',
     },
@@ -19,7 +19,7 @@ export default defineConfig([
     outExtension: () => ({ js: ".mjs" }),
     dts: true,
     splitting: false,
-    target: "node20",
+    target: "node22",
     noExternal: [/.*/],
     banner: {
       js: 'import{createRequire as __cr}from"node:module";globalThis.require=__cr(import.meta.url);',
@@ -31,7 +31,18 @@ export default defineConfig([
     outExtension: () => ({ js: ".mjs" }),
     dts: true,
     splitting: false,
-    target: "node20",
+    target: "node22",
     external: ["vite"],
+  },
+  {
+    entry: { "hash-worker": "src/utils/hash-worker.ts" },
+    format: ["esm"],
+    outExtension: () => ({ js: ".mjs" }),
+    splitting: false,
+    target: "node22",
+    noExternal: [/.*/],
+    banner: {
+      js: 'import{createRequire as __cr}from"node:module";globalThis.require=__cr(import.meta.url);',
+    },
   },
 ]);

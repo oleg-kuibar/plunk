@@ -83,19 +83,24 @@ export async function copyWithCoW(src: string, dest: string): Promise<void> {
 
 /**
  * Recursively collect all file paths in a directory.
+ * Uses Node 22+ recursive readdir for a single syscall traversal.
  */
 export async function collectFiles(dir: string): Promise<string[]> {
-  const files: string[] = [];
-  const entries = await readdir(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...(await collectFiles(full)));
-    } else if (entry.isFile()) {
-      files.push(full);
-    }
-  }
-  return files;
+  const entries = await readdir(dir, { recursive: true });
+  const results = await Promise.all(
+    entries.map((entry) =>
+      ioLimit(async () => {
+        const full = join(dir, entry);
+        try {
+          const s = await stat(full);
+          return s.isFile() ? full : null;
+        } catch {
+          return null;
+        }
+      })
+    )
+  );
+  return results.filter((f): f is string => f !== null);
 }
 
 /**

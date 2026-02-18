@@ -11,6 +11,8 @@ import { resolvePackFiles } from "../utils/pack-list.js";
 import { computeContentHash } from "../utils/hash.js";
 import { copyWithCoW, ensureDir, removeDir } from "../utils/fs.js";
 import { readMeta, writeMeta } from "./store.js";
+import { withFileLock } from "../utils/lockfile.js";
+import type { Catalogs } from "../utils/workspace.js";
 import { verbose } from "../utils/logger.js";
 
 export interface PublishOptions {
@@ -73,7 +75,10 @@ export async function publish(
   // 3. Compute content hash
   const contentHash = await computeContentHash(files, packageDir);
 
-  // 4. Check if already up to date
+  // 4. Pre-load catalog definitions if any dep uses catalog: protocol
+  await preloadCatalogs(pkg, packageDir);
+
+  // 5. Fast path: check if already up to date (no lock needed)
   const existingMeta = await readMeta(pkg.name, pkg.version);
   if (existingMeta && existingMeta.contentHash === contentHash) {
     consola.info(`${pkg.name}@${pkg.version} already up to date`);
@@ -86,78 +91,102 @@ export async function publish(
     };
   }
 
-  // 5. Copy files to temp dir, then atomic rename
+  // 6. Acquire lock and copy files to store (prevents concurrent publish corruption)
   const storeEntryDir = getStoreEntryPath(pkg.name, pkg.version);
-  const tmpDir = storeEntryDir + ".tmp-" + Date.now();
-  const tmpPackageDir = join(tmpDir, "package");
 
-  try {
-    await ensureDir(tmpPackageDir);
+  const result = await withFileLock(
+    storeEntryDir + ".lock",
+    async () => {
+      // Re-check hash under lock — another process may have published while we waited
+      const metaUnderLock = await readMeta(pkg.name, pkg.version);
+      if (metaUnderLock && metaUnderLock.contentHash === contentHash) {
+        consola.info(`${pkg.name}@${pkg.version} already up to date`);
+        return {
+          name: pkg.name,
+          version: pkg.version,
+          fileCount: files.length,
+          skipped: true,
+          contentHash,
+        } satisfies PublishResult;
+      }
 
-    // Handle workspace:* protocol in package.json dependencies
-    const processedPkg = rewriteWorkspaceProtocol(pkg);
+      const tmpDir = storeEntryDir + ".tmp-" + Date.now();
+      const tmpPackageDir = join(tmpDir, "package");
 
-    verbose(`[publish] Copying files to temp store...`);
+      try {
+        await ensureDir(tmpPackageDir);
 
-    // Pre-compute and create unique parent directories before parallel copy
-    const uniqueDirs = new Set(
-      files.map((file) => dirname(join(tmpPackageDir, relative(packageDir, file))))
-    );
-    await Promise.all([...uniqueDirs].map((d) => ensureDir(d)));
+        // Handle workspace:* protocol in package.json dependencies
+        const processedPkg = rewriteProtocolVersions(pkg, packageDir);
 
-    // Copy files in parallel
-    await Promise.all(
-      files.map((file) =>
-        copyLimit(async () => {
-          const rel = relative(packageDir, file);
-          const dest = join(tmpPackageDir, rel);
+        verbose(`[publish] Copying files to temp store...`);
 
-          if (rel === "package.json" && processedPkg !== pkg) {
-            // Write the rewritten package.json
-            await writeFile(dest, JSON.stringify(processedPkg, null, 2));
-          } else {
-            await copyWithCoW(file, dest);
-          }
-        })
-      )
-    );
+        // Pre-compute and create unique parent directories before parallel copy
+        const uniqueDirs = new Set(
+          files.map((file) => dirname(join(tmpPackageDir, relative(packageDir, file))))
+        );
+        await Promise.all([...uniqueDirs].map((d) => ensureDir(d)));
 
-    // Write metadata to temp dir
-    const meta: PlunkMeta = {
-      contentHash,
-      publishedAt: new Date().toISOString(),
-      sourcePath: packageDir,
-    };
-    await writeFile(
-      join(tmpDir, ".plunk-meta.json"),
-      JSON.stringify(meta, null, 2)
-    );
+        // Copy files in parallel
+        await Promise.all(
+          files.map((file) =>
+            copyLimit(async () => {
+              const rel = relative(packageDir, file);
+              const dest = join(tmpPackageDir, rel);
 
-    // Atomic rename: remove old, rename temp to final
-    await removeDir(storeEntryDir);
-    await rename(tmpDir, storeEntryDir);
+              if (rel === "package.json" && processedPkg !== pkg) {
+                // Write the rewritten package.json
+                await writeFile(dest, JSON.stringify(processedPkg, null, 2));
+              } else {
+                await copyWithCoW(file, dest);
+              }
+            })
+          )
+        );
 
-    verbose(`[publish] Stored at ${storeEntryDir}`);
-  } catch (err) {
-    // Clean up temp dir on failure
-    await removeDir(tmpDir);
-    throw err;
-  }
+        // Write metadata to temp dir
+        const meta: PlunkMeta = {
+          contentHash,
+          publishedAt: new Date().toISOString(),
+          sourcePath: packageDir,
+        };
+        await writeFile(
+          join(tmpDir, ".plunk-meta.json"),
+          JSON.stringify(meta, null, 2)
+        );
 
-  // Run postplunk lifecycle hook
+        // Atomic rename: remove old, rename temp to final
+        await removeDir(storeEntryDir);
+        await rename(tmpDir, storeEntryDir);
+
+        verbose(`[publish] Stored at ${storeEntryDir}`);
+      } catch (err) {
+        // Clean up temp dir on failure
+        await removeDir(tmpDir);
+        throw err;
+      }
+
+      return {
+        name: pkg.name,
+        version: pkg.version,
+        fileCount: files.length,
+        skipped: false,
+        contentHash,
+      } satisfies PublishResult;
+    },
+    { stale: 60000 }
+  );
+
+  if (result.skipped) return result;
+
+  // Run postplunk lifecycle hook (outside the lock so slow scripts don't hold it)
   await runLifecycleHook(packageDir, pkg, "postplunk");
 
   consola.success(
     `Published ${pkg.name}@${pkg.version} (${files.length} files)`
   );
 
-  return {
-    name: pkg.name,
-    version: pkg.version,
-    fileCount: files.length,
-    skipped: false,
-    contentHash,
-  };
+  return result;
 }
 
 /**
@@ -197,13 +226,15 @@ async function runLifecycleHook(
 }
 
 /**
- * Rewrite workspace:* protocol versions to the actual version.
+ * Rewrite workspace:* and catalog:* protocol versions to actual versions.
  * Only modifies dependencies/devDependencies/peerDependencies.
  * Returns a new object if changes were made, the same object if not.
  */
-function rewriteWorkspaceProtocol(pkg: PackageJson): PackageJson {
+function rewriteProtocolVersions(pkg: PackageJson, packageDir: string): PackageJson {
   let changed = false;
   const result = { ...pkg };
+  let catalogs: Catalogs | null = null;
+  let catalogsLoaded = false;
 
   for (const depField of [
     "dependencies",
@@ -227,6 +258,24 @@ function rewriteWorkspaceProtocol(pkg: PackageJson): PackageJson {
         }
         fieldChanged = true;
         changed = true;
+      } else if (version.startsWith("catalog:")) {
+        // Lazy-load catalogs only when needed
+        if (!catalogsLoaded) {
+          catalogs = loadCatalogsSync(packageDir);
+          catalogsLoaded = true;
+        }
+        if (catalogs) {
+          const resolved = resolveCatalogVersion(version, name, catalogs);
+          if (resolved) {
+            newDeps[name] = resolved;
+            fieldChanged = true;
+            changed = true;
+          } else {
+            verbose(`[publish] catalog: specifier for "${name}" not found, leaving as-is`);
+          }
+        } else {
+          verbose(`[publish] No pnpm-workspace.yaml found, cannot resolve catalog: for "${name}"`);
+        }
       }
     }
     if (fieldChanged) {
@@ -235,4 +284,67 @@ function rewriteWorkspaceProtocol(pkg: PackageJson): PackageJson {
   }
 
   return changed ? result : pkg;
+}
+
+/**
+ * Resolve a catalog: specifier to the actual version string.
+ * - `catalog:` or `catalog:default` → default catalog
+ * - `catalog:<name>` → named catalog
+ */
+function resolveCatalogVersion(
+  specifier: string,
+  depName: string,
+  catalogs: Catalogs
+): string | null {
+  const catalogRef = specifier.slice("catalog:".length);
+
+  if (catalogRef === "" || catalogRef === "default") {
+    return catalogs.default[depName] ?? null;
+  }
+
+  return catalogs.named[catalogRef]?.[depName] ?? null;
+}
+
+// Cached catalogs per workspace root to avoid re-parsing
+let _cachedCatalogs: { root: string; catalogs: Catalogs } | null = null;
+
+/**
+ * Synchronously-cached catalog loader. Reads catalogs on first call per workspace root.
+ * Returns null if no pnpm-workspace.yaml is found.
+ */
+function loadCatalogsSync(packageDir: string): Catalogs | null {
+  // This is called from a sync context within rewriteProtocolVersions,
+  // but we need async I/O. We pre-load catalogs before calling the rewrite function.
+  // See the preloadCatalogs() call in publish().
+  return _cachedCatalogs?.catalogs ?? null;
+}
+
+/**
+ * Pre-load catalog definitions from pnpm-workspace.yaml if any deps use catalog: protocol.
+ */
+async function preloadCatalogs(
+  pkg: PackageJson,
+  packageDir: string
+): Promise<void> {
+  // Check if any dep uses catalog: protocol
+  const hasCatalog = (["dependencies", "devDependencies", "peerDependencies"] as const).some(
+    (field) => {
+      const deps = pkg[field];
+      return deps && Object.values(deps).some((v) => v.startsWith("catalog:"));
+    }
+  );
+  if (!hasCatalog) return;
+
+  const { findWorkspaceRoot, parseCatalogs } = await import("../utils/workspace.js");
+  const root = await findWorkspaceRoot(packageDir);
+  if (!root) {
+    _cachedCatalogs = null;
+    return;
+  }
+
+  // Use cached result if same workspace root
+  if (_cachedCatalogs?.root === root) return;
+
+  const catalogs = await parseCatalogs(root);
+  _cachedCatalogs = { root, catalogs };
 }
