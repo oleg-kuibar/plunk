@@ -6,7 +6,7 @@ import { verbose } from "./logger.js";
 
 /** Cache directories to clear for each bundler type */
 const CACHE_DIRS: Partial<Record<NonNullable<BundlerType>, string[]>> = {
-  vite: ["node_modules/.vite/deps", "node_modules/.vite/deps_temp"],
+  vite: ["node_modules/.vite"],
   next: [".next/cache"],
   webpack: ["node_modules/.cache"],
 };
