@@ -14,6 +14,7 @@ import {
 import { createBinLinks, removeBinLinks } from "../utils/bin-linker.js";
 import { verbose } from "../utils/logger.js";
 import { detectYarnNodeLinker } from "../utils/pm-detect.js";
+import { invalidateBundlerCache } from "../utils/bundler-cache.js";
 
 export interface InjectResult {
   copied: number;
@@ -48,6 +49,10 @@ export async function inject(
   );
 
   verbose(`[inject] ${copied} copied, ${removed} removed, ${skipped} skipped`);
+
+  if (copied > 0) {
+    await invalidateBundlerCache(consumerPath);
+  }
 
   // Read the published package.json for bin links
   const pkg = await readPackageJson(storeEntry.packageDir);

@@ -25,4 +25,13 @@ export default defineConfig([
       js: 'import{createRequire as __cr}from"node:module";globalThis.require=__cr(import.meta.url);',
     },
   },
+  {
+    entry: { "vite-plugin": "src/vite-plugin.ts" },
+    format: ["esm"],
+    outExtension: () => ({ js: ".mjs" }),
+    dts: true,
+    splitting: false,
+    target: "node20",
+    external: ["vite"],
+  },
 ]);

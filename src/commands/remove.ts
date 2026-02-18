@@ -5,7 +5,6 @@ import { removeInjected, restoreBackup } from "../core/injector.js";
 import { getLink, removeLink, readConsumerState } from "../core/tracker.js";
 import { unregisterConsumer } from "../core/tracker.js";
 import { detectBundler } from "../utils/bundler-detect.js";
-import { removeFromOptimizeDepsExclude } from "../utils/vite-config.js";
 import { removeFromTranspilePackages } from "../utils/nextjs-config.js";
 import { Timer } from "../utils/timer.js";
 import { suppressHumanOutput, output } from "../utils/output.js";
@@ -110,12 +109,7 @@ async function removeSinglePackage(
 
   // Auto-update bundler configs
   const bundler = await detectBundler(consumerPath);
-  if (bundler.type === "vite" && bundler.configFile) {
-    const result = await removeFromOptimizeDepsExclude(bundler.configFile, packageName);
-    if (result.modified) {
-      verbose(`[remove] Removed ${packageName} from ${basename(bundler.configFile)}`);
-    }
-  } else if (bundler.type === "next" && bundler.configFile) {
+  if (bundler.type === "next" && bundler.configFile) {
     const result = await removeFromTranspilePackages(bundler.configFile, packageName);
     if (result.modified) {
       verbose(`[remove] Removed ${packageName} from ${basename(bundler.configFile)}`);

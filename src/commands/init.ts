@@ -6,7 +6,6 @@ import pc from "picocolors";
 import { exists, ensureDir } from "../utils/fs.js";
 import { detectPackageManager } from "../utils/pm-detect.js";
 import { detectBundler } from "../utils/bundler-detect.js";
-import { ensureOptimizeDepsSection } from "../utils/vite-config.js";
 import { Timer } from "../utils/timer.js";
 import { suppressHumanOutput, output } from "../utils/output.js";
 import {
@@ -183,25 +182,11 @@ export default defineCommand({
         consola.success(
           `Detected bundler: ${pc.cyan("Vite")} (${basename(bundler.configFile)})`
         );
-        let shouldConfigure = true;
-        if (!skipPrompts) {
-          const confirm = await consola.prompt(
-            "Auto-configure optimizeDeps.exclude?",
-            { type: "confirm", initial: true }
-          );
-          shouldConfigure = confirm !== false;
-        }
-        if (shouldConfigure) {
-          const result = await ensureOptimizeDepsSection(bundler.configFile);
-          if (result.modified) {
-            consola.success(`Updated ${basename(bundler.configFile)}`);
-          } else if (result.error) {
-            consola.info(
-              `Could not auto-configure: ${result.error}. Add manually:\n` +
-                `  ${pc.cyan("optimizeDeps: { exclude: ['my-lib'] }")}`
-            );
-          }
-        }
+        consola.info(
+          `Add the Vite plugin for automatic dev server restarts:\n` +
+            `  ${pc.cyan('import plunk from "@oleg-kuibar/plunk/vite"')}\n` +
+            `  ${pc.cyan("plugins: [plunk()]")}`
+        );
       } else if (bundler.type === "next" && bundler.configFile) {
         consola.success(
           `Detected bundler: ${pc.cyan("Next.js")} (${basename(bundler.configFile)})`

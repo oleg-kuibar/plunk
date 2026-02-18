@@ -1,5 +1,6 @@
 import { defineCommand } from "citty";
 import { resolve, basename } from "node:path";
+import { readFile } from "node:fs/promises";
 import { consola } from "consola";
 import { findStoreEntry } from "../core/store.js";
 import { publish } from "../core/publisher.js";
@@ -7,7 +8,6 @@ import { inject, backupExisting, checkMissingDeps } from "../core/injector.js";
 import { addLink, registerConsumer } from "../core/tracker.js";
 import { detectPackageManager, detectYarnNodeLinker, hasYarnrcYml } from "../utils/pm-detect.js";
 import { detectBundler } from "../utils/bundler-detect.js";
-import { addToOptimizeDepsExclude } from "../utils/vite-config.js";
 import { addToTranspilePackages } from "../utils/nextjs-config.js";
 import { Timer } from "../utils/timer.js";
 import { suppressHumanOutput, output } from "../utils/output.js";
@@ -113,21 +113,7 @@ export default defineCommand({
 
     // Auto-update bundler config
     const bundler = await detectBundler(consumerPath);
-    if (bundler.type === "vite" && bundler.configFile) {
-      const configResult = await addToOptimizeDepsExclude(
-        bundler.configFile,
-        packageName
-      );
-      if (configResult.modified) {
-        consola.success(
-          `Added ${packageName} to optimizeDeps.exclude in ${basename(bundler.configFile)}`
-        );
-      } else if (configResult.error) {
-        consola.info(
-          `Add to vite.config manually: optimizeDeps: { exclude: ['${packageName}'] }`
-        );
-      }
-    } else if (bundler.type === "next" && bundler.configFile) {
+    if (bundler.type === "next" && bundler.configFile) {
       const configResult = await addToTranspilePackages(
         bundler.configFile,
         packageName
@@ -139,6 +125,15 @@ export default defineCommand({
       } else if (configResult.error) {
         consola.info(
           `Add to next.config manually: transpilePackages: ['${packageName}']`
+        );
+      }
+    } else if (bundler.type === "vite" && bundler.configFile) {
+      const hasPlugin = await viteConfigHasPlunkPlugin(bundler.configFile);
+      if (!hasPlugin) {
+        consola.info(
+          `Tip: Add the Vite plugin for automatic dev server restarts when plunk pushes:\n` +
+            `  import plunk from "@oleg-kuibar/plunk/vite"\n` +
+            `  plugins: [plunk()]`
         );
       }
     }
@@ -154,3 +149,19 @@ export default defineCommand({
     });
   },
 });
+
+/**
+ * Check if the Vite config file references the plunk plugin.
+ * Simple string check — avoids parsing ESM/TS config.
+ */
+async function viteConfigHasPlunkPlugin(configFile: string): Promise<boolean> {
+  try {
+    const content = await readFile(configFile, "utf-8");
+    return (
+      content.includes("@oleg-kuibar/plunk/vite") ||
+      content.includes("vite-plugin-plunk")
+    );
+  } catch {
+    return false;
+  }
+}
