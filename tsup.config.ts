@@ -8,11 +8,10 @@ export default defineConfig([
     clean: true,
     splitting: true,
     target: "node20",
-    banner: { js: "#!/usr/bin/env node" },
-    noExternal: [/.*/],
-    esbuildOptions(options) {
-      options.inject = ["src/cjs-shim.ts"];
+    banner: {
+      js: '#!/usr/bin/env node\nimport{createRequire as __cr}from"node:module";globalThis.require=__cr(import.meta.url);',
     },
+    noExternal: [/.*/],
   },
   {
     entry: { index: "src/index.ts" },
@@ -22,8 +21,8 @@ export default defineConfig([
     splitting: false,
     target: "node20",
     noExternal: [/.*/],
-    esbuildOptions(options) {
-      options.inject = ["src/cjs-shim.ts"];
+    banner: {
+      js: 'import{createRequire as __cr}from"node:module";globalThis.require=__cr(import.meta.url);',
     },
   },
 ]);
