@@ -8,12 +8,12 @@
   },
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs"
     },
     "./vite": {
-      "import": "./dist/vite-plugin.mjs",
-      "types": "./dist/vite-plugin.d.ts"
+      "types": "./dist/vite-plugin.d.ts",
+      "import": "./dist/vite-plugin.mjs"
     }
   },
   "files": [
