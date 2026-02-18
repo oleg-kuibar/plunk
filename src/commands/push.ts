@@ -6,7 +6,7 @@ import pLimit from "p-limit";
 import { publish } from "../core/publisher.js";
 import { getStoreEntry } from "../core/store.js";
 import { inject } from "../core/injector.js";
-import { getConsumers, getLink } from "../core/tracker.js";
+import { addLink, getConsumers, getLink } from "../core/tracker.js";
 import { startWatcher } from "../core/watcher.js";
 import { Timer } from "../utils/timer.js";
 import { suppressHumanOutput, output } from "../utils/output.js";
@@ -86,6 +86,16 @@ export default defineCommand({
                 consumerPath,
                 link.packageManager
               );
+
+              // Update state.json so the Vite plugin detects the push
+              if (injectResult.copied > 0) {
+                await addLink(consumerPath, result.name, {
+                  ...link,
+                  contentHash: entry.meta.contentHash,
+                  linkedAt: new Date().toISOString(),
+                });
+              }
+
               return injectResult;
             } catch (err) {
               consola.warn(`Failed to push to ${consumerPath}: ${err}`);
