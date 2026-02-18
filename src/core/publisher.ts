@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import { platform } from "node:os";
 import { consola } from "consola";
 import pLimit from "p-limit";
+import { availableParallelism } from "node:os";
 import type { PackageJson, PlunkMeta, StoreEntry } from "../types.js";
 import { getStorePackagePath, getStoreEntryPath } from "../utils/paths.js";
 import { resolvePackFiles } from "../utils/pack-list.js";
@@ -25,7 +26,7 @@ export interface PublishResult {
   contentHash: string;
 }
 
-const copyLimit = pLimit(8);
+const copyLimit = pLimit(Math.max(availableParallelism(), 8));
 
 /**
  * Publish a package from a directory to the plunk store.
@@ -98,13 +99,18 @@ export async function publish(
 
     verbose(`[publish] Copying files to temp store...`);
 
+    // Pre-compute and create unique parent directories before parallel copy
+    const uniqueDirs = new Set(
+      files.map((file) => dirname(join(tmpPackageDir, relative(packageDir, file))))
+    );
+    await Promise.all([...uniqueDirs].map((d) => ensureDir(d)));
+
     // Copy files in parallel
     await Promise.all(
       files.map((file) =>
         copyLimit(async () => {
           const rel = relative(packageDir, file);
           const dest = join(tmpPackageDir, rel);
-          await ensureDir(dirname(dest));
 
           if (rel === "package.json" && processedPkg !== pkg) {
             // Write the rewritten package.json

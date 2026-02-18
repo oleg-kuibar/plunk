@@ -6,7 +6,6 @@ import type { WatchOptions } from "../types.js";
 /** Module-level reference to active child process for signal cleanup */
 let activeChild: ChildProcess | null = null;
 let activeWatcher: { close: () => Promise<void> } | null = null;
-let activeDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** Kill the active build process if one is running */
 export function killActiveBuild(): void {
@@ -18,7 +17,12 @@ export function killActiveBuild(): void {
 
 /**
  * Start watching a directory for changes and trigger a callback.
- * Uses chokidar for cross-platform file watching.
+ *
+ * Uses a "debounce effects, not detection" strategy (inspired by Vite):
+ * - File changes are detected immediately
+ * - The push callback is coalesced: rapid changes within `debounceMs` are batched
+ * - If a push is already running when new changes arrive, a re-push is queued
+ *   so the final state is always pushed
  */
 export async function startWatcher(
   watchDir: string,
@@ -32,15 +36,24 @@ export async function startWatcher(
     p.startsWith("/") || p.includes(":") ? p : `${watchDir}/${p}`
   );
 
-  const debounceMs = options.debounce ?? 300;
-  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  const debounceMs = options.debounce ?? 100;
+  let coalesceTimer: ReturnType<typeof setTimeout> | null = null;
   let running = false;
+  let pendingWhileRunning = false;
 
-  const debouncedOnChange = () => {
-    if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(async () => {
-      activeDebounceTimer = null;
-      if (running) return;
+  const scheduleFlush = () => {
+    // Already scheduled — the existing timer will fire
+    if (coalesceTimer) return;
+
+    coalesceTimer = setTimeout(async () => {
+      coalesceTimer = null;
+
+      if (running) {
+        // A push is in progress — flag that we need to re-run after it finishes
+        pendingWhileRunning = true;
+        return;
+      }
+
       running = true;
       try {
         if (options.buildCmd) {
@@ -55,9 +68,23 @@ export async function startWatcher(
         consola.error("Push failed:", err);
       } finally {
         running = false;
+
+        // If changes arrived while we were pushing, flush again
+        if (pendingWhileRunning) {
+          pendingWhileRunning = false;
+          scheduleFlush();
+        }
       }
     }, debounceMs);
-    activeDebounceTimer = debounceTimer;
+  };
+
+  const onFileEvent = (_path: string) => {
+    // Reset the coalesce window on each event so rapid bursts collapse
+    if (coalesceTimer) {
+      clearTimeout(coalesceTimer);
+      coalesceTimer = null;
+    }
+    scheduleFlush();
   };
 
   const watcher = watch(watchPaths, {
@@ -69,14 +96,13 @@ export async function startWatcher(
     ],
   });
 
-  watcher.on("change", debouncedOnChange);
-  watcher.on("add", debouncedOnChange);
-  watcher.on("unlink", debouncedOnChange);
+  watcher.on("change", onFileEvent);
+  watcher.on("add", onFileEvent);
+  watcher.on("unlink", onFileEvent);
 
   const watcherHandle = {
     close: async () => {
-      if (debounceTimer) clearTimeout(debounceTimer);
-      activeDebounceTimer = null;
+      if (coalesceTimer) clearTimeout(coalesceTimer);
       killActiveBuild();
       await watcher.close();
       activeWatcher = null;
@@ -85,15 +111,15 @@ export async function startWatcher(
 
   activeWatcher = watcherHandle;
 
-  // Register signal handlers for graceful shutdown
+  // Register signal handlers for graceful shutdown (once to prevent accumulation)
   const cleanup = async () => {
     consola.info("Stopping watcher...");
     await watcherHandle.close();
     process.exit(0);
   };
 
-  process.on("SIGINT", cleanup);
-  process.on("SIGTERM", cleanup);
+  process.once("SIGINT", cleanup);
+  process.once("SIGTERM", cleanup);
 
   consola.info(`Watching for changes in: ${patterns.join(", ")}`);
 

@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { dirname } from "node:path";
 import { consola } from "consola";
 import type {
   ConsumerState,
@@ -110,7 +111,7 @@ async function writeConsumersRegistry(
   registry: ConsumersRegistry
 ): Promise<void> {
   const regPath = getConsumersPath();
-  await ensureDir(getConsumersPath().replace(/[/\\][^/\\]+$/, ""));
+  await ensureDir(dirname(getConsumersPath()));
   await atomicWriteFile(regPath, JSON.stringify(registry, null, 2));
 }
 

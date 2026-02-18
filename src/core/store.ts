@@ -68,24 +68,26 @@ export async function findStoreEntry(
   // Pre-filter directories by encoded name prefix
   const encodedPrefix = encodePackageName(name) + "@";
   const dirs = await readdir(storePath, { withFileTypes: true });
-  const matching: StoreEntry[] = [];
+  const candidates = dirs.filter(
+    (d) => d.isDirectory() && d.name.startsWith(encodedPrefix)
+  );
 
-  for (const dir of dirs) {
-    if (!dir.isDirectory()) continue;
-    if (!dir.name.startsWith(encodedPrefix)) continue;
+  // Read all matching metadata in parallel
+  const results = await Promise.all(
+    candidates.map(async (dir) => {
+      const version = dir.name.slice(encodedPrefix.length);
+      const meta = await readMeta(name, version);
+      if (!meta) return null;
+      return {
+        name,
+        version,
+        packageDir: getStorePackagePath(name, version),
+        meta,
+      } satisfies StoreEntry;
+    })
+  );
 
-    const version = dir.name.slice(encodedPrefix.length);
-    const meta = await readMeta(name, version);
-    if (!meta) continue;
-
-    matching.push({
-      name,
-      version,
-      packageDir: getStorePackagePath(name, version),
-      meta,
-    });
-  }
-
+  const matching = results.filter((r): r is StoreEntry => r !== null);
   if (matching.length === 0) return null;
   // Sort by publishedAt descending
   matching.sort(
@@ -101,32 +103,34 @@ export async function listStoreEntries(): Promise<StoreEntry[]> {
   const storePath = getStorePath();
   if (!(await exists(storePath))) return [];
 
-  const entries: StoreEntry[] = [];
   const dirs = await readdir(storePath, { withFileTypes: true });
+  const candidates = dirs.filter((d) => {
+    if (!d.isDirectory()) return false;
+    const atIdx = d.name.lastIndexOf("@");
+    return atIdx > 0;
+  });
 
-  for (const dir of dirs) {
-    if (!dir.isDirectory()) continue;
+  // Read all metadata in parallel
+  const results = await Promise.all(
+    candidates.map(async (dir) => {
+      const atIdx = dir.name.lastIndexOf("@");
+      const encodedName = dir.name.slice(0, atIdx);
+      const version = dir.name.slice(atIdx + 1);
+      const name = decodePackageName(encodedName);
 
-    // Parse name@version from directory name
-    const atIdx = dir.name.lastIndexOf("@");
-    if (atIdx <= 0) continue; // no @ or @ at start without scope
+      const meta = await readMeta(name, version);
+      if (!meta) return null;
 
-    const encodedName = dir.name.slice(0, atIdx);
-    const version = dir.name.slice(atIdx + 1);
-    const name = decodePackageName(encodedName);
+      return {
+        name,
+        version,
+        packageDir: getStorePackagePath(name, version),
+        meta,
+      } satisfies StoreEntry;
+    })
+  );
 
-    const meta = await readMeta(name, version);
-    if (!meta) continue;
-
-    entries.push({
-      name,
-      version,
-      packageDir: getStorePackagePath(name, version),
-      meta,
-    });
-  }
-
-  return entries;
+  return results.filter((r): r is StoreEntry => r !== null);
 }
 
 /** Remove a store entry */

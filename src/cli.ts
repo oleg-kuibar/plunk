@@ -1,3 +1,9 @@
+import { availableParallelism } from "node:os";
+
+// Expand libuv's threadpool to match available CPU cores.
+// Must happen before any async I/O (fs, dns, crypto) is dispatched.
+process.env.UV_THREADPOOL_SIZE ??= String(Math.max(availableParallelism(), 8));
+
 import { defineCommand, runMain } from "citty";
 import { initFlags } from "./utils/logger.js";
 

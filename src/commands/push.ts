@@ -1,5 +1,6 @@
 import { defineCommand } from "citty";
-import { resolve } from "node:path";
+import { readFile } from "node:fs/promises";
+import { resolve, join } from "node:path";
 import { consola } from "consola";
 import pLimit from "p-limit";
 import { publish } from "../core/publisher.js";
@@ -11,6 +12,7 @@ import { Timer } from "../utils/timer.js";
 import { suppressHumanOutput, output } from "../utils/output.js";
 import { errorWithSuggestion } from "../utils/errors.js";
 import { verbose } from "../utils/logger.js";
+import type { PackageJson } from "../types.js";
 
 const consumerLimit = pLimit(4);
 
@@ -120,11 +122,30 @@ export default defineCommand({
 
     // Watch mode
     if (args.watch) {
+      // Infer watch patterns from context:
+      // - With a build command: watch source dirs (src/lib), the build will produce output
+      // - Without a build command: watch the package.json `files` field (typically dist/)
+      let patterns: string[] | undefined;
+      if (!args.build) {
+        try {
+          const pkg = JSON.parse(
+            await readFile(join(packageDir, "package.json"), "utf-8")
+          ) as PackageJson;
+          if (pkg.files && pkg.files.length > 0) {
+            patterns = pkg.files;
+            verbose(`[watch] Using package.json files field: ${patterns.join(", ")}`);
+          }
+        } catch {
+          // Fall through to defaults
+        }
+      }
+
       await startWatcher(
         packageDir,
         {
+          patterns,
           buildCmd: args.build,
-          debounce: args.debounce ? parseInt(args.debounce, 10) : 300,
+          debounce: args.debounce ? parseInt(args.debounce, 10) : undefined,
         },
         doPush
       );

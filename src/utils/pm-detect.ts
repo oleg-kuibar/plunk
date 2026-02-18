@@ -14,20 +14,23 @@ const LOCKFILES: [string, PackageManager][] = [
 /**
  * Detect the package manager used in a project directory
  * by checking for lockfile presence.
+ * Probes all lockfiles in parallel, returns the highest-priority match.
  * Falls back to "npm" if no lockfile is found.
  */
 export async function detectPackageManager(
   projectDir: string
 ): Promise<PackageManager> {
-  for (const [lockfile, pm] of LOCKFILES) {
-    try {
-      await stat(join(projectDir, lockfile));
-      return pm;
-    } catch {
-      // lockfile doesn't exist, continue
-    }
-  }
-  return "npm";
+  const results = await Promise.all(
+    LOCKFILES.map(async ([lockfile, pm]) => {
+      try {
+        await stat(join(projectDir, lockfile));
+        return pm;
+      } catch {
+        return null;
+      }
+    })
+  );
+  return results.find((pm) => pm !== null) ?? "npm";
 }
 
 export type YarnNodeLinker = "node-modules" | "pnpm" | "pnp";

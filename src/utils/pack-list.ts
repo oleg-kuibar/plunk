@@ -82,11 +82,14 @@ export async function resolvePackFiles(
   }
 
   // Always include common root files
+  const fileSet = new Set(files);
   for (const name of ["README.md", "README", "LICENSE", "LICENCE", "CHANGELOG.md"]) {
     const p = join(absDir, name);
+    if (fileSet.has(p)) continue;
     try {
       await stat(p);
-      if (!files.includes(p)) files.push(p);
+      files.push(p);
+      fileSet.add(p);
     } catch (err) {
       if (isNodeError(err) && err.code !== "ENOENT") {
         throw err;
@@ -96,11 +99,11 @@ export async function resolvePackFiles(
   }
 
   // Deduplicate
-  return [...new Set(files)];
+  return [...fileSet];
 }
 
 /** Default directories/files to ignore when no `files` field */
-const DEFAULT_IGNORES = [
+const DEFAULT_IGNORES = new Set([
   "node_modules",
   ".git",
   ".svn",
@@ -127,7 +130,7 @@ const DEFAULT_IGNORES = [
   "jest.config.ts",
   "vitest.config.ts",
   "vitest.config.js",
-];
+]);
 
 interface IgnoreMatchers {
   literals: Set<string>;
@@ -138,7 +141,7 @@ interface IgnoreMatchers {
 function shouldIgnore(relPath: string, matchers: IgnoreMatchers): boolean {
   const parts = relPath.split(/[\\/]/);
   for (const part of parts) {
-    if (DEFAULT_IGNORES.includes(part)) return true;
+    if (DEFAULT_IGNORES.has(part)) return true;
     if (matchers.literals.has(part)) return true;
   }
   // Check full relative path against literals

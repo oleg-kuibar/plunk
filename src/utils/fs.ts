@@ -1,5 +1,6 @@
 import {
   copyFile,
+  cp,
   mkdir,
   readdir,
   rename,
@@ -8,19 +9,44 @@ import {
   writeFile,
   constants,
 } from "node:fs/promises";
-import { join, dirname, relative } from "node:path";
+import { join, dirname, relative, parse as parsePath } from "node:path";
+import pLimit from "p-limit";
+import { availableParallelism } from "node:os";
 import { hashFile } from "./hash.js";
 import { isDryRun } from "./logger.js";
 import { verbose } from "./logger.js";
+
+/** Concurrency limit for parallel file I/O, auto-tuned to available CPUs */
+const ioLimit = pLimit(Math.max(availableParallelism(), 8));
 
 /** Type guard for Node.js system errors with an error code */
 export function isNodeError(err: unknown): err is NodeJS.ErrnoException {
   return err instanceof Error && "code" in err;
 }
 
+// ── Reflink support cache ──
+// Caches whether CoW reflinks work on each volume root, so the first failed
+// FICLONE_FORCE is the only slow one. Inspired by Bun's per-directory
+// syscall failure caching (has_ioctl_ficlone_failed, etc.)
+
+const reflinkSupported = new Map<string, boolean>();
+
+function volumeRoot(filePath: string): string {
+  const { root } = parsePath(filePath);
+  return root || "/";
+}
+
 /**
- * Copy a file using CoW (copy-on-write) when available, falling back to regular copy.
- * CoW is instant on APFS (macOS), btrfs (Linux), and ReFS (Windows).
+ * Copy a file using CoW (reflink) when available, with per-volume caching.
+ *
+ * On the first copy per volume, tries COPYFILE_FICLONE_FORCE to probe
+ * for reflink support. If it fails, caches the result and all subsequent
+ * copies on that volume go straight to a plain copy — no wasted syscalls.
+ *
+ * Note: hardlinks are intentionally NOT used as a fallback because plunk's
+ * incremental copy model compares source vs destination content. Hardlinks
+ * share an inode, so source mutations silently propagate to the destination,
+ * breaking change detection.
  */
 export async function copyWithCoW(src: string, dest: string): Promise<void> {
   if (isDryRun()) {
@@ -28,10 +54,29 @@ export async function copyWithCoW(src: string, dest: string): Promise<void> {
     return;
   }
   await mkdir(dirname(dest), { recursive: true });
-  try {
+
+  const root = volumeRoot(dest);
+  const supportsReflink = reflinkSupported.get(root);
+
+  // Fast path: already know this volume doesn't support reflinks
+  if (supportsReflink === false) {
+    await copyFile(src, dest);
+    return;
+  }
+
+  // Fast path: already confirmed reflink support
+  if (supportsReflink === true) {
     await copyFile(src, dest, constants.COPYFILE_FICLONE);
+    return;
+  }
+
+  // First copy on this volume: probe with FICLONE_FORCE (reflink-only, no fallback)
+  try {
+    await copyFile(src, dest, constants.COPYFILE_FICLONE_FORCE);
+    reflinkSupported.set(root, true);
   } catch {
-    // FICLONE not supported on this filesystem, fall back to regular copy
+    reflinkSupported.set(root, false);
+    verbose(`[copy] reflink not supported on ${root}, using plain copy`);
     await copyFile(src, dest);
   }
 }
@@ -68,47 +113,56 @@ export async function incrementalCopy(
   let removed = 0;
   let skipped = 0;
 
-  // Copy new/changed files
-  for (const srcFile of srcFiles) {
-    const rel = relative(srcDir, srcFile);
-    const destFile = join(destDir, rel);
+  // Compare and copy files in parallel
+  const results = await Promise.all(
+    srcFiles.map((srcFile) =>
+      ioLimit(async () => {
+        const rel = relative(srcDir, srcFile);
+        const destFile = join(destDir, rel);
 
-    let needsCopy = true;
-    try {
-      const [srcStat, destStat] = await Promise.all([
-        stat(srcFile),
-        stat(destFile),
-      ]);
-      // Fast path: different sizes means definitely different content
-      if (srcStat.size !== destStat.size) {
-        verbose(`[copy] ${rel} (size differs: ${srcStat.size} vs ${destStat.size})`);
-      } else {
-        // Same size: compare hashes
-        const [srcHash, destHash] = await Promise.all([
-          hashFile(srcFile),
-          hashFile(destFile),
-        ]);
-        if (srcHash === destHash) {
-          needsCopy = false;
-          skipped++;
-          verbose(`[skip] ${rel} (unchanged)`);
-        } else {
-          verbose(`[copy] ${rel} (hash differs)`);
+        let needsCopy = true;
+        try {
+          const [srcStat, destStat] = await Promise.all([
+            stat(srcFile),
+            stat(destFile),
+          ]);
+          // Fast path: different sizes means definitely different content
+          if (srcStat.size !== destStat.size) {
+            verbose(`[copy] ${rel} (size differs: ${srcStat.size} vs ${destStat.size})`);
+          } else {
+            // Same size: compare hashes (pass known sizes to skip redundant stat)
+            const [srcHash, destHash] = await Promise.all([
+              hashFile(srcFile, srcStat.size),
+              hashFile(destFile, destStat.size),
+            ]);
+            if (srcHash === destHash) {
+              needsCopy = false;
+              verbose(`[skip] ${rel} (unchanged)`);
+            } else {
+              verbose(`[copy] ${rel} (hash differs)`);
+            }
+          }
+        } catch (err) {
+          if (isNodeError(err) && err.code === "ENOENT") {
+            verbose(`[copy] ${rel} (new file)`);
+          } else if (isNodeError(err)) {
+            throw err;
+          }
+          // dest file doesn't exist, needs copy
         }
-      }
-    } catch (err) {
-      if (isNodeError(err) && err.code === "ENOENT") {
-        verbose(`[copy] ${rel} (new file)`);
-      } else if (isNodeError(err)) {
-        throw err;
-      }
-      // dest file doesn't exist, needs copy
-    }
 
-    if (needsCopy) {
-      await copyWithCoW(srcFile, destFile);
-      copied++;
-    }
+        if (needsCopy) {
+          await copyWithCoW(srcFile, destFile);
+          return "copied" as const;
+        }
+        return "skipped" as const;
+      })
+    )
+  );
+
+  for (const r of results) {
+    if (r === "copied") copied++;
+    else skipped++;
   }
 
   // Remove files in dest that don't exist in src
@@ -177,17 +231,7 @@ export async function atomicWriteFile(
   await rename(tmpPath, filePath);
 }
 
-/** Copy an entire directory recursively */
+/** Copy an entire directory recursively using native fs.cp */
 export async function copyDir(src: string, dest: string): Promise<void> {
-  await ensureDir(dest);
-  const entries = await readdir(src, { withFileTypes: true });
-  for (const entry of entries) {
-    const srcPath = join(src, entry.name);
-    const destPath = join(dest, entry.name);
-    if (entry.isDirectory()) {
-      await copyDir(srcPath, destPath);
-    } else {
-      await copyWithCoW(srcPath, destPath);
-    }
-  }
+  await cp(src, dest, { recursive: true });
 }

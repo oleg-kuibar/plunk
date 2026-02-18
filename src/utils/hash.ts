@@ -3,18 +3,28 @@ import { createReadStream } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import { relative } from "node:path";
 import pLimit from "p-limit";
+import { availableParallelism } from "node:os";
+import xxhash from "xxhash-wasm";
 import { verbose } from "./logger.js";
 
 /** Files larger than this threshold use streaming hash */
 const STREAM_THRESHOLD = 1024 * 1024; // 1MB
 
 /** Concurrency limit for parallel file reads in computeContentHash */
-const limit = pLimit(16);
+const limit = pLimit(Math.max(availableParallelism(), 8));
+
+/** Lazily initialized xxhash instance */
+let xxh: Awaited<ReturnType<typeof xxhash>> | null = null;
+
+async function getXxhash() {
+  if (!xxh) xxh = await xxhash();
+  return xxh;
+}
 
 /**
- * Compute a SHA-256 content hash for a list of files.
+ * Compute an xxh64 content hash for a list of files.
  * The hash is deterministic: sorted by relative path, each entry is `path\0content`.
- * Reads files in parallel (up to 16 concurrent) then feeds into hash in sorted order.
+ * Reads files in parallel (up to CPU count concurrent) then feeds into hash in sorted order.
  */
 export async function computeContentHash(
   files: string[],
@@ -39,6 +49,10 @@ export async function computeContentHash(
 
   verbose(`[hash] Computing content hash for ${files.length} files`);
 
+  // Use SHA-256 streaming for the aggregate content hash.
+  // This is called once per publish (not per-file), and the deterministic
+  // prefix "sha256:" is stored in metadata — switching to xxhash here would
+  // invalidate every existing store entry for no meaningful speedup.
   const hash = createHash("sha256");
   for (const { rel, content } of contents) {
     hash.update(rel);
@@ -52,20 +66,24 @@ export async function computeContentHash(
 }
 
 /**
- * Compute SHA-256 hash of a single file's content.
- * Uses streaming for files > 1MB, buffered for smaller files.
+ * Compute xxh64 hash of a single file's content.
+ * Uses streaming for files > 1MB, buffered read + xxhash for smaller files.
+ * Accepts an optional knownSize to skip the stat syscall when the caller already has it.
  */
-export async function hashFile(filePath: string): Promise<string> {
-  const fileStat = await stat(filePath);
-  if (fileStat.size > STREAM_THRESHOLD) {
+export async function hashFile(filePath: string, knownSize?: number): Promise<string> {
+  const size = knownSize ?? (await stat(filePath)).size;
+  if (size > STREAM_THRESHOLD) {
     return hashFileStream(filePath);
   }
+  const { h64Raw } = await getXxhash();
   const content = await readFile(filePath);
-  return createHash("sha256").update(content).digest("hex");
+  return h64Raw(content).toString(16);
 }
 
 /**
  * Compute SHA-256 hash using a readable stream (for large files).
+ * Large files are rare in the incremental copy path and SHA-256 streaming
+ * is already fast enough — the bottleneck is disk I/O, not hashing.
  */
 function hashFileStream(filePath: string): Promise<string> {
   return new Promise((resolve, reject) => {
