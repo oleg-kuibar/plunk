@@ -47,6 +47,10 @@ export interface WatchOptions {
   buildCmd?: string;
   /** Debounce delay in ms (default: 300) */
   debounce?: number;
+  /** Enable awaitWriteFinish for large/slow writes (auto-enabled when no buildCmd) */
+  awaitWriteFinish?:
+    | boolean
+    | { stabilityThreshold: number; pollInterval: number };
 }
 
 /** Package.json fields we care about */

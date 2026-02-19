@@ -20,19 +20,14 @@ const consumerLimit = pLimit(4);
 
 export default defineCommand({
   meta: {
-    name: "push",
+    name: "dev",
     description:
-      "Publish and push to all consumers. Use --watch for continuous mode.",
+      "Watch, rebuild, and push to all consumers. Auto-detects build command.",
   },
   args: {
-    watch: {
-      type: "boolean",
-      description: "Watch for changes and auto-push",
-      default: false,
-    },
     build: {
       type: "string",
-      description: "Build command to run before publishing (watch mode)",
+      description: "Override build command (default: auto-detect from package.json)",
     },
     "skip-build": {
       type: "boolean",
@@ -41,7 +36,7 @@ export default defineCommand({
     },
     debounce: {
       type: "string",
-      description: "Debounce delay in ms for watch mode (default: 300)",
+      description: "Debounce delay in ms (default: 100)",
     },
   },
   async run({ args }) {
@@ -69,7 +64,7 @@ export default defineCommand({
       const consumers = await getConsumers(result.name);
       if (consumers.length === 0) {
         consola.info(
-          "No consumers registered. Use 'plunk add' in a consumer project first."
+          "No consumers registered. Use 'plunk add' in a consumer project first.",
         );
         return;
       }
@@ -83,7 +78,9 @@ export default defineCommand({
           consumerLimit(async () => {
             const link = await getLink(consumerPath, result.name);
             if (!link) {
-              verbose(`[push] No link found for ${result.name} in ${consumerPath}, skipping`);
+              verbose(
+                `[push] No link found for ${result.name} in ${consumerPath}, skipping`,
+              );
               return null;
             }
 
@@ -91,7 +88,7 @@ export default defineCommand({
               const injectResult = await inject(
                 entry,
                 consumerPath,
-                link.packageManager
+                link.packageManager,
               );
 
               // Update state.json so the Vite plugin detects the push
@@ -108,8 +105,8 @@ export default defineCommand({
               consola.warn(`Failed to push to ${consumerPath}: ${err}`);
               return null;
             }
-          })
-        )
+          }),
+        ),
       );
 
       for (const r of results) {
@@ -121,7 +118,7 @@ export default defineCommand({
       }
 
       consola.success(
-        `Pushed ${result.name}@${result.version} to ${pushCount} consumer(s) in ${timer.elapsed()} (${totalCopied} files changed, ${totalSkipped} unchanged)`
+        `Pushed ${result.name}@${result.version} to ${pushCount} consumer(s) in ${timer.elapsed()} (${totalCopied} files changed, ${totalSkipped} unchanged)`,
       );
 
       output({
@@ -134,56 +131,56 @@ export default defineCommand({
       });
     };
 
+    // Resolve build command: explicit > auto-detect > none
+    let buildCmd: string | undefined = args.build;
+    let patterns: string[] | undefined;
+
+    if (args.build) {
+      // Explicit: use as-is
+    } else if (args["skip-build"]) {
+      // Explicitly no build
+    } else {
+      // Auto-detect from package.json scripts
+      const pm = await detectPackageManager(packageDir);
+      const detected = await detectBuildCommand(packageDir, pm);
+      if (detected) {
+        buildCmd = detected;
+        consola.info(`Auto-detected build command: ${detected}`);
+      }
+    }
+
+    // Without a build command: watch the package.json `files` field (typically dist/)
+    if (!buildCmd) {
+      try {
+        const pkg = JSON.parse(
+          await readFile(join(packageDir, "package.json"), "utf-8"),
+        ) as PackageJson;
+        if (pkg.files && pkg.files.length > 0) {
+          patterns = pkg.files;
+          verbose(
+            `[watch] Using package.json files field: ${patterns.join(", ")}`,
+          );
+        }
+      } catch {
+        // Fall through to defaults
+      }
+    }
+
     // Initial push
     await doPush();
 
-    // Watch mode
-    if (args.watch) {
-      // Resolve build command: explicit > auto-detect > none
-      let buildCmd: string | undefined = args.build;
-      let patterns: string[] | undefined;
+    // Start watcher
+    await startWatcher(
+      packageDir,
+      {
+        patterns,
+        buildCmd,
+        debounce: args.debounce ? parseInt(args.debounce, 10) : undefined,
+      },
+      doPush,
+    );
 
-      if (args.build) {
-        // Explicit: use as-is
-      } else if (args["skip-build"]) {
-        // Explicitly no build
-      } else {
-        // Auto-detect from package.json scripts
-        const pm = await detectPackageManager(packageDir);
-        const detected = await detectBuildCommand(packageDir, pm);
-        if (detected) {
-          buildCmd = detected;
-          consola.info(`Auto-detected build command: ${detected}`);
-        }
-      }
-
-      // Without a build command: watch the package.json `files` field (typically dist/)
-      if (!buildCmd) {
-        try {
-          const pkg = JSON.parse(
-            await readFile(join(packageDir, "package.json"), "utf-8")
-          ) as PackageJson;
-          if (pkg.files && pkg.files.length > 0) {
-            patterns = pkg.files;
-            verbose(`[watch] Using package.json files field: ${patterns.join(", ")}`);
-          }
-        } catch {
-          // Fall through to defaults
-        }
-      }
-
-      await startWatcher(
-        packageDir,
-        {
-          patterns,
-          buildCmd,
-          debounce: args.debounce ? parseInt(args.debounce, 10) : undefined,
-        },
-        doPush
-      );
-
-      // Prevent the process from exiting
-      await new Promise(() => {});
-    }
+    // Prevent the process from exiting
+    await new Promise(() => {});
   },
 });

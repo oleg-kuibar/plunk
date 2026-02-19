@@ -10,7 +10,7 @@ Both tools solve the same problem (local package development), so the migration 
 | **Git contamination** | `.yalc/` dir + modified package.json | Everything in gitignored `.plunk/` |
 | **Lock file** | `yalc.lock` in project root | `.plunk/state.json` (gitignored) |
 | **pnpm support** | Broken since pnpm v7.10 | Works (follows `.pnpm/` symlinks) |
-| **Watch mode** | External (yalc-watch, unmaintained) | Built-in (`plunk push --watch`) |
+| **Watch mode** | External (yalc-watch, unmaintained) | Built-in (`plunk dev` or `plunk push --watch`) |
 | **After npm install** | Manual `yalc link` again | Automatic via `postinstall` hook |
 | **Incremental copy** | Full copy every time | Hash-based diff, only changed files |
 | **Backup/restore** | No | Yes, original npm version backed up |
@@ -106,12 +106,14 @@ Replace your yalc-watch setup with plunk's built-in watch:
 # After (plunk)
 # Terminal 1:
 cd my-lib
-plunk push --watch --build "pnpm build"
+plunk dev                                # auto-detects build command
 
 # Terminal 2:
 cd my-app
 pnpm dev
 ```
+
+`plunk dev` auto-detects the build command from `package.json` scripts. For explicit control, use `plunk push --watch --build "pnpm build"`.
 
 ### 6. Clean up global yalc store (optional)
 

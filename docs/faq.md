@@ -35,7 +35,7 @@ The main differences:
 
 3. **pnpm support.** yalc has been broken with pnpm since v7.10. plunk detects pnpm and follows the `.pnpm/` symlink chain to inject files at the correct location.
 
-4. **Built-in watch mode.** yalc relies on the unmaintained `yalc-watch` package. plunk has `plunk push --watch --build "cmd"` built in.
+4. **Built-in watch mode.** yalc relies on the unmaintained `yalc-watch` package. plunk has `plunk dev` (auto-detects build command) and `plunk push --watch --build "cmd"` built in.
 
 5. **Incremental copy.** yalc copies all files every time. plunk hashes files with xxhash (parallel, ~10x faster than SHA-256) and only copies what changed.
 

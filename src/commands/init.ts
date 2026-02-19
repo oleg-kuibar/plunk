@@ -6,6 +6,8 @@ import pc from "picocolors";
 import { exists, ensureDir } from "../utils/fs.js";
 import { detectPackageManager } from "../utils/pm-detect.js";
 import { detectBundler } from "../utils/bundler-detect.js";
+import { detectBuildCommand as detectBuildCmd } from "../utils/build-detect.js";
+import { ensureGitignore, addPostinstall } from "../utils/init-helpers.js";
 import { Timer } from "../utils/timer.js";
 import { suppressHumanOutput, output } from "../utils/output.js";
 import {
@@ -147,7 +149,7 @@ export default defineCommand({
       } else {
         // Detect or prompt for build command
         libraryBuildCmd = await detectBuildCommand(pkgPath, pm, skipPrompts);
-        const added = await addLibraryScripts(pkgPath, pm, libraryBuildCmd);
+        const added = await addLibraryScripts(pkgPath);
         for (const name of added) {
           consola.success(`Added "${name}" script to package.json`);
         }
@@ -182,11 +184,17 @@ export default defineCommand({
         consola.success(
           `Detected bundler: ${pc.cyan("Vite")} (${basename(bundler.configFile)})`
         );
-        consola.info(
-          `Add the Vite plugin for automatic dev server restarts:\n` +
-            `  ${pc.cyan('import plunk from "@oleg-kuibar/plunk/vite"')}\n` +
-            `  ${pc.cyan("plugins: [plunk()]")}`
-        );
+        const { addPlunkVitePlugin } = await import("../utils/vite-config.js");
+        const viteResult = await addPlunkVitePlugin(bundler.configFile);
+        if (viteResult.modified) {
+          consola.success(`Added plunk plugin to ${basename(bundler.configFile)}`);
+        } else if (viteResult.error) {
+          consola.info(
+            `Add the Vite plugin for automatic dev server restarts:\n` +
+              `  ${pc.cyan('import plunk from "@oleg-kuibar/plunk/vite"')}\n` +
+              `  ${pc.cyan("plugins: [plunk()]")}`
+          );
+        }
       } else if (bundler.type === "next" && bundler.configFile) {
         consola.success(
           `Detected bundler: ${pc.cyan("Next.js")} (${basename(bundler.configFile)})`
@@ -215,7 +223,7 @@ export default defineCommand({
         `  2. ${pc.cyan("plunk add my-lib")}${bundler.type === "vite" ? "                     ← auto-updates vite config" : bundler.type === "next" ? "                     ← auto-updates next config" : ""}`
       );
       console.log(
-        `  3. ${pc.cyan(`cd ../my-lib && plunk push --watch --build "${pm === "npm" ? "npm run build" : `${pm} build`}"`)}`
+        `  3. ${pc.cyan("cd ../my-lib && plunk dev")}                  ← watch + rebuild + auto-push`
       );
     } else {
       // Library next steps
@@ -242,66 +250,6 @@ export default defineCommand({
 });
 
 /**
- * Ensure .plunk/ is in .gitignore. Returns true if it was added.
- */
-async function ensureGitignore(gitignorePath: string): Promise<boolean> {
-  let content = "";
-  try {
-    content = await readFile(gitignorePath, "utf-8");
-  } catch {
-    // .gitignore doesn't exist, create it
-  }
-
-  // Check if .plunk/ is already ignored (various patterns)
-  const lines = content.split("\n");
-  const alreadyIgnored = lines.some(
-    (line) =>
-      line.trim() === ".plunk/" ||
-      line.trim() === ".plunk" ||
-      line.trim() === "/.plunk/" ||
-      line.trim() === "/.plunk"
-  );
-
-  if (alreadyIgnored) return false;
-
-  // Append .plunk/ to .gitignore
-  const separator =
-    content.length > 0 && !content.endsWith("\n") ? "\n" : "";
-  const section =
-    content.length > 0
-      ? "\n# plunk local links\n.plunk/\n"
-      : "# plunk local links\n.plunk/\n";
-  await writeFile(gitignorePath, content + separator + section);
-  return true;
-}
-
-/**
- * Add "postinstall": "plunk restore || true" to package.json scripts.
- * Returns true if it was added.
- */
-async function addPostinstall(pkgPath: string): Promise<boolean> {
-  const content = await readFile(pkgPath, "utf-8");
-  const pkg = JSON.parse(content);
-
-  // Don't overwrite existing postinstall
-  if (pkg.scripts?.postinstall) {
-    if (pkg.scripts.postinstall.includes("plunk")) return false;
-    consola.warn(
-      `Existing postinstall script found. Add ${pc.cyan("plunk restore")} manually if needed.`
-    );
-    return false;
-  }
-
-  if (!pkg.scripts) pkg.scripts = {};
-  pkg.scripts.postinstall = "plunk restore || true";
-
-  // Preserve original formatting (detect indent)
-  const indent = content.match(/^(\s+)"/m)?.[1] || "  ";
-  await writeFile(pkgPath, JSON.stringify(pkg, null, indent) + "\n");
-  return true;
-}
-
-/**
  * Add a single named script to package.json if it doesn't already exist.
  * Returns true if it was added.
  */
@@ -325,30 +273,23 @@ async function addScript(
 
 /**
  * Detect the build command from package.json scripts, or prompt the user.
+ * Delegates detection to the shared utility, wraps with interactive prompts.
  */
 async function detectBuildCommand(
   pkgPath: string,
   pm: PackageManager,
   skipPrompts: boolean
 ): Promise<string> {
-  const runPrefix = pm === "npm" ? "npm run " : `${pm} `;
-  try {
-    const pkg = JSON.parse(await readFile(pkgPath, "utf-8"));
-    const scripts = pkg.scripts || {};
+  const packageDir = join(pkgPath, "..");
+  const detected = await detectBuildCmd(packageDir, pm);
 
-    // Check common build script names in priority order
-    for (const name of ["build", "compile", "bundle", "tsc"]) {
-      if (scripts[name]) {
-        const cmd = `${runPrefix}${name}`;
-        consola.success(`Detected build script: ${pc.cyan(cmd)}`);
-        return cmd;
-      }
-    }
-  } catch {
-    // ignore parse errors
+  if (detected) {
+    consola.success(`Detected build script: ${pc.cyan(detected)}`);
+    return detected;
   }
 
   // No build script found — ask the user
+  const runPrefix = pm === "npm" ? "npm run " : `${pm} `;
   if (!skipPrompts) {
     consola.warn("No build script found in package.json");
     const input = await consola.prompt(
@@ -374,8 +315,6 @@ async function detectBuildCommand(
  */
 async function addLibraryScripts(
   pkgPath: string,
-  _pm: PackageManager,
-  buildCmd: string
 ): Promise<string[]> {
   const added: string[] = [];
 
@@ -387,7 +326,7 @@ async function addLibraryScripts(
     await addScript(
       pkgPath,
       "plunk:dev",
-      `plunk push --watch --build "${buildCmd}"`
+      "plunk dev"
     )
   ) {
     added.push("plunk:dev");

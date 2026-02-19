@@ -29,24 +29,25 @@ When plunk copies a file into `node_modules/`, it generates a real filesystem wr
 
 Vite pre-bundles dependencies with esbuild and caches the result. Changes to files in `node_modules/` won't be detected unless you tell Vite to skip pre-bundling for those packages.
 
-### Config (required)
+### Vite plugin (auto-configured)
+
+plunk provides a Vite plugin that handles cache invalidation and dev server reloads automatically:
 
 ```ts
 // vite.config.ts
 import { defineConfig } from 'vite'
+import plunk from '@oleg-kuibar/plunk/vite'
 
 export default defineConfig({
-  optimizeDeps: {
-    exclude: ['my-lib', '@scope/other-lib'],
-  },
+  plugins: [plunk()],
 })
 ```
 
-> `plunk add` automatically adds packages to `optimizeDeps.exclude` when it detects a Vite config. `plunk remove` removes them. You can also run `plunk init` to set up the section ahead of time.
+> **Auto-injection:** Both `plunk add` and `plunk init` automatically add the plunk Vite plugin to your config when they detect Vite. `plunk remove` removes it when the last plunk-linked package is unlinked. You typically don't need to add it manually.
 
-### Why?
+### Why a plugin?
 
-Without `exclude`, Vite pre-bundles `my-lib` into `.vite/deps/` on first load, caches it, and never re-reads `node_modules/my-lib/` again. With `exclude`, Vite reads the files directly on each import, so it notices when plunk overwrites them.
+Vite pre-bundles dependencies into `.vite/deps/` and caches the result. The plunk Vite plugin watches `.plunk/state.json` for changes and triggers a full reload when plunk pushes new files, ensuring the dev server always picks up the latest version.
 
 ### If changes aren't detected
 
@@ -117,11 +118,11 @@ graph LR
     style R fill:#2e7d32,stroke:#66bb6a,color:#e8f5e9
 ```
 
-*Vite requires `optimizeDeps.exclude` config. Everything else works without changes.*
+*Vite requires the plunk plugin (auto-injected by `plunk add`/`plunk init`). Everything else works without changes.*
 
 | Bundler | Config needed | Why it works |
 |---|---|---|
-| Vite | `optimizeDeps.exclude` | Bypasses pre-bundle cache |
+| Vite | plunk plugin (auto-injected) | Plugin triggers reload on push |
 | Webpack | None | watchpack detects mtime changes |
 | esbuild | None | Poll-based watch sees mtime changes |
 | Turbopack | None | Files are inside project root |

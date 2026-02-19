@@ -87,6 +87,15 @@ export async function startWatcher(
     scheduleFlush();
   };
 
+  // Auto-enable awaitWriteFinish when watching output dirs directly (no build command).
+  // Disabled when a build command manages the pipeline (build finishes before push).
+  const awfOption = options.buildCmd
+    ? false
+    : options.awaitWriteFinish ?? {
+        stabilityThreshold: 200,
+        pollInterval: 50,
+      };
+
   const watcher = watch(watchPaths, {
     ignoreInitial: true,
     ignored: [
@@ -94,6 +103,7 @@ export async function startWatcher(
       "**/.git/**",
       "**/.plunk/**",
     ],
+    awaitWriteFinish: awfOption,
   });
 
   watcher.on("change", onFileEvent);

@@ -46,8 +46,8 @@ Tests redirect the store via `process.env.PLUNK_HOME` to temp dirs.
 
 ```
 src/cli.ts           → citty entry point
-src/commands/*.ts    → one file per CLI command (init, publish, add, remove, push, restore, list, status)
+src/commands/*.ts    → one file per CLI command (init, publish, add, remove, push, dev, restore, list, status)
 src/core/*.ts        → publisher, injector, store, tracker, watcher
-src/utils/*.ts       → fs, hash, paths, pack-list, pm-detect, bin-linker
+src/utils/*.ts       → fs, hash, paths, pack-list, pm-detect, bin-linker, build-detect, init-helpers, vite-config
 src/types.ts         → shared interfaces
 ```

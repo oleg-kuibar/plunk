@@ -14,7 +14,7 @@ What it does:
 2. **Adds `.plunk/` to `.gitignore`**
 3. **Wires up `"postinstall": "plunk restore || true"`** in `package.json`
 4. **Creates `.plunk/` state directory** and stores the confirmed package manager
-5. **Detects bundler** — if Vite, offers to set up `optimizeDeps.exclude` automatically. Other bundlers (Webpack, Turbopack, etc.) need no config.
+5. **Detects bundler** — if Vite, auto-injects the plunk Vite plugin into your config. Other bundlers (Webpack, Turbopack, etc.) need no config.
 
 Flags:
 
@@ -65,16 +65,18 @@ Flags:
 | Flag | Description |
 |---|---|
 | `--from <path>` | Path to package source — publishes first, then links |
+| `-y, --yes` | Auto-accept prompts (install missing deps without asking) |
 
 Under the hood:
 
-1. Detects your package manager from lockfiles
-2. Backs up the existing npm-installed version to `.plunk/backups/`
-3. Copies files from store into `node_modules/`
-4. Creates `.bin/` entries if the package has a `bin` field
-5. Records the link in `.plunk/state.json` and `~/.plunk/consumers.json`
-6. Warns if the linked package has dependencies missing from the consumer
-7. Auto-adds the package to `optimizeDeps.exclude` in vite.config if Vite is detected
+1. **Auto-initializes** the consumer if `.plunk/state.json` is missing (creates state, adds `.plunk/` to `.gitignore`, wires up `postinstall` hook) — no need to run `plunk init` first
+2. Detects your package manager from lockfiles
+3. Backs up the existing npm-installed version to `.plunk/backups/`
+4. Copies files from store into `node_modules/`
+5. Creates `.bin/` entries if the package has a `bin` field
+6. Records the link in `.plunk/state.json` and `~/.plunk/consumers.json`
+7. **Prompts to install** missing transitive dependencies (use `--yes` to auto-install)
+8. **Auto-injects** the plunk Vite plugin into your Vite config if detected
 
 ---
 
@@ -84,7 +86,9 @@ Publish and copy to all consumers that have this package linked.
 
 ```bash
 plunk push                                      # one-time push
-plunk push --watch --build "npx tsup"           # continuous dev mode
+plunk push --watch                              # watch mode, auto-detects build command
+plunk push --watch --build "npx tsup"           # explicit build command
+plunk push --watch --skip-build                 # watch output dirs directly
 plunk push --watch --build "tsc" --debounce 500
 ```
 
@@ -94,13 +98,16 @@ Flags:
 |---|---|
 | `--watch` | Watch for file changes and auto-push |
 | `--build <cmd>` | Build command to run before publishing (watch mode) |
+| `--skip-build` | Watch output dirs directly, skip build command detection |
 | `--debounce <ms>` | Coalesce delay in milliseconds (default: `100`) |
 
 Without `--watch`, it runs once: publish, then copy changed files to all consumers.
 
 With `--watch`, it runs continuously using a "debounce effects, not detection" strategy: file changes are detected immediately, then coalesced — rapid saves within the debounce window collapse into a single push. If new changes arrive while a push is in progress, plunk automatically re-pushes after it finishes so the final state is always pushed.
 
-When no `--build` command is specified, the watcher monitors paths from the package.json `files` field (typically `dist/`). With a build command, it watches source directories (`src/`, `lib/`, `dist/`). Build failures get logged but don't kill the watcher.
+**Build command auto-detection:** When no `--build` command is specified and `--skip-build` is not set, plunk auto-detects the build command from `package.json` scripts (checks `build`, `compile`, `bundle`, `tsc` in order). If no build script is found, the watcher monitors paths from the `files` field (typically `dist/`). With a build command, it watches source directories (`src/`, `lib/`, `dist/`). Build failures get logged but don't kill the watcher.
+
+When watching output dirs directly (no build command), `awaitWriteFinish` is auto-enabled (200ms stability threshold) to avoid triggering on partially-written files.
 
 ```mermaid
 stateDiagram-v2
@@ -129,6 +136,48 @@ stateDiagram-v2
 
 ---
 
+## `plunk dev`
+
+Watch, rebuild, and push to all consumers. This is the recommended command for library development — equivalent to `plunk push --watch` with auto-detected build command.
+
+```bash
+cd my-lib
+plunk dev                              # auto-detects build command, enters watch mode
+plunk dev --build "npx tsup"           # explicit build command
+plunk dev --skip-build                 # watch output dirs directly
+plunk dev --debounce 500               # custom coalesce delay
+```
+
+Flags:
+
+| Flag | Description |
+|---|---|
+| `--build <cmd>` | Override build command (default: auto-detect from package.json) |
+| `--skip-build` | Watch output dirs directly, skip build command detection |
+| `--debounce <ms>` | Coalesce delay in milliseconds (default: `100`) |
+
+On startup, `plunk dev`:
+
+1. Auto-detects the build command from `package.json` scripts (`build`, `compile`, `bundle`, `tsc`)
+2. Runs an initial publish + push to all consumers
+3. Starts watching for file changes
+4. On each change: coalesce → build → publish → push to all consumers
+
+This is the ideal workflow for library authors:
+
+```bash
+# One-time setup:
+cd my-lib && plunk dev
+
+# In another terminal:
+cd my-app && plunk add my-lib --from ../my-lib
+pnpm dev
+```
+
+Then just edit files in `my-lib` — the build, publish, and push happen automatically.
+
+---
+
 ## `plunk remove <package>`
 
 Remove a plunk link and restore the original npm-installed version.
@@ -138,7 +187,7 @@ plunk remove my-lib
 plunk remove @scope/my-lib
 ```
 
-Removes injected files from `node_modules/` and cleans up `.bin/` entries. Restores the backup (original npm-installed version) if one exists. Also removes the package from `optimizeDeps.exclude` in vite.config and cleans up tracking state.
+Removes injected files from `node_modules/` and cleans up `.bin/` entries. Restores the backup (original npm-installed version) if one exists. Also removes the package from `transpilePackages` in next.config and cleans up tracking state. If this was the last plunk-linked package, removes the plunk Vite plugin from your Vite config.
 
 ---
 

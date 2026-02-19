@@ -40,6 +40,7 @@ const main = defineCommand({
     add: () => import("./commands/add.js").then((m) => m.default),
     remove: () => import("./commands/remove.js").then((m) => m.default),
     push: () => import("./commands/push.js").then((m) => m.default),
+    dev: () => import("./commands/dev.js").then((m) => m.default),
     restore: () => import("./commands/restore.js").then((m) => m.default),
     list: () => import("./commands/list.js").then((m) => m.default),
     status: () => import("./commands/status.js").then((m) => m.default),

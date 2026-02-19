@@ -8,18 +8,18 @@
 
 **Fix:**
 
-1. Add the package to `optimizeDeps.exclude` in your Vite config:
+1. Ensure the plunk Vite plugin is in your config:
 
 ```ts
 // vite.config.ts
+import plunk from '@oleg-kuibar/plunk/vite'
+
 export default defineConfig({
-  optimizeDeps: {
-    exclude: ['my-lib'],
-  },
+  plugins: [plunk()],
 })
 ```
 
-`plunk add` does this automatically when it detects Vite. If it was missed, run `plunk init` to re-detect.
+`plunk add` and `plunk init` auto-inject this plugin when they detect Vite. If it was missed, add it manually or re-run `plunk init`.
 
 2. Delete the Vite cache and restart the dev server:
 

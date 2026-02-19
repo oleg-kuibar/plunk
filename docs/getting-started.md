@@ -36,7 +36,7 @@ sequenceDiagram
     end
 ```
 
-## 1. Initialize your app
+## 1. Initialize your app (optional)
 
 Run `plunk init` in any project that will consume local packages:
 
@@ -45,7 +45,9 @@ cd my-app
 npx plunk init
 ```
 
-This adds `.plunk/` to `.gitignore`, wires up a `postinstall` hook (`plunk restore || true`), and creates the `.plunk/` state directory. Safe to run multiple times.
+This adds `.plunk/` to `.gitignore`, wires up a `postinstall` hook (`plunk restore || true`), creates the `.plunk/` state directory, and auto-injects the plunk Vite plugin if a Vite config is detected. Safe to run multiple times.
+
+> **Note:** `plunk add` auto-initializes the consumer if needed, so you can skip this step and go straight to step 3.
 
 ## 2. Publish your library
 
@@ -88,10 +90,16 @@ This publishes to the store and copies changed files to every app that has `my-l
 
 ## 5. Watch mode
 
-Instead of manually rebuilding and pushing each time, use watch mode:
+Instead of manually rebuilding and pushing each time, use `plunk dev`:
 
 ```bash
 cd my-lib
+plunk dev
+```
+
+This auto-detects your build command from `package.json` scripts and enters watch mode. You can also use `plunk push --watch` for more control:
+
+```bash
 plunk push --watch --build "pnpm build"
 ```
 

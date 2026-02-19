@@ -1,19 +1,23 @@
 import { defineCommand } from "citty";
+import { spawn } from "node:child_process";
+import { platform } from "node:os";
 import { resolve, basename } from "node:path";
-import { readFile } from "node:fs/promises";
 import { consola } from "consola";
 import { findStoreEntry } from "../core/store.js";
 import { publish } from "../core/publisher.js";
 import { inject, backupExisting, checkMissingDeps } from "../core/injector.js";
 import { addLink, registerConsumer } from "../core/tracker.js";
+import { exists } from "../utils/fs.js";
 import { detectPackageManager, detectYarnNodeLinker, hasYarnrcYml } from "../utils/pm-detect.js";
 import { detectBundler } from "../utils/bundler-detect.js";
+import { ensureConsumerInit } from "../utils/init-helpers.js";
 import { addToTranspilePackages } from "../utils/nextjs-config.js";
+import { getConsumerStatePath } from "../utils/paths.js";
 import { Timer } from "../utils/timer.js";
 import { suppressHumanOutput, output } from "../utils/output.js";
 import { errorWithSuggestion } from "../utils/errors.js";
-import { verbose } from "../utils/logger.js";
-import type { LinkEntry } from "../types.js";
+import { verbose, isJsonOutput } from "../utils/logger.js";
+import type { LinkEntry, PackageManager } from "../types.js";
 
 export default defineCommand({
   meta: {
@@ -29,6 +33,12 @@ export default defineCommand({
     from: {
       type: "string",
       description: "Path to package source (will publish first)",
+    },
+    yes: {
+      type: "boolean",
+      alias: "y",
+      description: "Auto-accept prompts (install missing deps, etc.)",
+      default: false,
     },
   },
   async run({ args }) {
@@ -53,8 +63,13 @@ export default defineCommand({
       process.exit(1);
     }
 
-    // Detect package manager
+    // Auto-init consumer if needed
+    const needsInit = !(await exists(getConsumerStatePath(consumerPath)));
     const pm = await detectPackageManager(consumerPath);
+    if (needsInit) {
+      await ensureConsumerInit(consumerPath, pm);
+      consola.success("Auto-initialized plunk (consumer mode)");
+    }
     verbose(`[add] Detected package manager: ${pm}`);
     consola.info(`Detected package manager: ${pm}`);
 
@@ -105,10 +120,39 @@ export default defineCommand({
     // Check for missing transitive deps
     const missing = await checkMissingDeps(entry, consumerPath);
     if (missing.length > 0) {
-      consola.warn(
-        `Missing transitive dependencies: ${missing.join(", ")}\n` +
-          `  Run: ${pm} ${pm === "yarn" ? "add" : "install"} ${missing.join(" ")}`
-      );
+      if (isJsonOutput()) {
+        // JSON mode: include in output only, no prompt
+        verbose(`[add] Missing transitive deps (json mode): ${missing.join(", ")}`);
+      } else if (args.yes) {
+        // Auto-install
+        const cmd = buildInstallCommand(pm, missing);
+        consola.info(`Installing missing dependencies: ${missing.join(", ")}`);
+        const ok = await runInstallCommand(cmd, consumerPath);
+        if (ok) {
+          consola.success("Installed missing dependencies");
+        } else {
+          consola.warn(`Install failed. Run manually: ${cmd}`);
+        }
+      } else {
+        const confirm = await consola.prompt(
+          `Install ${missing.length} missing dependencies? (${missing.join(", ")})`,
+          { type: "confirm", initial: true },
+        );
+        if (confirm) {
+          const cmd = buildInstallCommand(pm, missing);
+          const ok = await runInstallCommand(cmd, consumerPath);
+          if (ok) {
+            consola.success("Installed missing dependencies");
+          } else {
+            consola.warn(`Install failed. Run manually: ${cmd}`);
+          }
+        } else {
+          consola.warn(
+            `Missing transitive dependencies: ${missing.join(", ")}\n` +
+              `  Run: ${buildInstallCommand(pm, missing)}`,
+          );
+        }
+      }
     }
 
     // Auto-update bundler config
@@ -128,12 +172,13 @@ export default defineCommand({
         );
       }
     } else if (bundler.type === "vite" && bundler.configFile) {
-      const hasPlugin = await viteConfigHasPlunkPlugin(bundler.configFile);
-      if (!hasPlugin) {
+      const { addPlunkVitePlugin } = await import("../utils/vite-config.js");
+      const viteResult = await addPlunkVitePlugin(bundler.configFile);
+      if (viteResult.modified) {
+        consola.success(`Added plunk plugin to ${basename(bundler.configFile)}`);
+      } else if (viteResult.error) {
         consola.info(
-          `Tip: Add the Vite plugin for automatic dev server restarts when plunk pushes:\n` +
-            `  import plunk from "@oleg-kuibar/plunk/vite"\n` +
-            `  plugins: [plunk()]`
+          `Add manually:\n  import plunk from "@oleg-kuibar/plunk/vite"\n  plugins: [plunk()]`
         );
       }
     }
@@ -150,18 +195,32 @@ export default defineCommand({
   },
 });
 
-/**
- * Check if the Vite config file references the plunk plugin.
- * Simple string check — avoids parsing ESM/TS config.
- */
-async function viteConfigHasPlunkPlugin(configFile: string): Promise<boolean> {
-  try {
-    const content = await readFile(configFile, "utf-8");
-    return (
-      content.includes("@oleg-kuibar/plunk/vite") ||
-      content.includes("vite-plugin-plunk")
-    );
-  } catch {
-    return false;
+function buildInstallCommand(pm: PackageManager, deps: string[]): string {
+  const joined = deps.join(" ");
+  switch (pm) {
+    case "pnpm":
+      return `pnpm add ${joined}`;
+    case "yarn":
+      return `yarn add ${joined}`;
+    case "bun":
+      return `bun add ${joined}`;
+    default:
+      return `npm install ${joined}`;
   }
+}
+
+function runInstallCommand(cmd: string, cwd: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const isWin = platform() === "win32";
+    const shell = isWin ? "cmd" : "sh";
+    const shellFlag = isWin ? "/c" : "-c";
+
+    const child = spawn(shell, [shellFlag, cmd], {
+      cwd,
+      stdio: "inherit",
+    });
+
+    child.on("close", (code) => resolve(code === 0));
+    child.on("error", () => resolve(false));
+  });
 }

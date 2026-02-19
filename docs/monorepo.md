@@ -91,12 +91,14 @@ This means the injected version in `node_modules/` behaves like a real published
 
 ## Watch mode with multiple consumers
 
-Use `plunk push --watch` to continuously push changes to all consumers as you edit:
+Use `plunk dev` to continuously push changes to all consumers as you edit:
 
 ```bash
 cd packages/my-lib
-plunk push --watch --build "pnpm build"
+plunk dev
 ```
+
+`plunk dev` auto-detects the build command from `package.json` scripts. For explicit control, use `plunk push --watch --build "pnpm build"`.
 
 The flow is:
 
@@ -122,7 +124,7 @@ If a build fails, plunk logs the error and keeps watching. Fix the code and save
 For large builds, increase the coalesce window to avoid redundant rebuilds while you are making rapid edits:
 
 ```bash
-plunk push --watch --build "pnpm build" --debounce 500
+plunk dev --debounce 500
 ```
 
 ## Multiple libraries
@@ -132,11 +134,11 @@ If you are developing multiple libraries simultaneously, run `plunk push --watch
 ```bash
 # Terminal 1
 cd packages/my-lib
-plunk push --watch --build "pnpm build"
+plunk dev
 
 # Terminal 2
 cd packages/shared-utils
-plunk push --watch --build "pnpm build"
+plunk dev
 
 # Terminal 3
 cd apps/web-app

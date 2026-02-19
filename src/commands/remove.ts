@@ -116,7 +116,19 @@ async function removeSinglePackage(
     }
   }
 
-  // Update state
+  // Update state (removeLink deletes entry before we check remaining links)
   await removeLink(consumerPath, packageName);
   await unregisterConsumer(packageName, consumerPath);
+
+  // Remove Vite plugin if this was the last linked package
+  if (bundler.type === "vite" && bundler.configFile) {
+    const state = await readConsumerState(consumerPath);
+    if (Object.keys(state.links).length === 0) {
+      const { removeFromViteConfig } = await import("../utils/vite-config.js");
+      const result = await removeFromViteConfig(bundler.configFile);
+      if (result.modified) {
+        verbose(`[remove] Removed plunk plugin from ${basename(bundler.configFile)}`);
+      }
+    }
+  }
 }

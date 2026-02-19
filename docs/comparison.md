@@ -135,9 +135,9 @@ plunk writes real files at `node_modules/` paths, which generates filesystem eve
 |---|---|
 | npm link | None (manual re-link) |
 | yalc | External package (yalc-watch), unmaintained |
-| plunk | Built-in: `plunk push --watch --build "tsup"` |
+| plunk | Built-in: `plunk dev` (auto-detects build) or `plunk push --watch --build "tsup"` |
 
-plunk's watch mode handles the full loop: file change → coalesce (100ms) → build → publish → push. Changes are detected immediately but batched. If new changes arrive while a push is running, plunk automatically re-pushes. Build failures get logged but the watcher keeps running.
+plunk's watch mode handles the full loop: file change → coalesce (100ms) → build → publish → push. `plunk dev` auto-detects the build command from `package.json` scripts, so you just run `plunk dev` and start editing. Changes are detected immediately but batched. If new changes arrive while a push is running, plunk automatically re-pushes. Build failures get logged but the watcher keeps running.
 
 ### After npm install
 
