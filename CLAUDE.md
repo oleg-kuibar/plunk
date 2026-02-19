@@ -46,8 +46,25 @@ Tests redirect the store via `process.env.PLUNK_HOME` to temp dirs.
 
 ```
 src/cli.ts           → citty entry point
-src/commands/*.ts    → one file per CLI command (init, publish, add, remove, push, dev, restore, list, status)
+src/commands/*.ts    → one file per CLI command
 src/core/*.ts        → publisher, injector, store, tracker, watcher
-src/utils/*.ts       → fs, hash, paths, pack-list, pm-detect, bin-linker, build-detect, init-helpers, vite-config
+src/utils/*.ts       → shared helpers (fs, hash, pm-detect, bundler-detect, config rewriters, etc.)
+src/vite-plugin.ts   → Vite plugin entry (exported as @oleg-kuibar/plunk/vite)
+src/index.ts         → programmatic API entry (exported as @oleg-kuibar/plunk)
 src/types.ts         → shared interfaces
 ```
+
+## Code style
+
+- One `defineCommand()` per file in `src/commands/`, default-exported
+- Utils are named exports, no default exports
+- Use `consola` for user-facing messages, `verbose()` for debug-only logs
+- Use `import type` for type-only imports
+- Dynamic `import()` for heavy deps only loaded in some code paths (chokidar, vite-config)
+
+## Gotchas
+
+- `pnpm dev` (in the Commands section above) is `tsup --watch` for building plunk itself — not the same as the `plunk dev` CLI command
+- pnpm injects into `.pnpm/` virtual store by following symlinks — see `src/core/injector.ts`
+- `workspace:*` protocol versions are rewritten to real versions in the store copy (source untouched)
+- Vite plugin watches `.plunk/state.json` and triggers full reload — not HMR
