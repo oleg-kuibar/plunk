@@ -12,7 +12,7 @@
 
 ```ts
 // vite.config.ts
-import plunk from '@oleg-kuibar/plunk/vite'
+import plunk from '@papoy/plunk/vite'
 
 export default defineConfig({
   plugins: [plunk()],

@@ -49,8 +49,8 @@ src/cli.ts           → citty entry point
 src/commands/*.ts    → one file per CLI command
 src/core/*.ts        → publisher, injector, store, tracker, watcher
 src/utils/*.ts       → shared helpers (fs, hash, pm-detect, bundler-detect, config rewriters, etc.)
-src/vite-plugin.ts   → Vite plugin entry (exported as @oleg-kuibar/plunk/vite)
-src/index.ts         → programmatic API entry (exported as @oleg-kuibar/plunk)
+src/vite-plugin.ts   → Vite plugin entry (exported as @papoy/plunk/vite)
+src/index.ts         → programmatic API entry (exported as @papoy/plunk)
 src/types.ts         → shared interfaces
 ```
 

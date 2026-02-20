@@ -10,7 +10,6 @@ permissions:
 jobs:
   canary:
     runs-on: ubuntu-latest
-    environment: Dev
     steps:
       - uses: actions/checkout@v6
 

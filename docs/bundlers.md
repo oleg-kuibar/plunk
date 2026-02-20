@@ -36,7 +36,7 @@ plunk provides a Vite plugin that handles cache invalidation and dev server relo
 ```ts
 // vite.config.ts
 import { defineConfig } from 'vite'
-import plunk from '@oleg-kuibar/plunk/vite'
+import plunk from '@papoy/plunk/vite'
 
 export default defineConfig({
   plugins: [plunk()],

@@ -179,7 +179,7 @@ export default defineCommand({
         consola.success(`Added plunk plugin to ${basename(bundler.configFile)}`);
       } else if (viteResult.error) {
         consola.info(
-          `Add manually:\n  import plunk from "@oleg-kuibar/plunk/vite"\n  plugins: [plunk()]`
+          `Add manually:\n  import plunk from "@papoy/plunk/vite"\n  plugins: [plunk()]`
         );
       }
     }

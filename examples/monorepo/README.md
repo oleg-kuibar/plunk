@@ -85,4 +85,4 @@ The Vite plugin in `apps/web` watches `.plunk/state.json` and triggers a full re
 
 - `@mono/shared-utils` is linked via pnpm workspace protocol (`workspace:*`) — no plunk needed
 - `@example/api-client` and `@example/ui-kit` are injected via plunk — simulating external packages from other repos
-- The Vite app uses `@oleg-kuibar/plunk/vite` plugin for automatic reload on plunk push
+- The Vite app uses `@papoy/plunk/vite` plugin for automatic reload on plunk push

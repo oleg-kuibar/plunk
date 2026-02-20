@@ -86,7 +86,7 @@ Every push to `master` automatically publishes a canary version to npmjs.org:
 0.2.0-canary.<short-sha>
 ```
 
-Install with `npm install @oleg-kuibar/plunk@canary`.
+Install with `npm install @papoy/plunk@canary`.
 
 ### Stable releases
 
@@ -113,7 +113,7 @@ The tag push triggers the same publish pipeline.
 
 ### Prerequisites
 
-The `NPM_TOKEN` secret must be configured in the repo settings (npmjs.org granular access token scoped to `@oleg-kuibar/plunk`).
+The `NPM_TOKEN` secret must be configured in the repo settings (npmjs.org granular access token scoped to `@papoy/plunk`).
 
 ## Code style
 
