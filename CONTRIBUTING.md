@@ -76,6 +76,45 @@ pnpm test
 4. Run `pnpm test` and `pnpm lint` to verify
 5. Open a pull request
 
+## Releasing
+
+### Canary builds
+
+Every push to `master` automatically publishes a canary version to npmjs.org:
+
+```
+0.2.0-canary.<short-sha>
+```
+
+Install with `npm install @oleg-kuibar/plunk@canary`.
+
+### Stable releases
+
+Two options:
+
+**Option A — GitHub Actions UI (recommended)**
+
+1. Go to Actions → Release → Run workflow
+2. Pick a bump type (`patch` / `minor` / `major` / `custom`)
+3. Optionally check **Dry run** to build & test without publishing
+4. Click **Run workflow**
+
+The workflow bumps `package.json`, commits, tags, pushes to `master`, publishes to npm, and creates a GitHub Release.
+
+**Option B — Manual tag push**
+
+```bash
+# Bump locally
+npm version patch            # or minor / major
+git push origin master --follow-tags
+```
+
+The tag push triggers the same publish pipeline.
+
+### Prerequisites
+
+The `NPM_TOKEN` secret must be configured in the repo settings (npmjs.org granular access token scoped to `@oleg-kuibar/plunk`).
+
 ## Code style
 
 - TypeScript with strict mode

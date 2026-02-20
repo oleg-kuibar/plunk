@@ -4,6 +4,27 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump type
+        required: true
+        type: choice
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
+          - custom
+      custom_version:
+        description: 'Custom version (only when bump=custom, e.g. 1.0.0-beta.1)'
+        required: false
+        type: string
+      dry_run:
+        description: Dry run (build & test only, no publish)
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -14,6 +35,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: ${{ github.event_name == 'workflow_dispatch' && '0' || '1' }}
 
       - uses: pnpm/action-setup@v4
 
@@ -23,6 +46,52 @@ jobs:
           registry-url: https://registry.npmjs.org
           cache: pnpm
 
+      # --- Version bump (workflow_dispatch only) ---
+      - name: Resolve version
+        if: github.event_name == 'workflow_dispatch'
+        id: version
+        run: |
+          CURRENT=$(node -p "require('./package.json').version")
+          if [ "${{ inputs.bump }}" = "custom" ]; then
+            NEW="${{ inputs.custom_version }}"
+            if [ -z "$NEW" ]; then
+              echo "::error::custom_version is required when bump=custom"
+              exit 1
+            fi
+            # Validate with semver
+            VALID=$(npx -y semver "$NEW" 2>/dev/null || true)
+            if [ -z "$VALID" ]; then
+              echo "::error::Invalid semver: $NEW"
+              exit 1
+            fi
+          else
+            NEW=$(npx -y semver "$CURRENT" -i "${{ inputs.bump }}")
+          fi
+          echo "new=$NEW" >> "$GITHUB_OUTPUT"
+          echo "tag=v$NEW" >> "$GITHUB_OUTPUT"
+          echo "### Version: $CURRENT → $NEW" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Bump package.json
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run == false
+        run: npm version "${{ steps.version.outputs.new }}" --no-git-tag-version
+
+      - name: Commit & tag
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run == false
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json
+          git commit -m "chore: release ${{ steps.version.outputs.tag }}"
+          git tag "${{ steps.version.outputs.tag }}"
+          git push origin HEAD:master --follow-tags
+
+      - name: Dry run summary
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run == true
+        run: |
+          echo "### Dry run — no publish" >> "$GITHUB_STEP_SUMMARY"
+          echo "Would release **${{ steps.version.outputs.tag }}**" >> "$GITHUB_STEP_SUMMARY"
+
+      # --- Build & test (always) ---
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
 
@@ -34,11 +103,16 @@ jobs:
 
       - run: pnpm test
 
-      - run: pnpm publish --no-git-checks --provenance --access public
+      # --- Publish (skip on dry run) ---
+      - name: Publish to npm
+        if: inputs.dry_run != true
+        run: pnpm publish --no-git-checks --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub Release
+        if: inputs.dry_run != true
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.version.outputs.tag || github.ref_name }}
           generate_release_notes: true
