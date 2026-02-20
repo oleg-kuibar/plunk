@@ -36,6 +36,16 @@ export default function plunkPlugin(): Plugin {
           );
         }
 
+        // Invalidate CSS modules so Tailwind v4's transform hook re-runs.
+        // Without this, Vite serves the in-memory cached transformResult and
+        // Tailwind never re-scans node_modules for new utility classes.
+        const seen = new Set<import("vite").ModuleNode>();
+        for (const mod of server.moduleGraph.idToModuleMap.values()) {
+          if (mod.id?.endsWith(".css") || mod.id?.includes("lang.css")) {
+            server.moduleGraph.invalidateModule(mod, seen);
+          }
+        }
+
         // Send full-reload instead of server.restart() — restart re-bundles
         // vite.config.ts which can fail with CJS/ESM errors (brace-expansion).
         // A full-reload makes the browser refetch; Vite discovers missing
