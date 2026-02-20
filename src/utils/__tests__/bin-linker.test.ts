@@ -115,6 +115,17 @@ describe("createBinLinks and removeBinLinks", () => {
     expect(count).toBe(2);
   });
 
+  it("skips bin entries that escape the package directory", async () => {
+    const pkg: PackageJson = {
+      name: "my-cli",
+      version: "1.0.0",
+      bin: { "evil": "../../etc/passwd" },
+    };
+
+    const count = await createBinLinks(tempDir, "my-cli", pkg);
+    expect(count).toBe(0);
+  });
+
   it("removeBinLinks cleans up created links", async () => {
     const pkg: PackageJson = {
       name: "my-cli",

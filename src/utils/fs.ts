@@ -150,10 +150,9 @@ export async function incrementalCopy(
         } catch (err) {
           if (isNodeError(err) && err.code === "ENOENT") {
             verbose(`[copy] ${rel} (new file)`);
-          } else if (isNodeError(err)) {
+          } else {
             throw err;
           }
-          // dest file doesn't exist, needs copy
         }
 
         if (needsCopy) {
@@ -187,12 +186,29 @@ export async function incrementalCopy(
   } catch (err) {
     if (isNodeError(err) && err.code === "ENOENT") {
       // dest dir might not exist yet, that's fine
-    } else if (isNodeError(err)) {
+    } else {
       throw err;
     }
   }
 
   return { copied, removed, skipped };
+}
+
+/**
+ * Move a directory, handling cross-filesystem (EXDEV) scenarios.
+ * Tries rename first (fast, atomic on same FS), falls back to cp+rm.
+ */
+export async function moveDir(src: string, dest: string): Promise<void> {
+  try {
+    await rename(src, dest);
+  } catch (err) {
+    if (isNodeError(err) && err.code === "EXDEV") {
+      await cp(src, dest, { recursive: true });
+      await rm(src, { recursive: true, force: true });
+    } else {
+      throw err;
+    }
+  }
 }
 
 /** Remove a directory recursively, no error if it doesn't exist */
@@ -207,6 +223,11 @@ export async function removeDir(dir: string): Promise<void> {
 /** Ensure a directory exists */
 export async function ensureDir(dir: string): Promise<void> {
   await mkdir(dir, { recursive: true });
+}
+
+/** Ensure a directory exists with private permissions (0o700). */
+export async function ensurePrivateDir(dir: string): Promise<void> {
+  await mkdir(dir, { recursive: true, mode: 0o700 });
 }
 
 /** Check if a path exists */

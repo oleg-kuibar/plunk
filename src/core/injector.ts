@@ -37,7 +37,8 @@ export async function inject(
   const targetDir = await resolveTargetDir(
     consumerPath,
     storeEntry.name,
-    pm
+    pm,
+    storeEntry.version
   );
 
   verbose(`[inject] ${storeEntry.name}@${storeEntry.version} → ${targetDir}`);
@@ -50,7 +51,7 @@ export async function inject(
 
   verbose(`[inject] ${copied} copied, ${removed} removed, ${skipped} skipped`);
 
-  if (copied > 0) {
+  if (copied > 0 || removed > 0) {
     await invalidateBundlerCache(consumerPath);
   }
 
@@ -126,10 +127,21 @@ export async function checkMissingDeps(
   consumerPath: string
 ): Promise<string[]> {
   const pkg = await readPackageJson(storeEntry.packageDir);
-  if (!pkg?.dependencies) return [];
+  if (!pkg) return [];
+
+  const allDeps: Record<string, string> = {
+    ...pkg.dependencies,
+    ...Object.fromEntries(
+      Object.entries(pkg.peerDependencies ?? {}).filter(
+        ([name]) => !pkg.peerDependenciesMeta?.[name]?.optional
+      )
+    ),
+  };
+
+  if (Object.keys(allDeps).length === 0) return [];
 
   const missing: string[] = [];
-  for (const dep of Object.keys(pkg.dependencies)) {
+  for (const dep of Object.keys(allDeps)) {
     const depPath = join(consumerPath, "node_modules", dep);
     if (!(await exists(depPath))) {
       missing.push(dep);
@@ -145,7 +157,8 @@ export async function checkMissingDeps(
 async function resolveTargetDir(
   consumerPath: string,
   packageName: string,
-  pm: PackageManager
+  pm: PackageManager,
+  version?: string
 ): Promise<string> {
   const directPath = getNodeModulesPackagePath(consumerPath, packageName);
 
@@ -175,9 +188,20 @@ async function resolveTargetDir(
   const pnpmDir = join(consumerPath, "node_modules", ".pnpm");
   if (await exists(pnpmDir)) {
     verbose(`[inject] pnpm: scanning .pnpm/ for ${packageName}`);
-    // Look for the package in .pnpm/ directory
-    const entries = await readdir(pnpmDir);
     const encodedName = packageName.replace("/", "+");
+
+    // Try exact version match first
+    if (version) {
+      const exactEntry = `${encodedName}@${version}`;
+      const candidate = join(pnpmDir, exactEntry, "node_modules", packageName);
+      if (await exists(candidate)) {
+        verbose(`[inject] pnpm: exact version match in .pnpm/ → ${candidate}`);
+        return candidate;
+      }
+    }
+
+    // Fall back to first prefix match
+    const entries = await readdir(pnpmDir);
     for (const entry of entries) {
       if (entry.startsWith(encodedName + "@")) {
         const candidate = join(

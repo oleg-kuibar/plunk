@@ -27,13 +27,21 @@ export default function plunkPlugin(): Plugin {
 
         // Clear the entire Vite cache (deps, deps_ssr, metadata, etc.).
         // Safe because we use full-reload instead of server.restart().
-        await rm(cacheDir, { recursive: true, force: true }).catch(() => {});
+        try {
+          await rm(cacheDir, { recursive: true, force: true });
+        } catch {
+          server.config.logger.warn(
+            "[plunk] Could not clear Vite cache (locked?). Browser may load stale deps.",
+            { timestamp: true }
+          );
+        }
 
         // Send full-reload instead of server.restart() — restart re-bundles
         // vite.config.ts which can fail with CJS/ESM errors (brace-expansion).
         // A full-reload makes the browser refetch; Vite discovers missing
         // pre-bundled deps and re-optimizes automatically.
-        server.hot.send({ type: "full-reload" });
+        // Uses server.ws (the WebSocket server) rather than server.hot (the HMR channel).
+        server.ws.send({ type: "full-reload", path: "*" });
       });
     },
   };

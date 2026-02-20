@@ -10,7 +10,7 @@ import {
   encodePackageName,
   decodePackageName,
 } from "../utils/paths.js";
-import { ensureDir, exists, removeDir, atomicWriteFile, isNodeError } from "../utils/fs.js";
+import { ensureDir, ensurePrivateDir, exists, removeDir, atomicWriteFile, isNodeError } from "../utils/fs.js";
 import { isPlunkMeta } from "../utils/validators.js";
 
 /** Read the .plunk-meta.json for a store entry */
@@ -42,7 +42,7 @@ export async function writeMeta(
   meta: PlunkMeta
 ): Promise<void> {
   const metaPath = getStoreMetaPath(name, version);
-  await ensureDir(getStoreEntryPath(name, version));
+  await ensurePrivateDir(getStoreEntryPath(name, version));
   await atomicWriteFile(metaPath, JSON.stringify(meta, null, 2));
 }
 

@@ -9,7 +9,7 @@ import type { PackageJson, PlunkMeta, StoreEntry } from "../types.js";
 import { getStorePackagePath, getStoreEntryPath } from "../utils/paths.js";
 import { resolvePackFiles } from "../utils/pack-list.js";
 import { computeContentHash } from "../utils/hash.js";
-import { copyWithCoW, ensureDir, removeDir } from "../utils/fs.js";
+import { copyWithCoW, ensureDir, ensurePrivateDir, removeDir, moveDir, exists } from "../utils/fs.js";
 import { readMeta, writeMeta } from "./store.js";
 import { withFileLock } from "../utils/lockfile.js";
 import type { Catalogs } from "../utils/workspace.js";
@@ -114,7 +114,7 @@ export async function publish(
       const tmpPackageDir = join(tmpDir, "package");
 
       try {
-        await ensureDir(tmpPackageDir);
+        await ensurePrivateDir(tmpPackageDir);
 
         // Handle workspace:* protocol in package.json dependencies
         const processedPkg = rewriteProtocolVersions(pkg, packageDir);
@@ -155,9 +155,12 @@ export async function publish(
           JSON.stringify(meta, null, 2)
         );
 
-        // Atomic rename: remove old, rename temp to final
-        await removeDir(storeEntryDir);
-        await rename(tmpDir, storeEntryDir);
+        // Atomic swap: rename old aside, move temp to final, then clean up old
+        const hadOld = await exists(storeEntryDir);
+        const oldDir = storeEntryDir + ".old-" + Date.now();
+        if (hadOld) await rename(storeEntryDir, oldDir);
+        await moveDir(tmpDir, storeEntryDir);
+        if (hadOld) await removeDir(oldDir);
 
         verbose(`[publish] Stored at ${storeEntryDir}`);
       } catch (err) {
@@ -189,6 +192,8 @@ export async function publish(
   return result;
 }
 
+const HOOK_TIMEOUT = parseInt(process.env.PLUNK_HOOK_TIMEOUT ?? "30000", 10);
+
 /**
  * Run a lifecycle hook script if defined in package.json scripts.
  */
@@ -211,7 +216,13 @@ async function runLifecycleHook(
       stdio: "inherit",
     });
 
+    const timer = setTimeout(() => {
+      child.kill("SIGTERM");
+      reject(new Error(`${hookName} script timed out after ${HOOK_TIMEOUT}ms`));
+    }, HOOK_TIMEOUT);
+
     child.on("close", (code) => {
+      clearTimeout(timer);
       if (code === 0) {
         resolve();
       } else {
@@ -220,6 +231,7 @@ async function runLifecycleHook(
     });
 
     child.on("error", (err) => {
+      clearTimeout(timer);
       reject(new Error(`${hookName} script error: ${err.message}`));
     });
   });

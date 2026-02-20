@@ -1,5 +1,5 @@
 import { readFile, readdir, stat } from "node:fs/promises";
-import { join, relative, resolve } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
 import picomatch from "picomatch";
 import { consola } from "consola";
 import type { PackageJson } from "../types.js";
@@ -33,6 +33,11 @@ export async function resolvePackFiles(
     for (const pattern of pkg.files) {
       // First try as a literal file or directory
       const target = join(absDir, pattern);
+      const resolved = resolve(target);
+      if (!resolved.startsWith(absDir + sep) && resolved !== absDir) {
+        consola.warn(`files pattern "${pattern}" escapes package directory, skipping`);
+        continue;
+      }
       let matched = false;
       try {
         const s = await stat(target);
@@ -62,6 +67,8 @@ export async function resolvePackFiles(
         let globMatched = 0;
         for (let i = 0; i < allRelPaths.length; i++) {
           if (isMatch(allRelPaths[i])) {
+            const absFile = resolve(allFiles[i]);
+            if (!absFile.startsWith(absDir + sep) && absFile !== absDir) continue;
             files.push(allFiles[i]);
             globMatched++;
           }
@@ -201,10 +208,12 @@ async function collectAllFiles(dir: string): Promise<string[]> {
       const full = join(dir, entry.name);
       if (entry.isDirectory()) {
         if (entry.name === "node_modules" || entry.name === ".git") continue;
+        if (entry.isSymbolicLink()) continue; // skip symlinked directories
         results.push(...(await collectAllFiles(full)));
-      } else {
+      } else if (!entry.isSymbolicLink()) {
         results.push(full);
       }
+      // else: skip symlinks to prevent escaping package boundary
     }
   } catch (err) {
     if (isNodeError(err) && err.code === "ENOENT") {

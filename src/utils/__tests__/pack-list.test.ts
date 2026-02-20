@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtemp, writeFile, mkdir, rm } from "node:fs/promises";
+import { mkdtemp, writeFile, mkdir, rm, symlink } from "node:fs/promises";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
+import { tmpdir, platform } from "node:os";
 import { resolvePackFiles } from "../pack-list.js";
 import type { PackageJson } from "../../types.js";
 
@@ -198,5 +198,69 @@ describe("resolvePackFiles", () => {
     expect(rels).not.toContain("lib/a.js");
     // Note: negation un-ignoring requires the file to first match an ignore
     // then get un-ignored. The current implementation checks negation after patterns.
+  });
+
+  it("rejects files patterns that escape package directory via ../", async () => {
+    await writeFile(join(tempDir, "package.json"), "{}");
+    await mkdir(join(tempDir, "dist"), { recursive: true });
+    await writeFile(join(tempDir, "dist", "index.js"), "");
+
+    const pkg: PackageJson = {
+      name: "test",
+      version: "1.0.0",
+      files: ["../../etc/passwd", "dist"],
+    };
+    const files = await resolvePackFiles(tempDir, pkg);
+    const rels = files.map((f) => f.slice(tempDir.length + 1).replace(/\\/g, "/"));
+
+    // The traversal pattern should be skipped
+    expect(rels.some((r) => r.includes("etc"))).toBe(false);
+    expect(rels.some((r) => r.includes("passwd"))).toBe(false);
+    // But dist should still be included
+    expect(rels).toContain("dist/index.js");
+  });
+
+  // Symlink tests only work reliably on non-Windows (Windows needs SeCreateSymbolicLinkPrivilege)
+  it.skipIf(platform() === "win32")("excludes symlinks pointing outside package directory", async () => {
+    // Create a file outside the package
+    const outsideDir = await mkdtemp(join(tmpdir(), "plunk-outside-"));
+    await writeFile(join(outsideDir, "secret.txt"), "secret data");
+
+    await writeFile(join(tempDir, "package.json"), "{}");
+    await writeFile(join(tempDir, "legit.js"), "ok");
+
+    // Create a symlink inside the package pointing outside
+    await symlink(join(outsideDir, "secret.txt"), join(tempDir, "escaped.txt"));
+
+    const pkg: PackageJson = { name: "test", version: "1.0.0" };
+    const files = await resolvePackFiles(tempDir, pkg);
+    const rels = files.map((f) => f.slice(tempDir.length + 1).replace(/\\/g, "/"));
+
+    expect(rels).toContain("legit.js");
+    expect(rels).not.toContain("escaped.txt");
+
+    await rm(outsideDir, { recursive: true, force: true });
+  });
+
+  it.skipIf(platform() === "win32")("excludes symlinked directories", async () => {
+    const outsideDir = await mkdtemp(join(tmpdir(), "plunk-outside-"));
+    await mkdir(join(outsideDir, "data"), { recursive: true });
+    await writeFile(join(outsideDir, "data", "secret.txt"), "secret");
+
+    await writeFile(join(tempDir, "package.json"), "{}");
+    await writeFile(join(tempDir, "legit.js"), "ok");
+
+    // Create a symlinked directory
+    await symlink(join(outsideDir, "data"), join(tempDir, "linked-dir"));
+
+    const pkg: PackageJson = { name: "test", version: "1.0.0" };
+    const files = await resolvePackFiles(tempDir, pkg);
+    const rels = files.map((f) => f.slice(tempDir.length + 1).replace(/\\/g, "/"));
+
+    expect(rels).toContain("legit.js");
+    expect(rels.some((r) => r.includes("linked-dir"))).toBe(false);
+    expect(rels.some((r) => r.includes("secret"))).toBe(false);
+
+    await rm(outsideDir, { recursive: true, force: true });
   });
 });

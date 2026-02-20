@@ -12,7 +12,7 @@ import {
   getConsumerStatePath,
   getConsumerPlunkDir,
 } from "../utils/paths.js";
-import { ensureDir, exists, atomicWriteFile, isNodeError } from "../utils/fs.js";
+import { ensureDir, ensurePrivateDir, exists, atomicWriteFile, isNodeError } from "../utils/fs.js";
 import { withFileLock } from "../utils/lockfile.js";
 import { isConsumerState, isConsumersRegistry } from "../utils/validators.js";
 
@@ -111,7 +111,7 @@ async function writeConsumersRegistry(
   registry: ConsumersRegistry
 ): Promise<void> {
   const regPath = getConsumersPath();
-  await ensureDir(dirname(getConsumersPath()));
+  await ensurePrivateDir(dirname(getConsumersPath()));
   await atomicWriteFile(regPath, JSON.stringify(registry, null, 2));
 }
 

@@ -331,6 +331,131 @@ describe("yarn support", () => {
   });
 });
 
+describe("pnpm injection", () => {
+  it("injects into pnpm .pnpm/ virtual store", async () => {
+    const { publish } = await import("../core/publisher.js");
+    const { getStoreEntry } = await import("../core/store.js");
+    const { inject } = await import("../core/injector.js");
+
+    // Create pnpm lockfile and .pnpm/ structure
+    await writeFile(join(testConsumer, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+    const pnpmPkgDir = join(
+      testConsumer,
+      "node_modules",
+      ".pnpm",
+      "test-lib@1.0.0",
+      "node_modules",
+      "test-lib"
+    );
+    await mkdir(pnpmPkgDir, { recursive: true });
+    await writeFile(join(pnpmPkgDir, "package.json"), JSON.stringify({ name: "test-lib", version: "1.0.0" }));
+
+    await publish(testLib);
+    const entry = await getStoreEntry("test-lib", "1.0.0");
+    expect(entry).not.toBeNull();
+
+    const result = await inject(entry!, testConsumer, "pnpm");
+    expect(result.copied).toBeGreaterThan(0);
+
+    // Files should be in the .pnpm/ virtual store
+    const injectedFile = join(pnpmPkgDir, "dist", "index.js");
+    expect(await exists(injectedFile)).toBe(true);
+    expect(await readFile(injectedFile, "utf-8")).toBe('module.exports = "hello";');
+  });
+
+  it("handles scoped packages in .pnpm/", async () => {
+    const { publish } = await import("../core/publisher.js");
+    const { getStoreEntry } = await import("../core/store.js");
+    const { inject } = await import("../core/injector.js");
+
+    // Create scoped package
+    await writeFile(
+      join(testLib, "package.json"),
+      JSON.stringify({
+        name: "@my-scope/ui-kit",
+        version: "2.0.0",
+        files: ["dist"],
+      })
+    );
+
+    // Set up pnpm structure with encoded scoped name (@scope+name)
+    await writeFile(join(testConsumer, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+    const pnpmPkgDir = join(
+      testConsumer,
+      "node_modules",
+      ".pnpm",
+      "@my-scope+ui-kit@2.0.0",
+      "node_modules",
+      "@my-scope",
+      "ui-kit"
+    );
+    await mkdir(pnpmPkgDir, { recursive: true });
+    await writeFile(join(pnpmPkgDir, "package.json"), JSON.stringify({ name: "@my-scope/ui-kit", version: "2.0.0" }));
+
+    await publish(testLib);
+    const entry = await getStoreEntry("@my-scope/ui-kit", "2.0.0");
+    expect(entry).not.toBeNull();
+
+    const result = await inject(entry!, testConsumer, "pnpm");
+    expect(result.copied).toBeGreaterThan(0);
+    expect(await exists(join(pnpmPkgDir, "dist", "index.js"))).toBe(true);
+  });
+
+  it("matches exact version when multiple versions exist in .pnpm/", async () => {
+    const { publish } = await import("../core/publisher.js");
+    const { getStoreEntry } = await import("../core/store.js");
+    const { inject } = await import("../core/injector.js");
+
+    await writeFile(join(testConsumer, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+
+    // Create two versions in .pnpm/
+    for (const ver of ["1.0.0", "2.0.0"]) {
+      const pnpmPkgDir = join(
+        testConsumer,
+        "node_modules",
+        ".pnpm",
+        `test-lib@${ver}`,
+        "node_modules",
+        "test-lib"
+      );
+      await mkdir(pnpmPkgDir, { recursive: true });
+      await writeFile(join(pnpmPkgDir, "package.json"), JSON.stringify({ name: "test-lib", version: ver }));
+    }
+
+    await publish(testLib);
+    const entry = await getStoreEntry("test-lib", "1.0.0");
+    expect(entry).not.toBeNull();
+
+    const result = await inject(entry!, testConsumer, "pnpm");
+    expect(result.copied).toBeGreaterThan(0);
+
+    // Should inject into the 1.0.0 dir, not 2.0.0
+    const correct = join(testConsumer, "node_modules", ".pnpm", "test-lib@1.0.0", "node_modules", "test-lib", "dist", "index.js");
+    const wrong = join(testConsumer, "node_modules", ".pnpm", "test-lib@2.0.0", "node_modules", "test-lib", "dist", "index.js");
+    expect(await exists(correct)).toBe(true);
+    expect(await exists(wrong)).toBe(false);
+  });
+
+  it("falls back to direct path when no .pnpm/ structure exists", async () => {
+    const { publish } = await import("../core/publisher.js");
+    const { getStoreEntry } = await import("../core/store.js");
+    const { inject } = await import("../core/injector.js");
+
+    await writeFile(join(testConsumer, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n");
+
+    await publish(testLib);
+    const entry = await getStoreEntry("test-lib", "1.0.0");
+    expect(entry).not.toBeNull();
+
+    const result = await inject(entry!, testConsumer, "pnpm");
+    expect(result.copied).toBeGreaterThan(0);
+
+    // Should fall back to direct node_modules path
+    const directFile = join(testConsumer, "node_modules", "test-lib", "dist", "index.js");
+    expect(await exists(directFile)).toBe(true);
+  });
+});
+
 describe("missing transitive deps", () => {
   it("detects missing dependencies", async () => {
     const { publish } = await import("../core/publisher.js");
@@ -362,5 +487,36 @@ describe("missing transitive deps", () => {
     const missing = await checkMissingDeps(entry!, testConsumer);
     expect(missing).toContain("not-installed");
     expect(missing).not.toContain("lodash");
+  });
+
+  it("detects missing non-optional peerDependencies", async () => {
+    const { publish } = await import("../core/publisher.js");
+    const { getStoreEntry } = await import("../core/store.js");
+    const { checkMissingDeps } = await import("../core/injector.js");
+
+    await writeFile(
+      join(testLib, "package.json"),
+      JSON.stringify({
+        name: "test-lib",
+        version: "1.0.0",
+        files: ["dist"],
+        peerDependencies: {
+          react: "^18.0.0",
+          "optional-peer": "^1.0.0",
+        },
+        peerDependenciesMeta: {
+          "optional-peer": { optional: true },
+        },
+      })
+    );
+
+    await publish(testLib);
+    const entry = await getStoreEntry("test-lib", "1.0.0");
+
+    const missing = await checkMissingDeps(entry!, testConsumer);
+    // react is required peer dep and not installed → missing
+    expect(missing).toContain("react");
+    // optional-peer is optional → not missing
+    expect(missing).not.toContain("optional-peer");
   });
 });

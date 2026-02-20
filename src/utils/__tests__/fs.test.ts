@@ -7,6 +7,8 @@ import {
   incrementalCopy,
   exists,
   collectFiles,
+  moveDir,
+  ensurePrivateDir,
 } from "../fs.js";
 
 describe("copyWithCoW", () => {
@@ -101,6 +103,56 @@ describe("incrementalCopy", () => {
     const result = await incrementalCopy(src, dest);
     expect(result.removed).toBe(1);
     expect(await exists(join(dest, "old.txt"))).toBe(false);
+  });
+});
+
+describe("moveDir", () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), "plunk-test-"));
+  });
+
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it("moves a directory via rename on same filesystem", async () => {
+    const src = join(tempDir, "src-dir");
+    const dest = join(tempDir, "dest-dir");
+    await mkdir(src, { recursive: true });
+    await writeFile(join(src, "a.txt"), "hello");
+
+    await moveDir(src, dest);
+
+    expect(await exists(dest)).toBe(true);
+    expect(await readFile(join(dest, "a.txt"), "utf-8")).toBe("hello");
+    expect(await exists(src)).toBe(false);
+  });
+
+  it("propagates non-EXDEV errors", async () => {
+    const src = join(tempDir, "nonexistent");
+    const dest = join(tempDir, "dest-dir");
+
+    await expect(moveDir(src, dest)).rejects.toThrow();
+  });
+});
+
+describe("ensurePrivateDir", () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), "plunk-test-"));
+  });
+
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it("creates the directory", async () => {
+    const dir = join(tempDir, "private", "nested");
+    await ensurePrivateDir(dir);
+    expect(await exists(dir)).toBe(true);
   });
 });
 

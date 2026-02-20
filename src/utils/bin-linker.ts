@@ -1,6 +1,7 @@
 import { mkdir, symlink, writeFile, chmod, rm } from "node:fs/promises";
-import { join, relative } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
 import { platform } from "node:os";
+import { consola } from "consola";
 import type { PackageJson } from "../types.js";
 import { exists, isNodeError } from "./fs.js";
 import { verbose } from "./logger.js";
@@ -45,12 +46,13 @@ export async function createBinLinks(
   let count = 0;
 
   for (const [binName, binPath] of Object.entries(entries)) {
-    const targetAbsolute = join(
-      consumerPath,
-      "node_modules",
-      packageName,
-      binPath
-    );
+    const packageRoot = join(consumerPath, "node_modules", packageName);
+    const targetAbsolute = join(packageRoot, binPath);
+    const resolvedTarget = resolve(targetAbsolute);
+    if (!resolvedTarget.startsWith(resolve(packageRoot) + sep) && resolvedTarget !== resolve(packageRoot)) {
+      consola.warn(`bin "${binName}" points outside package directory, skipping`);
+      continue;
+    }
     const targetRelative = relative(binDir, targetAbsolute).replace(
       /\\/g,
       "/"
