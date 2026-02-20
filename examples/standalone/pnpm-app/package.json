@@ -7,11 +7,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "@example/api-client": "^1.0.0",
-    "@example/ui-kit": "^1.0.0"
+    "preview": "vite preview",
+    "postinstall": "plunk restore || true"
   },
   "devDependencies": {
     "typescript": "^5.3.0",

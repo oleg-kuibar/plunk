@@ -5,11 +5,8 @@
   "description": "Standalone Node.js consumer using npm",
   "type": "module",
   "scripts": {
-    "start": "node --import tsx src/main.ts"
-  },
-  "dependencies": {
-    "@example/api-client": "^1.0.0",
-    "@example/ui-kit": "^1.0.0"
+    "start": "node --import tsx src/main.ts",
+    "postinstall": "plunk restore || true"
   },
   "devDependencies": {
     "tsx": "^4.7.0",

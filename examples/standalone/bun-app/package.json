@@ -7,10 +7,6 @@
   "scripts": {
     "start": "bun run src/main.ts"
   },
-  "dependencies": {
-    "@example/api-client": "^1.0.0",
-    "@example/ui-kit": "^1.0.0"
-  },
   "devDependencies": {
     "typescript": "^5.3.0"
   }

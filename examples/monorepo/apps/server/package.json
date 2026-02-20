@@ -5,11 +5,11 @@
   "description": "Node.js app — uses shared-utils (workspace) + ui-kit (plunk)",
   "type": "module",
   "scripts": {
-    "start": "node --import tsx src/main.ts"
+    "start": "node --import tsx src/main.ts",
+    "postinstall": "plunk restore || true"
   },
   "dependencies": {
-    "@mono/shared-utils": "workspace:*",
-    "@example/ui-kit": "^1.0.0"
+    "@mono/shared-utils": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.7.0",
