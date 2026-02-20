@@ -191,7 +191,7 @@ export default defineCommand({
         } else if (viteResult.error) {
           consola.info(
             `Add the Vite plugin for automatic dev server restarts:\n` +
-              `  ${pc.cyan('import plunk from "@papoy/plunk/vite"')}\n` +
+              `  ${pc.cyan('import plunk from "@olegkuibar/plunk/vite"')}\n` +
               `  ${pc.cyan("plugins: [plunk()]")}`
           );
         }

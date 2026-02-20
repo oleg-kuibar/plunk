@@ -13,7 +13,7 @@ function detectIndent(content: string): string {
  */
 function hasPlunkPlugin(content: string): boolean {
   return (
-    content.includes("@papoy/plunk/vite") ||
+    content.includes("@olegkuibar/plunk/vite") ||
     content.includes("vite-plugin-plunk")
   );
 }
@@ -107,7 +107,7 @@ export async function addPlunkVitePlugin(
   }
 
   // Phase 2: Add import statement after the last existing import
-  const importLine = `import plunk from "@papoy/plunk/vite";\n`;
+  const importLine = `import plunk from "@olegkuibar/plunk/vite";\n`;
   const lastImportRegex = /^import\s.+$/gm;
   let lastImportEnd = 0;
   let match;
@@ -153,7 +153,7 @@ export async function removeFromViteConfig(
 
   // Remove the import line
   const importRegex =
-    /^import\s+\w+\s+from\s+["']@papoy\/plunk\/vite["'];?\s*\n?/m;
+    /^import\s+\w+\s+from\s+["']@olegkuibar\/plunk\/vite["'];?\s*\n?/m;
   if (importRegex.test(content)) {
     content = content.replace(importRegex, "");
     modified = true;

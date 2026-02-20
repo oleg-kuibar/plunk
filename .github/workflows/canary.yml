@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   canary:
@@ -21,6 +22,7 @@ jobs:
           registry-url: https://registry.npmjs.org
           cache: pnpm
 
+      - run: npm install -g npm@latest
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
 
@@ -41,6 +43,4 @@ jobs:
           npm version "$CANARY" --no-git-tag-version
           echo "CANARY_VERSION=$CANARY" >> $GITHUB_ENV
 
-      - run: pnpm publish --no-git-checks --access public --tag canary
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - run: pnpm publish --no-git-checks --provenance --access public --tag canary
