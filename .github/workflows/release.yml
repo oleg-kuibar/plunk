@@ -33,6 +33,7 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    environment: Dev
     steps:
       - uses: actions/checkout@v6
         with:
@@ -104,19 +105,6 @@ jobs:
       - run: pnpm test
 
       # --- Publish (skip on dry run) ---
-      - name: Verify npm auth
-        if: inputs.dry_run != true
-        run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "::error::NPM_TOKEN secret is not set or empty"
-            exit 1
-          fi
-          # Write token value directly (avoid env var expansion issues in pnpm 10)
-          echo "//registry.npmjs.org/:_authToken=$NODE_AUTH_TOKEN" > ~/.npmrc
-          npm whoami --registry https://registry.npmjs.org
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
       - name: Publish to npm
         if: inputs.dry_run != true
         run: pnpm publish --no-git-checks --provenance --access public
