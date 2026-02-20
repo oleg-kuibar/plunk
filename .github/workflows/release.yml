@@ -106,7 +106,14 @@ jobs:
       # --- Publish (skip on dry run) ---
       - name: Publish to npm
         if: inputs.dry_run != true
-        run: pnpm publish --no-git-checks --provenance --access public
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::error::NPM_TOKEN secret is not set or empty"
+            exit 1
+          fi
+          # Ensure .npmrc has auth (pnpm install can overwrite setup-node's .npmrc)
+          echo "//registry.npmjs.org/:_authToken=\${NODE_AUTH_TOKEN}" > ~/.npmrc
+          pnpm publish --no-git-checks --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
