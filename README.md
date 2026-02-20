@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="plunk_logo.png" width="200" alt="plunk logo" />
+</p>
+
 # plunk
 
 Modern local package development tool. Smart file copying into `node_modules` — no symlinks, no git contamination.
