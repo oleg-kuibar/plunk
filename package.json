@@ -62,7 +62,7 @@
   "bugs": {
     "url": "https://github.com/oleg-kuibar/plunk/issues"
   },
-  "author": "",
+  "author": "Oleg Kuibar",
   "packageManager": "pnpm@10.30.0",
   "engines": {
     "node": ">=22.12.0"
