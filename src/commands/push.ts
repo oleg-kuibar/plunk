@@ -100,6 +100,7 @@ export default defineCommand({
                   ...link,
                   contentHash: entry.meta.contentHash,
                   linkedAt: new Date().toISOString(),
+                  buildId: entry.meta.buildId ?? "",
                 });
               }
 
@@ -120,13 +121,15 @@ export default defineCommand({
         }
       }
 
+      const buildTag = result.buildId ? ` [${result.buildId}]` : "";
       consola.success(
-        `Pushed ${result.name}@${result.version} to ${pushCount} consumer(s) in ${timer.elapsed()} (${totalCopied} files changed, ${totalSkipped} unchanged)`
+        `Pushed ${result.name}@${result.version}${buildTag} to ${pushCount} consumer(s) in ${timer.elapsed()} (${totalCopied} files changed, ${totalSkipped} unchanged)`
       );
 
       output({
         name: result.name,
         version: result.version,
+        buildId: result.buildId,
         consumers: pushCount,
         copied: totalCopied,
         skipped: totalSkipped,

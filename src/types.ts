@@ -3,6 +3,7 @@ export interface PlunkMeta {
   contentHash: string;
   publishedAt: string;
   sourcePath: string;
+  buildId: string;
 }
 
 /** A store entry representing a published package */
@@ -21,6 +22,7 @@ export interface LinkEntry {
   sourcePath: string;
   backupExists: boolean;
   packageManager: PackageManager;
+  buildId: string;
 }
 
 /** Consumer project state file (.plunk/state.json) */

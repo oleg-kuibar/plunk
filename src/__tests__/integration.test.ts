@@ -82,6 +82,7 @@ describe("publish", () => {
     );
     expect(meta.contentHash).toMatch(/^sha256:/);
     expect(meta.sourcePath).toBe(testLib);
+    expect(meta.buildId).toMatch(/^[a-f0-9]{8}$/);
   });
 
   it("skips publish when content unchanged", async () => {
@@ -93,10 +94,12 @@ describe("publish", () => {
 
   it("re-publishes when content changes", async () => {
     const { publish } = await import("../core/publisher.js");
-    await publish(testLib);
+    const first = await publish(testLib);
     await writeFile(join(testLib, "dist", "index.js"), 'module.exports = "updated";');
     const result = await publish(testLib);
     expect(result.skipped).toBe(false);
+    expect(result.buildId).toMatch(/^[a-f0-9]{8}$/);
+    expect(result.buildId).not.toBe(first.buildId);
   });
 });
 
@@ -138,6 +141,7 @@ describe("tracker", () => {
       sourcePath: testLib,
       backupExists: false,
       packageManager: "npm",
+      buildId: "deadbeef",
     });
 
     const link = await getLink(testConsumer, "test-lib");

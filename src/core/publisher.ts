@@ -1,4 +1,5 @@
 import { readFile, writeFile, rename } from "node:fs/promises";
+import { randomBytes } from "node:crypto";
 import { join, relative, dirname } from "node:path";
 import { spawn } from "node:child_process";
 import { platform } from "node:os";
@@ -26,6 +27,8 @@ export interface PublishResult {
   /** True if content was unchanged and publish was skipped */
   skipped: boolean;
   contentHash: string;
+  /** 8-char hex identifier generated on each successful publish */
+  buildId: string;
 }
 
 const copyLimit = pLimit(Math.max(availableParallelism(), 8));
@@ -88,6 +91,7 @@ export async function publish(
       fileCount: files.length,
       skipped: true,
       contentHash,
+      buildId: existingMeta.buildId ?? "",
     };
   }
 
@@ -107,11 +111,13 @@ export async function publish(
           fileCount: files.length,
           skipped: true,
           contentHash,
+          buildId: metaUnderLock.buildId ?? "",
         } satisfies PublishResult;
       }
 
       const tmpDir = storeEntryDir + ".tmp-" + Date.now();
       const tmpPackageDir = join(tmpDir, "package");
+      const buildId = randomBytes(4).toString("hex");
 
       try {
         await ensurePrivateDir(tmpPackageDir);
@@ -149,6 +155,7 @@ export async function publish(
           contentHash,
           publishedAt: new Date().toISOString(),
           sourcePath: packageDir,
+          buildId,
         };
         await writeFile(
           join(tmpDir, ".plunk-meta.json"),
@@ -175,6 +182,7 @@ export async function publish(
         fileCount: files.length,
         skipped: false,
         contentHash,
+        buildId,
       } satisfies PublishResult;
     },
     { stale: 60000 }
@@ -186,7 +194,7 @@ export async function publish(
   await runLifecycleHook(packageDir, pkg, "postplunk");
 
   consola.success(
-    `Published ${pkg.name}@${pkg.version} (${files.length} files)`
+    `Published ${pkg.name}@${pkg.version} (${files.length} files) [${result.buildId}]`
   );
 
   return result;

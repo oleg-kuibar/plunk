@@ -12,7 +12,8 @@ export function isPlunkMeta(value: unknown): value is PlunkMeta {
   return (
     typeof v.contentHash === "string" &&
     typeof v.publishedAt === "string" &&
-    typeof v.sourcePath === "string"
+    typeof v.sourcePath === "string" &&
+    (v.buildId === undefined || typeof v.buildId === "string")
   );
 }
 
@@ -27,7 +28,8 @@ export function isLinkEntry(value: unknown): value is LinkEntry {
     typeof v.sourcePath === "string" &&
     typeof v.backupExists === "boolean" &&
     typeof v.packageManager === "string" &&
-    ["npm", "pnpm", "yarn", "bun"].includes(v.packageManager as string)
+    ["npm", "pnpm", "yarn", "bun"].includes(v.packageManager as string) &&
+    (v.buildId === undefined || typeof v.buildId === "string")
   );
 }
 

@@ -82,6 +82,7 @@ describe("publish with real example packages", () => {
     expect(result.version).toBe("1.0.0");
     expect(result.skipped).toBe(false);
     expect(result.fileCount).toBeGreaterThanOrEqual(2); // at least package.json + dist/index.js
+    expect(result.buildId).toMatch(/^[a-f0-9]{8}$/);
 
     // Verify scoped package encoding in store path
     const storeDir = join(plunkHome, "store", "@example+api-client@1.0.0");
@@ -110,7 +111,7 @@ describe("publish with real example packages", () => {
 
   it("stores correct metadata", async () => {
     const { publish } = await import("../core/publisher.js");
-    await publish(API_CLIENT_DIR);
+    const result = await publish(API_CLIENT_DIR);
 
     const metaPath = join(
       plunkHome,
@@ -122,6 +123,8 @@ describe("publish with real example packages", () => {
     expect(meta.contentHash).toMatch(/^sha256:/);
     expect(meta.sourcePath).toBe(API_CLIENT_DIR);
     expect(new Date(meta.publishedAt).getTime()).not.toBeNaN();
+    expect(meta.buildId).toMatch(/^[a-f0-9]{8}$/);
+    expect(result.buildId).toBe(meta.buildId);
   });
 
   it("preserves the files field filtering (only dist/ is published)", async () => {
@@ -296,6 +299,7 @@ describe("multi-consumer push", () => {
         sourcePath: API_CLIENT_DIR,
         backupExists: false,
         packageManager: "npm",
+        buildId: entry!.meta.buildId ?? "",
       });
     }
 
@@ -436,6 +440,7 @@ describe("tracker state management", () => {
       sourcePath: "/some/path",
       backupExists: false,
       packageManager: "npm" as const,
+      buildId: "aabb1122",
     };
 
     await addLink(consumer1, "@example/api-client", { ...base, version: "1.0.0" });
@@ -457,6 +462,7 @@ describe("tracker state management", () => {
       sourcePath: "/path",
       backupExists: false,
       packageManager: "npm" as const,
+      buildId: "ccdd3344",
     };
 
     await addLink(consumer1, "my-lib", { ...base, version: "1.0.0" });
@@ -782,12 +788,14 @@ describe("full workflow: publish → add → push → restore → remove", () =>
       version: apiEntry!.version,
       contentHash: apiEntry!.meta.contentHash,
       sourcePath: apiEntry!.meta.sourcePath,
+      buildId: apiEntry!.meta.buildId ?? "",
     });
     await addLink(consumer1, "@example/ui-kit", {
       ...linkBase,
       version: uiEntry!.version,
       contentHash: uiEntry!.meta.contentHash,
       sourcePath: uiEntry!.meta.sourcePath,
+      buildId: uiEntry!.meta.buildId ?? "",
     });
     await registerConsumer("@example/api-client", consumer1);
     await registerConsumer("@example/ui-kit", consumer1);
@@ -811,6 +819,7 @@ describe("full workflow: publish → add → push → restore → remove", () =>
       version: apiEntry!.version,
       contentHash: apiEntry!.meta.contentHash,
       sourcePath: apiEntry!.meta.sourcePath,
+      buildId: apiEntry!.meta.buildId ?? "",
     });
     await registerConsumer("@example/api-client", consumer2);
 

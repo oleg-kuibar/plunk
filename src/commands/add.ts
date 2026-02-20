@@ -113,6 +113,7 @@ export default defineCommand({
       sourcePath: entry.meta.sourcePath,
       backupExists: hasBackup,
       packageManager: pm,
+      buildId: entry.meta.buildId ?? "",
     };
     await addLink(consumerPath, packageName, linkEntry);
     await registerConsumer(packageName, consumerPath);

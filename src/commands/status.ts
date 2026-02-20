@@ -13,6 +13,7 @@ const checkLimit = pLimit(4);
 interface PackageStatus {
   name: string;
   version: string;
+  buildId: string;
   issues: string[];
   linkedAt: string;
   sourcePath: string;
@@ -60,6 +61,7 @@ export default defineCommand({
           return {
             name,
             version: link.version,
+            buildId: link.buildId ?? "",
             issues,
             linkedAt: link.linkedAt,
             sourcePath: link.sourcePath,
@@ -71,8 +73,9 @@ export default defineCommand({
     // Render sequentially for deterministic output
     for (const s of statuses) {
       const statusIcon = s.issues.length === 0 ? pc.green("✓") : pc.yellow("!");
+      const buildTag = s.buildId ? `[${s.buildId}]` : "[--------]";
       console.log(
-        `  ${statusIcon} ${pc.cyan(s.name)} ${pc.dim("@" + s.version)}`
+        `  ${statusIcon} ${pc.cyan(s.name)} ${pc.dim("@" + s.version)} ${pc.dim(buildTag)}`
       );
       console.log(
         `    ${pc.dim(`linked ${new Date(s.linkedAt).toLocaleString()} from ${s.sourcePath}`)}`
@@ -84,9 +87,10 @@ export default defineCommand({
     }
 
     output({
-      packages: statuses.map(({ name, version, issues }) => ({
+      packages: statuses.map(({ name, version, buildId, issues }) => ({
         name,
         version,
+        buildId: buildId || null,
         healthy: issues.length === 0,
         issues,
       })),

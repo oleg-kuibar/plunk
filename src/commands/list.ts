@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { consola } from "consola";
 import pc from "picocolors";
 import { readConsumerState } from "../core/tracker.js";
-import { listStoreEntries } from "../core/store.js";
+import { listStoreEntries, getStoreEntry } from "../core/store.js";
 import { suppressHumanOutput, output } from "../utils/output.js";
 
 export default defineCommand({
@@ -41,10 +41,20 @@ async function listProject() {
   consola.info(`Linked packages (${links.length}):\n`);
   const packages = [];
   for (const [name, link] of links) {
+    const buildTag = link.buildId ? `[${link.buildId}]` : "[--------]";
+
+    // Check staleness against store
+    let stale = false;
+    const storeEntry = await getStoreEntry(name, link.version);
+    if (storeEntry && storeEntry.meta.buildId && link.buildId && storeEntry.meta.buildId !== link.buildId) {
+      stale = true;
+    }
+
+    const staleTag = stale ? pc.yellow(" (stale)") : "";
     console.log(
-      `  ${pc.cyan(name)} ${pc.dim("@" + link.version)}  ← ${pc.dim(link.sourcePath)}`
+      `  ${pc.cyan(name)} ${pc.dim("@" + link.version)} ${pc.dim(buildTag)}${staleTag}  ← ${pc.dim(link.sourcePath)}`
     );
-    packages.push({ name, version: link.version, sourcePath: link.sourcePath });
+    packages.push({ name, version: link.version, buildId: link.buildId ?? null, stale, sourcePath: link.sourcePath });
   }
   output({ packages });
 }
@@ -62,13 +72,15 @@ async function listStore() {
   const storeEntries = [];
   for (const entry of entries) {
     const age = getRelativeTime(new Date(entry.meta.publishedAt));
+    const buildTag = entry.meta.buildId ? `[${entry.meta.buildId}]` : "[--------]";
     console.log(
-      `  ${pc.cyan(entry.name)} ${pc.dim("@" + entry.version)}  ${pc.dim(`published ${age}`)}`
+      `  ${pc.cyan(entry.name)} ${pc.dim("@" + entry.version)} ${pc.dim(buildTag)}  ${pc.dim(`published ${age}`)}`
     );
     console.log(`    ${pc.dim(`from: ${entry.meta.sourcePath}`)}`);
     storeEntries.push({
       name: entry.name,
       version: entry.version,
+      buildId: entry.meta.buildId ?? null,
       publishedAt: entry.meta.publishedAt,
       sourcePath: entry.meta.sourcePath,
     });
