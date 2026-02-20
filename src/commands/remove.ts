@@ -116,6 +116,16 @@ async function removeSinglePackage(
     }
   }
 
+  // Remove @source for Tailwind v4
+  const { findTailwindCss, removeTailwindSource } = await import("../utils/tailwind-source.js");
+  const tailwindCss = await findTailwindCss(consumerPath);
+  if (tailwindCss) {
+    const twResult = await removeTailwindSource(tailwindCss, packageName);
+    if (twResult.modified) {
+      verbose(`[remove] Removed @source for ${packageName} from ${basename(tailwindCss)}`);
+    }
+  }
+
   // Update state (removeLink deletes entry before we check remaining links)
   await removeLink(consumerPath, packageName);
   await unregisterConsumer(packageName, consumerPath);

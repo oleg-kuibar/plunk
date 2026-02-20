@@ -184,6 +184,18 @@ export default defineCommand({
       }
     }
 
+    // Auto-add @source for Tailwind v4
+    const { findTailwindCss, addTailwindSource } = await import("../utils/tailwind-source.js");
+    const tailwindCss = await findTailwindCss(consumerPath);
+    if (tailwindCss) {
+      const twResult = await addTailwindSource(tailwindCss, packageName, consumerPath);
+      if (twResult.modified) {
+        consola.success(`Added @source for ${packageName} to ${basename(tailwindCss)}`);
+      } else if (twResult.error) {
+        consola.info(`Add to your CSS manually: @source "../node_modules/${packageName}";`);
+      }
+    }
+
     consola.info(`Done in ${timer.elapsed()}`);
     output({
       package: packageName,

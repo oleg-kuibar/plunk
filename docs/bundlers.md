@@ -70,6 +70,46 @@ export default defineConfig({
 
 You almost certainly don't need this.
 
+## Tailwind CSS v4
+
+Tailwind v4's Oxide scanner follows `.gitignore` rules, which means it skips `node_modules/` by default. When plunk pushes updated files into `node_modules/`, Tailwind won't see the new utility classes unless you explicitly register the package path with `@source`.
+
+### Required setup
+
+In your main CSS file, add an `@source` directive for each plunk-linked package:
+
+```css
+@import "tailwindcss";
+@source "../node_modules/@my-scope/my-pkg";
+```
+
+This tells Tailwind's scanner to walk that directory despite it being gitignored. Without it, classes used only in plunk-linked packages will have no CSS rules.
+
+> **Auto-injection:** `plunk add` automatically inserts the `@source` directive when it detects a Tailwind v4 CSS file (one containing `@import "tailwindcss"`). `plunk remove` cleans it up per-package. You typically don't need to add it manually.
+
+### How it works
+
+When plunk pushes and the Vite plugin detects the change, it:
+
+1. Invalidates all CSS modules in Vite's module graph (clears cached transform results)
+2. Clears the Vite disk cache
+3. Sends a full-reload to the browser
+
+On reload, Vite re-runs Tailwind's `transform` hook. The Oxide scanner incrementally re-walks all source directories (including `@source` paths), detects the new file mtimes from plunk's injection, re-reads them, extracts the new utility candidates, and generates fresh CSS.
+
+### Tailwind v3
+
+Tailwind v3 uses a `content` array in `tailwind.config.js`. Add the package path there instead:
+
+```js
+module.exports = {
+  content: [
+    './src/**/*.{js,ts,jsx,tsx}',
+    './node_modules/@my-scope/my-pkg/dist/**/*.js',
+  ],
+}
+```
+
 ## Webpack
 
 No config needed. Webpack's `watchpack` detects mtime changes on every file it resolves. When plunk updates a file in `node_modules/`, the mtime change triggers a recompilation.
