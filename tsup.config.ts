@@ -20,10 +20,6 @@ export default defineConfig([
     dts: true,
     splitting: false,
     target: "node22",
-    noExternal: [/.*/],
-    banner: {
-      js: 'import{createRequire as __cr}from"node:module";globalThis.require=__cr(import.meta.url);',
-    },
   },
   {
     entry: { "vite-plugin": "src/vite-plugin.ts" },
