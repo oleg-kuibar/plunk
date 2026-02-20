@@ -1,8 +1,6 @@
 import { formatPrice, type User, type Product } from "@example/api-client";
 import { renderButton, renderCard } from "@example/ui-kit";
 
-// ----- Using @example/api-client types -----
-
 const user: User = {
   id: "1",
   name: "Alice",
@@ -22,8 +20,6 @@ const product: Product = {
 console.log(`User: ${user.name} (${user.role})`);
 console.log(`Product: ${product.name} — ${formatPrice(product)}`);
 
-// ----- Using @example/ui-kit components -----
-
 const buyButton = renderButton({
   label: "Buy Now",
   variant: "primary",
@@ -38,4 +34,4 @@ const productCard = renderCard({
 console.log("\nRendered product card:");
 console.log(productCard);
 
-console.log("\n--- web-app is working with plunk-linked packages! ---");
+console.log("\n--- bun-app is working with plunk-linked packages! ---");

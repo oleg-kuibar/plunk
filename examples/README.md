@@ -1,22 +1,29 @@
 # Examples
 
-A realistic local dev setup you can actually run.
+Runnable demos showing plunk with different package managers and project setups.
 
 ## What's here
 
 ```
 examples/
-├── packages/
-│   ├── api-client/     # SDK with types (User, Product) and fetch helpers
-│   └── ui-kit/         # Component library with Button and Card
-└── apps/
-    ├── web-app/        # Node.js/TS consumer using both packages
-    └── react-app/      # React + Vite consumer with HMR
+├── packages/                  # Shared libraries (also used as E2E test fixtures)
+│   ├── api-client/            # @example/api-client — types + fetch helpers
+│   └── ui-kit/                # @example/ui-kit — Button, Card components
+│
+├── standalone/                # Non-monorepo apps, one per package manager
+│   ├── npm-app/               # npm — Node.js CLI
+│   ├── pnpm-app/              # pnpm — Vite + vanilla TS
+│   ├── yarn-app/              # yarn v4 (nodeLinker: node-modules) — Node.js CLI
+│   └── bun-app/               # bun — Node.js/Bun CLI
+│
+└── monorepo/                  # pnpm workspace — workspace links + plunk side by side
+    ├── packages/shared-utils/ # @mono/shared-utils — workspace package
+    └── apps/
+        ├── web/               # Vite app — shared-utils (workspace) + api-client (plunk)
+        └── server/            # Node app — shared-utils (workspace) + ui-kit (plunk)
 ```
 
-You're working on `api-client` and `ui-kit` simultaneously with two consumer apps. You want changes to the packages to show up without publishing to npm.
-
-## Setup
+## Quick start
 
 ### 1. Build plunk
 
@@ -31,10 +38,10 @@ pnpm link --global
 
 ```bash
 cd examples/packages/api-client
-pnpm install && pnpm tsup
+npm install && npx tsup
 
 cd ../ui-kit
-pnpm install && pnpm tsup
+npm install && npx tsup
 ```
 
 ### 3. Publish to plunk store
@@ -44,48 +51,41 @@ cd ../api-client && plunk publish
 cd ../ui-kit && plunk publish
 ```
 
-### 4. Link into a consumer
+### 4. Try a standalone app
 
 ```bash
-cd ../../apps/web-app
-pnpm install
-plunk add @example/api-client
-plunk add @example/ui-kit
+cd ../../standalone/npm-app
+npm install
+plunk add @example/api-client --from ../../packages/api-client
+plunk add @example/ui-kit --from ../../packages/ui-kit
+npm start
 ```
 
-### 5. Run it
+See [standalone/README.md](standalone/README.md) for all four apps.
+
+### 5. Try the monorepo
 
 ```bash
-# Node.js app
-pnpm start
-
-# React + Vite app (in another terminal)
-cd ../react-app
+cd ../../monorepo
 pnpm install
-plunk add @example/api-client
-plunk add @example/ui-kit
+cd packages/shared-utils && pnpm build
+cd ../../apps/web
+plunk add @example/api-client --from ../../../packages/api-client
 pnpm dev
 ```
 
-### 6. Watch mode
+See [monorepo/README.md](monorepo/README.md) for the full guide.
+
+## Watch mode
 
 Make changes to a package and see them propagate automatically:
 
 ```bash
-cd ../../packages/api-client
+cd packages/api-client
 plunk push --watch --build "npx tsup"
 ```
 
-Edit `src/client.ts`, save. plunk rebuilds, publishes, and copies to all consumers. The Vite dev server in `react-app` picks up the changes.
-
-## Shortcut
-
-Skip the separate publish step:
-
-```bash
-cd apps/web-app
-plunk add @example/api-client --from ../../packages/api-client
-```
+Edit `src/client.ts`, save. plunk rebuilds, publishes, and copies to all consumers.
 
 ## More
 

@@ -1,11 +1,15 @@
 {
-  "name": "web-app",
+  "name": "npm-app",
   "version": "1.0.0",
   "private": true,
-  "description": "Example Node.js app consuming @example/api-client and @example/ui-kit",
+  "description": "Standalone Node.js consumer using npm",
   "type": "module",
   "scripts": {
     "start": "node --import tsx src/main.ts"
+  },
+  "dependencies": {
+    "@example/api-client": "^1.0.0",
+    "@example/ui-kit": "^1.0.0"
   },
   "devDependencies": {
     "tsx": "^4.7.0",
