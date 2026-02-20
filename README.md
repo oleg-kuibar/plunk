@@ -2,6 +2,14 @@
   <img src="plunk_logo.png" width="200" alt="plunk logo" />
 </p>
 
+<p align="center">
+  <a href="https://www.npmjs.com/package/@olegkuibar/plunk"><img src="https://img.shields.io/npm/v/@olegkuibar/plunk?color=blue" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/@olegkuibar/plunk"><img src="https://img.shields.io/npm/dm/@olegkuibar/plunk" alt="npm downloads" /></a>
+  <a href="https://github.com/oleg-kuibar/plunk/actions/workflows/ci.yml"><img src="https://github.com/oleg-kuibar/plunk/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://github.com/oleg-kuibar/plunk/blob/master/LICENSE"><img src="https://img.shields.io/github/license/oleg-kuibar/plunk" alt="license" /></a>
+  <a href="https://www.npmjs.com/package/@olegkuibar/plunk"><img src="https://img.shields.io/node/v/@olegkuibar/plunk" alt="node version" /></a>
+</p>
+
 # plunk
 
 Modern local package development tool. Smart file copying into `node_modules` — no symlinks, no git contamination.
