@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, writeFile, mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { detectPackageManager, detectYarnNodeLinker, hasYarnrcYml } from "../pm-detect.js";
@@ -43,6 +43,21 @@ describe("detectPackageManager", () => {
     await writeFile(join(tempDir, "pnpm-lock.yaml"), "");
     await writeFile(join(tempDir, "package-lock.json"), "{}");
     expect(await detectPackageManager(tempDir)).toBe("pnpm");
+  });
+
+  it("walks up to find lockfile in parent (monorepo)", async () => {
+    const nested = join(tempDir, "packages", "app");
+    await mkdir(nested, { recursive: true });
+    await writeFile(join(tempDir, "pnpm-lock.yaml"), "");
+    expect(await detectPackageManager(nested)).toBe("pnpm");
+  });
+
+  it("closest lockfile wins over parent", async () => {
+    const nested = join(tempDir, "packages", "app");
+    await mkdir(nested, { recursive: true });
+    await writeFile(join(tempDir, "pnpm-lock.yaml"), "");
+    await writeFile(join(nested, "package-lock.json"), "{}");
+    expect(await detectPackageManager(nested)).toBe("npm");
   });
 });
 
@@ -98,6 +113,13 @@ describe("detectYarnNodeLinker", () => {
     await writeFile(join(tempDir, ".yarnrc.yml"), 'nodeLinker: "node-modules"\n');
     expect(await detectYarnNodeLinker(tempDir)).toBe("node-modules");
   });
+
+  it("walks up to find .yarnrc.yml in parent", async () => {
+    const nested = join(tempDir, "packages", "app");
+    await mkdir(nested, { recursive: true });
+    await writeFile(join(tempDir, ".yarnrc.yml"), "nodeLinker: pnpm\n");
+    expect(await detectYarnNodeLinker(nested)).toBe("pnpm");
+  });
 });
 
 describe("hasYarnrcYml", () => {
@@ -118,5 +140,12 @@ describe("hasYarnrcYml", () => {
 
   it("returns false when .yarnrc.yml is missing", async () => {
     expect(await hasYarnrcYml(tempDir)).toBe(false);
+  });
+
+  it("walks up to find .yarnrc.yml in parent", async () => {
+    const nested = join(tempDir, "packages", "app");
+    await mkdir(nested, { recursive: true });
+    await writeFile(join(tempDir, ".yarnrc.yml"), "");
+    expect(await hasYarnrcYml(nested)).toBe(true);
   });
 });
