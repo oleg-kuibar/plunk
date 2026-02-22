@@ -25,7 +25,7 @@ export async function resolvePackFiles(
   files.push(join(absDir, "package.json"));
 
   // Walk directory tree once, cache result
-  const allFiles = await collectAllFiles(absDir);
+  const allFiles = await collectAllFiles(absDir, absDir);
   const allRelPaths = allFiles.map((f) => relative(absDir, f).replace(/\\/g, "/"));
 
   if (pkg.files && pkg.files.length > 0) {
@@ -200,16 +200,17 @@ function hasGlobChars(pattern: string): boolean {
   return /[*?[\]{}()]/.test(pattern);
 }
 
-async function collectAllFiles(dir: string): Promise<string[]> {
+async function collectAllFiles(dir: string, rootDir: string): Promise<string[]> {
   const results: string[] = [];
   try {
     const entries = await readdir(dir, { withFileTypes: true });
     for (const entry of entries) {
       const full = join(dir, entry.name);
       if (entry.isDirectory()) {
-        if (entry.name === "node_modules" || entry.name === ".git") continue;
+        if (entry.name === ".git") continue; // skip .git at any depth
+        if (dir === rootDir && entry.name === "node_modules") continue; // only skip top-level
         if (entry.isSymbolicLink()) continue; // skip symlinked directories
-        results.push(...(await collectAllFiles(full)));
+        results.push(...(await collectAllFiles(full, rootDir)));
       } else if (!entry.isSymbolicLink()) {
         results.push(full);
       }

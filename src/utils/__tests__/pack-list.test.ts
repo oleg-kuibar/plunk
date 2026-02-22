@@ -263,4 +263,36 @@ describe("resolvePackFiles", () => {
 
     await rm(outsideDir, { recursive: true, force: true });
   });
+
+  it("includes nested node_modules when files field is set", async () => {
+    await writeFile(join(tempDir, "package.json"), "{}");
+    await mkdir(join(tempDir, "dist", "node_modules", "polyfill"), { recursive: true });
+    await writeFile(join(tempDir, "dist", "index.js"), "");
+    await writeFile(join(tempDir, "dist", "node_modules", "polyfill", "index.js"), "");
+
+    const pkg: PackageJson = { name: "test", version: "1.0.0", files: ["dist"] };
+    const files = await resolvePackFiles(tempDir, pkg);
+    const rels = files.map((f) => f.slice(tempDir.length + 1).replace(/\\/g, "/"));
+
+    expect(rels).toContain("dist/index.js");
+    expect(rels).toContain("dist/node_modules/polyfill/index.js");
+  });
+
+  it("still excludes top-level node_modules", async () => {
+    await writeFile(join(tempDir, "package.json"), "{}");
+    await writeFile(join(tempDir, "index.js"), "");
+    await mkdir(join(tempDir, "node_modules", "dep"), { recursive: true });
+    await writeFile(join(tempDir, "node_modules", "dep", "x.js"), "");
+    await mkdir(join(tempDir, "dist", "node_modules", "polyfill"), { recursive: true });
+    await writeFile(join(tempDir, "dist", "node_modules", "polyfill", "index.js"), "");
+
+    const pkg: PackageJson = { name: "test", version: "1.0.0", files: ["dist", "index.js"] };
+    const files = await resolvePackFiles(tempDir, pkg);
+    const rels = files.map((f) => f.slice(tempDir.length + 1).replace(/\\/g, "/"));
+
+    // Top-level node_modules excluded (not in files field)
+    expect(rels.some((r) => r.startsWith("node_modules/"))).toBe(false);
+    // Nested node_modules included
+    expect(rels).toContain("dist/node_modules/polyfill/index.js");
+  });
 });
