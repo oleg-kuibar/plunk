@@ -144,18 +144,14 @@ jobs:
           npm version "$CANARY" --no-git-tag-version
           echo "CANARY_VERSION=$CANARY" >> $GITHUB_ENV
 
-      # --- Publish ---
+      # --- Publish (uses OIDC trusted publishing, no token needed) ---
       - name: Publish canary
         if: steps.mode.outputs.mode == 'canary'
         run: pnpm publish --no-git-checks --provenance --access public --tag canary
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish release
         if: steps.mode.outputs.mode == 'release' && inputs.dry_run != true
         run: pnpm publish --no-git-checks --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub Release
         if: steps.mode.outputs.mode == 'release' && inputs.dry_run != true
