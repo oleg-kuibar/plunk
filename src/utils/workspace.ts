@@ -1,5 +1,6 @@
-import { readFile } from "node:fs/promises";
-import { join, dirname } from "node:path";
+import { readFile, readdir } from "node:fs/promises";
+import { join, dirname, resolve } from "node:path";
+import picomatch from "picomatch";
 import { exists } from "./fs.js";
 
 export interface Catalogs {
@@ -117,6 +118,176 @@ export async function parseCatalogs(workspaceRoot: string): Promise<Catalogs> {
   }
 
   return result;
+}
+
+/**
+ * Find all workspace package directories.
+ * Supports pnpm (pnpm-workspace.yaml) and npm/yarn (package.json workspaces field).
+ * Returns absolute paths to directories that contain a package.json.
+ */
+export async function findWorkspacePackages(startDir: string): Promise<string[]> {
+  // Try pnpm-workspace.yaml first
+  const pnpmRoot = await findWorkspaceRoot(startDir);
+  if (pnpmRoot) {
+    const patterns = await parsePnpmWorkspacePackages(pnpmRoot);
+    if (patterns.length > 0) {
+      return resolveWorkspaceGlobs(pnpmRoot, patterns);
+    }
+  }
+
+  // Fall back to npm/yarn workspaces field in package.json
+  const rootDir = pnpmRoot ?? await findPackageJsonWorkspaceRoot(startDir);
+  if (!rootDir) return [];
+
+  try {
+    const rootPkg = JSON.parse(await readFile(join(rootDir, "package.json"), "utf-8"));
+    const workspaces: string[] = Array.isArray(rootPkg.workspaces)
+      ? rootPkg.workspaces
+      : rootPkg.workspaces?.packages ?? [];
+    if (workspaces.length === 0) return [];
+    return resolveWorkspaceGlobs(rootDir, workspaces);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Parse pnpm-workspace.yaml for the `packages:` field.
+ * Returns glob patterns like ["packages/*", "apps/*"].
+ */
+async function parsePnpmWorkspacePackages(workspaceRoot: string): Promise<string[]> {
+  const filePath = join(workspaceRoot, "pnpm-workspace.yaml");
+  let content: string;
+  try {
+    content = await readFile(filePath, "utf-8");
+  } catch {
+    return [];
+  }
+
+  const patterns: string[] = [];
+  let inPackages = false;
+
+  for (const line of content.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (trimmed === "" || trimmed.startsWith("#")) continue;
+
+    const indent = line.length - line.trimStart().length;
+    if (indent === 0) {
+      inPackages = trimmed === "packages:";
+      continue;
+    }
+
+    if (inPackages && indent >= 2) {
+      // Lines like `  - "packages/*"` or `  - packages/*`
+      const match = trimmed.match(/^-\s+["']?([^"']+)["']?$/);
+      if (match) {
+        // Skip negation patterns (e.g., "!packages/internal")
+        if (!match[1].startsWith("!")) {
+          patterns.push(match[1]);
+        }
+      }
+    }
+  }
+
+  return patterns;
+}
+
+/**
+ * Walk up from startDir looking for a package.json with a `workspaces` field.
+ */
+async function findPackageJsonWorkspaceRoot(startDir: string): Promise<string | null> {
+  let dir = startDir;
+  for (;;) {
+    try {
+      const pkg = JSON.parse(await readFile(join(dir, "package.json"), "utf-8"));
+      if (pkg.workspaces) return dir;
+    } catch {
+      // no package.json at this level
+    }
+    const parent = dirname(dir);
+    if (parent === dir) return null;
+    dir = parent;
+  }
+}
+
+/**
+ * Resolve workspace glob patterns to actual package directories.
+ * Each pattern like "packages/*" is expanded to actual directories containing package.json.
+ */
+async function resolveWorkspaceGlobs(rootDir: string, patterns: string[]): Promise<string[]> {
+  const results: string[] = [];
+
+  for (const pattern of patterns) {
+    // If pattern has a wildcard, expand it
+    if (pattern.includes("*")) {
+      // Find the static prefix before the first wildcard
+      const parts = pattern.split("/");
+      let staticPrefix = rootDir;
+      const globParts: string[] = [];
+      let foundGlob = false;
+      for (const part of parts) {
+        if (foundGlob || part.includes("*")) {
+          foundGlob = true;
+          globParts.push(part);
+        } else {
+          staticPrefix = join(staticPrefix, part);
+        }
+      }
+
+      if (globParts.length === 1 && globParts[0] === "*") {
+        // Simple case: "packages/*" → list immediate subdirs
+        try {
+          const entries = await readdir(staticPrefix, { withFileTypes: true });
+          for (const entry of entries) {
+            if (entry.isDirectory()) {
+              const pkgDir = join(staticPrefix, entry.name);
+              if (await exists(join(pkgDir, "package.json"))) {
+                results.push(pkgDir);
+              }
+            }
+          }
+        } catch {
+          // directory doesn't exist
+        }
+      } else {
+        // Complex glob: use picomatch
+        const isMatch = picomatch(pattern);
+        const candidates = await collectDirs(rootDir, 4);
+        for (const candidate of candidates) {
+          const rel = candidate.slice(rootDir.length + 1).replace(/\\/g, "/");
+          if (isMatch(rel) && await exists(join(candidate, "package.json"))) {
+            results.push(candidate);
+          }
+        }
+      }
+    } else {
+      // Literal path
+      const pkgDir = resolve(rootDir, pattern);
+      if (await exists(join(pkgDir, "package.json"))) {
+        results.push(pkgDir);
+      }
+    }
+  }
+
+  return [...new Set(results)];
+}
+
+/** Collect directories up to a given depth */
+async function collectDirs(dir: string, maxDepth: number): Promise<string[]> {
+  if (maxDepth <= 0) return [];
+  const results: string[] = [];
+  try {
+    const entries = await readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.name === "node_modules" || entry.name === ".git") continue;
+      const full = join(dir, entry.name);
+      results.push(full);
+      results.push(...await collectDirs(full, maxDepth - 1));
+    }
+  } catch {
+    // directory doesn't exist or can't be read
+  }
+  return results;
 }
 
 /** Parse a YAML key-value line like `  react: ^18.0.0` */
