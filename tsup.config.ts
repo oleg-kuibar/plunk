@@ -12,6 +12,13 @@ export default defineConfig([
       js: '#!/usr/bin/env node\nimport{createRequire as __cr}from"node:module";globalThis.require=__cr(import.meta.url);',
     },
     noExternal: [/.*/],
+    minify: true,
+    treeshake: true,
+    esbuildOptions(options) {
+      options.keepNames = true;
+      options.legalComments = "none";
+      options.drop = ["debugger"];
+    },
   },
   {
     entry: { index: "src/index.ts" },
@@ -39,6 +46,13 @@ export default defineConfig([
     noExternal: [/.*/],
     banner: {
       js: 'import{createRequire as __cr}from"node:module";globalThis.require=__cr(import.meta.url);',
+    },
+    minify: true,
+    treeshake: true,
+    esbuildOptions(options) {
+      options.keepNames = true;
+      options.legalComments = "none";
+      options.drop = ["debugger"];
     },
   },
 ]);
