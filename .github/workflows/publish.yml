@@ -81,11 +81,14 @@ jobs:
 
       - uses: pnpm/action-setup@v4
 
+      # No registry-url — trusted publishing uses OIDC, not tokens
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-          registry-url: https://registry.npmjs.org
           cache: pnpm
+
+      # Trusted publishing requires npm >= 11.5.1 (Node 22 ships with npm 10.x)
+      - run: npm install -g npm@latest
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
@@ -144,14 +147,16 @@ jobs:
           npm version "$CANARY" --no-git-tag-version
           echo "CANARY_VERSION=$CANARY" >> $GITHUB_ENV
 
-      # --- Publish (uses OIDC trusted publishing, no token needed) ---
+      # --- Publish (OIDC trusted publishing — no token needed) ---
+      # Uses npm (not pnpm) because pnpm doesn't support OIDC yet
+      # https://github.com/pnpm/pnpm/issues/9812
       - name: Publish canary
         if: steps.mode.outputs.mode == 'canary'
-        run: pnpm publish --no-git-checks --provenance --access public --tag canary
+        run: npm publish --provenance --access public --tag canary
 
       - name: Publish release
         if: steps.mode.outputs.mode == 'release' && inputs.dry_run != true
-        run: pnpm publish --no-git-checks --provenance --access public
+        run: npm publish --provenance --access public
 
       - name: Create GitHub Release
         if: steps.mode.outputs.mode == 'release' && inputs.dry_run != true
