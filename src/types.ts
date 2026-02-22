@@ -71,4 +71,17 @@ export interface PackageJson {
   type?: string;
   private?: boolean;
   scripts?: Record<string, string>;
+  types?: string;
+  typings?: string;
+  browser?: string | Record<string, string>;
+  publishConfig?: {
+    main?: string;
+    module?: string;
+    exports?: unknown;
+    types?: string;
+    typings?: string;
+    browser?: string | Record<string, string>;
+    bin?: string | Record<string, string>;
+    directory?: string;
+  };
 }

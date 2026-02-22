@@ -1,6 +1,6 @@
-import { readFile, writeFile, rename } from "node:fs/promises";
+import { readFile, writeFile, rename, stat } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
-import { join, relative, dirname } from "node:path";
+import { join, relative, dirname, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { platform } from "node:os";
 import { consola } from "consola";
@@ -18,6 +18,8 @@ import { verbose } from "../utils/logger.js";
 
 export interface PublishOptions {
   allowPrivate?: boolean;
+  /** Whether to run prepack/postpack lifecycle hooks (default: true) */
+  runScripts?: boolean;
 }
 
 export interface PublishResult {
@@ -68,20 +70,46 @@ export async function publish(
   // Run preplunk lifecycle hook
   await runLifecycleHook(packageDir, pkg, "preplunk");
 
-  // 2. Resolve publishable files
-  const files = await resolvePackFiles(packageDir, pkg);
+  // Run prepack lifecycle hook (unless --no-scripts)
+  if (options.runScripts !== false) {
+    await runLifecycleHook(packageDir, pkg, "prepack");
+  }
+
+  // 2. Resolve publishConfig.directory — determines where to read files from
+  let publishDir = packageDir;
+  if (pkg.publishConfig?.directory) {
+    publishDir = resolve(packageDir, pkg.publishConfig.directory);
+    try {
+      const s = await stat(publishDir);
+      if (!s.isDirectory()) {
+        throw new Error(`publishConfig.directory "${pkg.publishConfig.directory}" is not a directory`);
+      }
+    } catch (err) {
+      if (err instanceof Error && "code" in err && (err as NodeJS.ErrnoException).code === "ENOENT") {
+        throw new Error(`publishConfig.directory "${pkg.publishConfig.directory}" does not exist`);
+      }
+      throw err;
+    }
+    verbose(`[publish] Using publishConfig.directory: ${publishDir}`);
+  }
+
+  // 3. Resolve publishable files (from publishDir when publishConfig.directory is set)
+  const filePkg = publishDir !== packageDir
+    ? JSON.parse(await readFile(join(publishDir, "package.json"), "utf-8").catch(() => JSON.stringify(pkg))) as PackageJson
+    : pkg;
+  const files = await resolvePackFiles(publishDir, filePkg);
   if (files.length === 0) {
     throw new Error("No publishable files found");
   }
   verbose(`[publish] Resolved ${files.length} files for ${pkg.name}@${pkg.version}`);
 
-  // 3. Compute content hash
-  const contentHash = await computeContentHash(files, packageDir);
+  // 4. Compute content hash
+  const contentHash = await computeContentHash(files, publishDir);
 
-  // 4. Pre-load catalog definitions if any dep uses catalog: protocol
+  // 5. Pre-load catalog definitions if any dep uses catalog: protocol
   await preloadCatalogs(pkg, packageDir);
 
-  // 5. Fast path: check if already up to date (no lock needed)
+  // 6. Fast path: check if already up to date (no lock needed)
   const existingMeta = await readMeta(pkg.name, pkg.version);
   if (existingMeta && existingMeta.contentHash === contentHash) {
     consola.info(`${pkg.name}@${pkg.version} already up to date`);
@@ -95,7 +123,7 @@ export async function publish(
     };
   }
 
-  // 6. Acquire lock and copy files to store (prevents concurrent publish corruption)
+  // 7. Acquire lock and copy files to store (prevents concurrent publish corruption)
   const storeEntryDir = getStoreEntryPath(pkg.name, pkg.version);
 
   const result = await withFileLock(
@@ -122,14 +150,15 @@ export async function publish(
       try {
         await ensurePrivateDir(tmpPackageDir);
 
-        // Handle workspace:* protocol in package.json dependencies
-        const processedPkg = rewriteProtocolVersions(pkg, packageDir);
+        // Handle workspace:* protocol and publishConfig field overrides
+        let processedPkg = rewriteProtocolVersions(pkg, packageDir);
+        processedPkg = applyPublishConfig(processedPkg);
 
         verbose(`[publish] Copying files to temp store...`);
 
         // Pre-compute and create unique parent directories before parallel copy
         const uniqueDirs = new Set(
-          files.map((file) => dirname(join(tmpPackageDir, relative(packageDir, file))))
+          files.map((file) => dirname(join(tmpPackageDir, relative(publishDir, file))))
         );
         await Promise.all([...uniqueDirs].map((d) => ensureDir(d)));
 
@@ -137,7 +166,7 @@ export async function publish(
         await Promise.all(
           files.map((file) =>
             copyLimit(async () => {
-              const rel = relative(packageDir, file);
+              const rel = relative(publishDir, file);
               const dest = join(tmpPackageDir, rel);
 
               if (rel === "package.json" && processedPkg !== pkg) {
@@ -149,6 +178,15 @@ export async function publish(
             })
           )
         );
+
+        // If publishDir != packageDir, ensure we always write the processed package.json
+        // (the files list from publishDir may have its own package.json or none)
+        if (publishDir !== packageDir) {
+          await writeFile(
+            join(tmpPackageDir, "package.json"),
+            JSON.stringify(processedPkg, null, 2)
+          );
+        }
 
         // Write metadata to temp dir
         const meta: PlunkMeta = {
@@ -189,6 +227,11 @@ export async function publish(
   );
 
   if (result.skipped) return result;
+
+  // Run postpack lifecycle hook (unless --no-scripts)
+  if (options.runScripts !== false) {
+    await runLifecycleHook(packageDir, pkg, "postpack");
+  }
 
   // Run postplunk lifecycle hook (outside the lock so slow scripts don't hold it)
   await runLifecycleHook(packageDir, pkg, "postplunk");
@@ -243,6 +286,35 @@ async function runLifecycleHook(
       reject(new Error(`${hookName} script error: ${err.message}`));
     });
   });
+}
+
+/** Fields from publishConfig that override the corresponding package.json fields */
+const PUBLISH_CONFIG_OVERRIDES = [
+  "main", "module", "exports", "types", "typings", "browser", "bin",
+] as const;
+
+/**
+ * Apply publishConfig field overrides to a package.json object.
+ * Shallow-merges overridable fields and removes publishConfig from the result.
+ * Returns a new object if changes were made, the same object if not.
+ */
+function applyPublishConfig(pkg: PackageJson): PackageJson {
+  if (!pkg.publishConfig) return pkg;
+
+  const result = { ...pkg };
+  let changed = false;
+
+  for (const field of PUBLISH_CONFIG_OVERRIDES) {
+    if (field in pkg.publishConfig) {
+      (result as Record<string, unknown>)[field] = pkg.publishConfig[field];
+      changed = true;
+    }
+  }
+
+  // Always strip publishConfig from the output (npm strips it at pack time)
+  delete result.publishConfig;
+
+  return changed ? result : (delete result.publishConfig, result);
 }
 
 /**

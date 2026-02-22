@@ -101,6 +101,67 @@ describe("publish", () => {
     expect(result.buildId).toMatch(/^[a-f0-9]{8}$/);
     expect(result.buildId).not.toBe(first.buildId);
   });
+
+  it("applies publishConfig field overrides", async () => {
+    const { publish } = await import("../core/publisher.js");
+
+    await writeFile(
+      join(testLib, "package.json"),
+      JSON.stringify({
+        name: "test-lib",
+        version: "1.0.0",
+        main: "src/index.ts",
+        files: ["dist"],
+        publishConfig: {
+          main: "dist/index.js",
+          types: "dist/index.d.ts",
+        },
+      })
+    );
+
+    const result = await publish(testLib);
+    expect(result.skipped).toBe(false);
+
+    const storePkg = JSON.parse(
+      await readFile(
+        join(testPlunkHome, "store", "test-lib@1.0.0", "package", "package.json"),
+        "utf-8"
+      )
+    );
+    expect(storePkg.main).toBe("dist/index.js");
+    expect(storePkg.types).toBe("dist/index.d.ts");
+    expect(storePkg.publishConfig).toBeUndefined();
+  });
+
+  it("uses publishConfig.directory as publish root", async () => {
+    const { publish } = await import("../core/publisher.js");
+
+    // Create a package where publishConfig.directory points to dist/
+    await mkdir(join(testLib, "dist"), { recursive: true });
+    await writeFile(join(testLib, "dist", "index.js"), 'module.exports = "from-dist";');
+    await writeFile(
+      join(testLib, "dist", "package.json"),
+      JSON.stringify({ name: "test-lib", version: "1.0.0", main: "index.js" })
+    );
+    await writeFile(
+      join(testLib, "package.json"),
+      JSON.stringify({
+        name: "test-lib",
+        version: "1.0.0",
+        publishConfig: { directory: "dist" },
+      })
+    );
+
+    const result = await publish(testLib);
+    expect(result.skipped).toBe(false);
+
+    // Files should come from dist/
+    const storeIndex = join(
+      testPlunkHome, "store", "test-lib@1.0.0", "package", "index.js"
+    );
+    expect(await exists(storeIndex)).toBe(true);
+    expect(await readFile(storeIndex, "utf-8")).toBe('module.exports = "from-dist";');
+  });
 });
 
 describe("inject", () => {
