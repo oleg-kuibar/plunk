@@ -38,6 +38,11 @@ export default defineCommand({
       type: "string",
       description: "Debounce delay in ms (default: 100)",
     },
+    "no-scripts": {
+      type: "boolean",
+      description: "Skip prepack/postpack lifecycle hooks",
+      default: false,
+    },
   },
   async run({ args }) {
     suppressHumanOutput();
@@ -47,7 +52,9 @@ export default defineCommand({
       const timer = new Timer();
 
       // Publish to store
-      const result = await publish(packageDir);
+      const result = await publish(packageDir, {
+        runScripts: !args["no-scripts"],
+      });
       if (result.skipped) {
         consola.info("No changes to push");
         return;
