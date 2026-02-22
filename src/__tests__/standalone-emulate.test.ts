@@ -28,12 +28,17 @@ import { execSync, type ExecSyncOptionsWithStringEncoding } from "node:child_pro
 import {
   mkdtemp,
   readFile,
+  realpath,
   rm,
   cp,
 } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { exists } from "../utils/fs.js";
+
+// Resolve tmpdir to canonical long path to avoid Windows 8.3 short name
+// mismatches (e.g. RUNNER~1 vs runneradmin) that break Vite's path resolution.
+let TMPDIR: string;
 
 // Paths
 const PROJECT_ROOT = resolve(__dirname, "../..");
@@ -111,6 +116,7 @@ function tryPlunk(
 // ── Prerequisites ───────────────────────────────────────────────────────────
 
 beforeAll(async () => {
+  TMPDIR = await realpath(tmpdir());
   if (!(await exists(CLI))) {
     throw new Error(
       "plunk CLI must be built before running E2E tests.\nRun: pnpm build"
@@ -129,7 +135,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  plunkHome = await mkdtemp(join(tmpdir(), "plunk-e2e-home-"));
+  plunkHome = await mkdtemp(join(TMPDIR, "plunk-e2e-home-"));
 });
 
 afterEach(async () => {
@@ -143,7 +149,7 @@ describe("standalone E2E: npm-app", { timeout: 120_000 }, () => {
 
   beforeEach(async () => {
     // Copy the real npm-app example to a temp directory
-    appDir = await mkdtemp(join(tmpdir(), "plunk-e2e-npm-app-"));
+    appDir = await mkdtemp(join(TMPDIR, "plunk-e2e-npm-app-"));
     await cp(join(STANDALONE_DIR, "npm-app"), appDir, { recursive: true });
   });
 
@@ -284,7 +290,7 @@ describe("standalone E2E: bun-app", { timeout: 120_000 }, () => {
   });
 
   beforeEach(async () => {
-    appDir = await mkdtemp(join(tmpdir(), "plunk-e2e-bun-app-"));
+    appDir = await mkdtemp(join(TMPDIR, "plunk-e2e-bun-app-"));
     await cp(join(STANDALONE_DIR, "bun-app"), appDir, { recursive: true });
   });
 
@@ -356,7 +362,7 @@ describe("standalone E2E: pnpm-app (vite build)", { timeout: 120_000 }, () => {
   let appDir: string;
 
   beforeEach(async () => {
-    appDir = await mkdtemp(join(tmpdir(), "plunk-e2e-pnpm-app-"));
+    appDir = await mkdtemp(join(TMPDIR, "plunk-e2e-pnpm-app-"));
     await cp(join(STANDALONE_DIR, "pnpm-app"), appDir, { recursive: true });
   });
 
@@ -446,10 +452,10 @@ describe("standalone E2E: push to multiple consumers", { timeout: 120_000 }, () 
   });
 
   beforeEach(async () => {
-    npmApp = await mkdtemp(join(tmpdir(), "plunk-e2e-push-npm-"));
+    npmApp = await mkdtemp(join(TMPDIR, "plunk-e2e-push-npm-"));
     await cp(join(STANDALONE_DIR, "npm-app"), npmApp, { recursive: true });
 
-    bunApp = await mkdtemp(join(tmpdir(), "plunk-e2e-push-bun-"));
+    bunApp = await mkdtemp(join(TMPDIR, "plunk-e2e-push-bun-"));
     await cp(join(STANDALONE_DIR, "bun-app"), bunApp, { recursive: true });
   });
 
@@ -483,7 +489,7 @@ describe("standalone E2E: push to multiple consumers", { timeout: 120_000 }, () 
     expect(bunOutput).toContain("USD 79.99");
 
     // Now create a modified api-client and push
-    const tempLib = await mkdtemp(join(tmpdir(), "plunk-e2e-modified-lib-"));
+    const tempLib = await mkdtemp(join(TMPDIR, "plunk-e2e-modified-lib-"));
     await cp(API_CLIENT_DIR, tempLib, { recursive: true });
 
     // Modify the dist output to change formatPrice
@@ -540,7 +546,7 @@ describe("standalone E2E: error handling", { timeout: 30_000 }, () => {
   let appDir: string;
 
   beforeEach(async () => {
-    appDir = await mkdtemp(join(tmpdir(), "plunk-e2e-errors-"));
+    appDir = await mkdtemp(join(TMPDIR, "plunk-e2e-errors-"));
     await cp(join(STANDALONE_DIR, "npm-app"), appDir, { recursive: true });
     run("npm install --ignore-scripts", appDir);
   });
@@ -555,7 +561,7 @@ describe("standalone E2E: error handling", { timeout: 30_000 }, () => {
   });
 
   it("plunk publish fails for directory without package.json", async () => {
-    const emptyDir = await mkdtemp(join(tmpdir(), "plunk-empty-"));
+    const emptyDir = await mkdtemp(join(TMPDIR, "plunk-empty-"));
     const result = tryPlunk(`publish "${emptyDir}"`, appDir);
     expect(result.exitCode).not.toBe(0);
     await rm(emptyDir, { recursive: true, force: true });
