@@ -28,10 +28,10 @@ import { execSync, type ExecSyncOptionsWithStringEncoding } from "node:child_pro
 import {
   mkdtemp,
   readFile,
-  realpath,
   rm,
   cp,
 } from "node:fs/promises";
+import { realpathSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { exists } from "../utils/fs.js";
@@ -116,7 +116,9 @@ function tryPlunk(
 // ── Prerequisites ───────────────────────────────────────────────────────────
 
 beforeAll(async () => {
-  TMPDIR = await realpath(tmpdir());
+  // realpathSync.native uses the Windows API to resolve 8.3 short names
+  // (e.g. RUNNER~1 → runneradmin). The non-native realpath doesn't do this.
+  TMPDIR = realpathSync.native(tmpdir());
   if (!(await exists(CLI))) {
     throw new Error(
       "plunk CLI must be built before running E2E tests.\nRun: pnpm build"
