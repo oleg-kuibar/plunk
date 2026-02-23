@@ -38,6 +38,7 @@ export async function startWatcher(
 
   const debounceMs = options.debounce ?? 100;
   let coalesceTimer: ReturnType<typeof setTimeout> | null = null;
+  let closed = false;
   let running = false;
   let pendingWhileRunning = false;
 
@@ -47,6 +48,7 @@ export async function startWatcher(
 
     coalesceTimer = setTimeout(async () => {
       coalesceTimer = null;
+      if (closed) return;
 
       if (running) {
         // A push is in progress — flag that we need to re-run after it finishes
@@ -115,6 +117,7 @@ export async function startWatcher(
 
   const watcherHandle = {
     close: async () => {
+      closed = true;
       if (coalesceTimer) clearTimeout(coalesceTimer);
       killActiveBuild();
       await watcher.close();
