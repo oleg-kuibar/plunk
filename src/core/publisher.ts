@@ -393,8 +393,9 @@ function resolveCatalogVersion(
   return catalogs.named[catalogRef]?.[depName] ?? null;
 }
 
-// Cached catalogs per workspace root to avoid re-parsing
-let _cachedCatalogs: { root: string; catalogs: Catalogs } | null = null;
+// Cached catalogs per workspace root to avoid re-parsing.
+// mtimeMs tracks the workspace config file so changes during watch mode invalidate the cache.
+let _cachedCatalogs: { root: string; mtimeMs: number; catalogs: Catalogs } | null = null;
 
 /**
  * Return pre-loaded catalogs from the module-level cache.
@@ -427,9 +428,11 @@ async function preloadCatalogs(
     return;
   }
 
-  // Use cached result if same workspace root
-  if (_cachedCatalogs?.root === root) return;
+  // Invalidate cache if workspace root changed or config file was modified
+  const workspaceFile = join(root, "pnpm-workspace.yaml");
+  const mtimeMs = (await stat(workspaceFile).catch(() => null))?.mtimeMs ?? 0;
+  if (_cachedCatalogs?.root === root && _cachedCatalogs.mtimeMs === mtimeMs) return;
 
   const catalogs = await parseCatalogs(root);
-  _cachedCatalogs = { root, catalogs };
+  _cachedCatalogs = { root, mtimeMs, catalogs };
 }
