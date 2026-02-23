@@ -1,6 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { consola } from "consola";
+import { consola } from "./console.js";
 import pc from "picocolors";
 import { exists, ensureDir } from "./fs.js";
 import { getConsumerStatePath, getConsumerPlunkDir } from "./paths.js";

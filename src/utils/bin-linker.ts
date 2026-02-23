@@ -1,7 +1,7 @@
 import { mkdir, symlink, writeFile, chmod, rm } from "node:fs/promises";
 import { join, relative, resolve, sep } from "node:path";
 import { platform } from "node:os";
-import { consola } from "consola";
+import { consola } from "./console.js";
 import type { PackageJson } from "../types.js";
 import { exists, isNodeError } from "./fs.js";
 import { verbose } from "./logger.js";

@@ -1,7 +1,7 @@
 import { defineCommand } from "citty";
 import { resolve, join, basename } from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
-import { consola } from "consola";
+import { consola } from "../utils/console.js";
 import pc from "picocolors";
 import { exists, ensureDir } from "../utils/fs.js";
 import { detectPackageManager } from "../utils/pm-detect.js";

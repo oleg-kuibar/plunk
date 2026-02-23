@@ -1,6 +1,6 @@
 import { defineCommand } from "citty";
 import { resolve, basename } from "node:path";
-import { consola } from "consola";
+import { consola } from "../utils/console.js";
 import { removeInjected, restoreBackup } from "../core/injector.js";
 import { getLink, removeLink, readConsumerState } from "../core/tracker.js";
 import { unregisterConsumer } from "../core/tracker.js";

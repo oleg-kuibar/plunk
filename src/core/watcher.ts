@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { platform } from "node:os";
-import { consola } from "consola";
+import { consola } from "../utils/console.js";
 import type { WatchOptions } from "../types.js";
 
 /** Module-level reference to active child process for signal cleanup */

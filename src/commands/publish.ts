@@ -1,6 +1,6 @@
 import { defineCommand } from "citty";
 import { resolve } from "node:path";
-import { consola } from "consola";
+import { consola } from "../utils/console.js";
 import { publish } from "../core/publisher.js";
 import { Timer } from "../utils/timer.js";
 import { suppressHumanOutput, output } from "../utils/output.js";

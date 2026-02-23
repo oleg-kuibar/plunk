@@ -1,6 +1,6 @@
 import { defineCommand } from "citty";
 import { resolve, join } from "node:path";
-import { consola } from "consola";
+import { consola } from "../utils/console.js";
 import pc from "picocolors";
 import { readConsumerState, readConsumersRegistry } from "../core/tracker.js";
 import { listStoreEntries, getStoreEntry } from "../core/store.js";

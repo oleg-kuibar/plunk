@@ -2,7 +2,7 @@ import { defineCommand } from "citty";
 import { spawn } from "node:child_process";
 import { platform } from "node:os";
 import { resolve, basename } from "node:path";
-import { consola } from "consola";
+import { consola } from "../utils/console.js";
 import { findStoreEntry } from "../core/store.js";
 import { publish } from "../core/publisher.js";
 import { inject, backupExisting, checkMissingDeps } from "../core/injector.js";

@@ -1,4 +1,4 @@
-import { consola } from "consola";
+import { consola } from "./console.js";
 import pc from "picocolors";
 
 interface Suggestion {

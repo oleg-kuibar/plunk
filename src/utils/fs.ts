@@ -10,7 +10,7 @@ import {
   constants,
 } from "node:fs/promises";
 import { join, dirname, relative, parse as parsePath } from "node:path";
-import pLimit from "p-limit";
+import pLimit from "./concurrency.js";
 import { availableParallelism } from "node:os";
 import { hashFile } from "./hash.js";
 import { isDryRun } from "./logger.js";

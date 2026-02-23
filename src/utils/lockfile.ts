@@ -1,50 +1,74 @@
-import { lock } from "proper-lockfile";
+import { mkdir, stat, rm } from "node:fs/promises";
 import { dirname } from "node:path";
-import { mkdir, writeFile } from "node:fs/promises";
+import { setTimeout as sleep } from "node:timers/promises";
 import { isNodeError } from "./fs.js";
 
-const LOCK_OPTIONS = {
-  retries: {
-    retries: 5,
-    minTimeout: 100,
-    maxTimeout: 1000,
-    factor: 2,
-  },
+const DEFAULTS = {
+  retries: 5,
+  minTimeout: 100,
+  maxTimeout: 1000,
+  factor: 2,
   stale: 10000,
-  realpath: false,
 };
 
 /**
- * Execute a function while holding a file lock on the given path.
- * Creates parent directory and empty file if needed (proper-lockfile requires the file to exist).
+ * Execute a function while holding a directory-based lock.
+ * Uses `mkdir` (non-recursive) as an atomic lock primitive — mkdir is atomic on all OSes.
+ * Implements retry with exponential backoff and stale detection via stat mtime.
  */
 export async function withFileLock<T>(
   filePath: string,
   fn: () => Promise<T>,
-  lockOptions?: Partial<typeof LOCK_OPTIONS>
+  lockOptions?: { stale?: number }
 ): Promise<T> {
   await mkdir(dirname(filePath), { recursive: true });
 
-  // Ensure the file exists (proper-lockfile requires it)
-  try {
-    await writeFile(filePath, "", { flag: "wx" });
-  } catch (err) {
-    if (isNodeError(err) && err.code === "EEXIST") {
-      // File already exists, that's fine
-    } else {
-      throw err;
+  const lockDir = filePath + ".lk";
+  const stale = lockOptions?.stale ?? DEFAULTS.stale;
+
+  let acquired = false;
+
+  for (let attempt = 0; attempt <= DEFAULTS.retries; attempt++) {
+    try {
+      await mkdir(lockDir);
+      acquired = true;
+      break;
+    } catch (err) {
+      if (isNodeError(err) && err.code === "EEXIST") {
+        // Check if the lock is stale
+        try {
+          const s = await stat(lockDir);
+          if (Date.now() - s.mtimeMs > stale) {
+            await rm(lockDir, { recursive: true, force: true });
+            continue; // Retry immediately after removing stale lock
+          }
+        } catch {
+          // stat failed — lock may have been released, retry
+          continue;
+        }
+
+        if (attempt < DEFAULTS.retries) {
+          const delay = Math.min(
+            DEFAULTS.minTimeout * DEFAULTS.factor ** attempt,
+            DEFAULTS.maxTimeout,
+          );
+          await sleep(delay);
+        }
+      } else {
+        throw err;
+      }
     }
   }
 
-  const opts = lockOptions ? { ...LOCK_OPTIONS, ...lockOptions } : LOCK_OPTIONS;
+  if (!acquired) {
+    throw new Error(
+      `Failed to acquire lock on ${filePath} after ${DEFAULTS.retries} retries`,
+    );
+  }
 
-  let release: (() => Promise<void>) | undefined;
   try {
-    release = await lock(filePath, opts);
     return await fn();
   } finally {
-    if (release) {
-      await release();
-    }
+    await rm(lockDir, { recursive: true, force: true });
   }
 }

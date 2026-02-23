@@ -1,5 +1,5 @@
 import { defineCommand } from "citty";
-import { consola } from "consola";
+import { consola } from "../utils/console.js";
 import {
   readConsumersRegistry,
   readConsumerState,

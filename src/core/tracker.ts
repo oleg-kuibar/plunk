@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import { consola } from "consola";
+import { consola } from "../utils/console.js";
 import type {
   ConsumerState,
   ConsumersRegistry,

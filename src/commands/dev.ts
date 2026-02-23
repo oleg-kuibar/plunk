@@ -1,8 +1,8 @@
 import { defineCommand } from "citty";
 import { readFile } from "node:fs/promises";
 import { resolve, join } from "node:path";
-import { consola } from "consola";
-import pLimit from "p-limit";
+import { consola } from "../utils/console.js";
+import pLimit from "../utils/concurrency.js";
 import { publish } from "../core/publisher.js";
 import { getStoreEntry } from "../core/store.js";
 import { inject } from "../core/injector.js";

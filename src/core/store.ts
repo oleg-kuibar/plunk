@@ -1,6 +1,6 @@
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
-import { consola } from "consola";
+import { consola } from "../utils/console.js";
 import type { PlunkMeta, StoreEntry } from "../types.js";
 import {
   getStorePath,

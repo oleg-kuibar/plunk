@@ -1,7 +1,7 @@
 import { readFile, readdir, stat } from "node:fs/promises";
 import { join, relative, resolve, sep } from "node:path";
 import picomatch from "picomatch";
-import { consola } from "consola";
+import { consola } from "./console.js";
 import type { PackageJson } from "../types.js";
 import { isNodeError } from "./fs.js";
 

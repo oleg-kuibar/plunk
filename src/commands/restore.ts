@@ -1,7 +1,7 @@
 import { defineCommand } from "citty";
 import { resolve } from "node:path";
-import { consola } from "consola";
-import pLimit from "p-limit";
+import { consola } from "../utils/console.js";
+import pLimit from "../utils/concurrency.js";
 import { readConsumerState } from "../core/tracker.js";
 import { getStoreEntry } from "../core/store.js";
 import { inject } from "../core/injector.js";

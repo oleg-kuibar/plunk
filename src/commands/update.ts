@@ -1,6 +1,6 @@
 import { defineCommand } from "citty";
 import { resolve } from "node:path";
-import { consola } from "consola";
+import { consola } from "../utils/console.js";
 import { readConsumerState, addLink } from "../core/tracker.js";
 import { findStoreEntry, getStoreEntry } from "../core/store.js";
 import { inject } from "../core/injector.js";

@@ -1,4 +1,4 @@
-import { consola } from "consola";
+import { consola } from "./console.js";
 import { isJsonOutput } from "./logger.js";
 
 /**

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { isVerbose, isDryRun, isJsonOutput, verbose } from "../logger.js";
 
-// Mock consola to verify verbose() behavior
-vi.mock("consola", () => ({
+// Mock console to verify verbose() behavior
+vi.mock("../console.js", () => ({
   consola: {
     level: 3,
     debug: vi.fn(),
@@ -25,7 +25,7 @@ describe("logger default states", () => {
 
 describe("verbose()", () => {
   it("does not call consola.debug when verbose is not active", async () => {
-    const { consola } = await import("consola");
+    const { consola } = await import("../console.js");
     vi.mocked(consola.debug).mockClear();
 
     verbose("test message", "arg1");

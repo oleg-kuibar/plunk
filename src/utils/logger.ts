@@ -1,4 +1,4 @@
-import { consola } from "consola";
+import { consola } from "./console.js";
 
 let _verbose = false;
 let _dryRun = false;
