@@ -194,8 +194,11 @@ export default defineCommand({
         doPush
       );
 
-      // Prevent the process from exiting
-      await new Promise(() => {});
+      // Wait until a termination signal is received
+      await new Promise<void>((resolve) => {
+        process.once("SIGINT", resolve);
+        process.once("SIGTERM", resolve);
+      });
     }
   },
 });
