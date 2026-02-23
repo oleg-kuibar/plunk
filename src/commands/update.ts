@@ -71,6 +71,7 @@ export default defineCommand({
         ...link,
         version: entry.version,
         contentHash: entry.meta.contentHash,
+        buildId: entry.meta.buildId ?? "",
         linkedAt: new Date().toISOString(),
       };
       await addLink(consumerPath, packageName, updatedLink);
