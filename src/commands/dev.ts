@@ -171,8 +171,8 @@ export default defineCommand({
             `[watch] Using package.json files field: ${patterns.join(", ")}`,
           );
         }
-      } catch {
-        // Fall through to defaults
+      } catch (err) {
+        verbose(`[watch] Could not read package.json: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
 
