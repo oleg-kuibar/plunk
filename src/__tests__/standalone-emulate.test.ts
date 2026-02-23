@@ -74,6 +74,11 @@ function execOpts(cwd: string): ExecSyncOptionsWithStringEncoding {
   };
 }
 
+/** Remove a directory with retries for Windows handle-release delays (esbuild, etc.) */
+async function cleanDir(dir: string): Promise<void> {
+  await rm(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 200 });
+}
+
 /** Run a shell command, return stdout. Throws on non-zero exit. */
 function run(cmd: string, cwd: string): string {
   return execSync(cmd, execOpts(cwd));
@@ -141,7 +146,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-  await rm(plunkHome, { recursive: true, force: true });
+  await cleanDir(plunkHome);
 });
 
 // ── npm-app: full E2E ───────────────────────────────────────────────────────
@@ -156,7 +161,7 @@ describe("standalone E2E: npm-app", { timeout: 120_000 }, () => {
   });
 
   afterEach(async () => {
-    await rm(appDir, { recursive: true, force: true });
+    await cleanDir(appDir);
   });
 
   it("install → publish → add → run → wipe → install → restore → run → remove", async () => {
@@ -297,7 +302,7 @@ describe("standalone E2E: bun-app", { timeout: 120_000 }, () => {
   });
 
   afterEach(async () => {
-    await rm(appDir, { recursive: true, force: true });
+    await cleanDir(appDir);
   });
 
   it("install → add → run → wipe → restore → run", async () => {
@@ -340,7 +345,7 @@ describe("standalone E2E: bun-app", { timeout: 120_000 }, () => {
     // ── Wipe → restore → run again ──
     // Unlike npm, bun install preserves packages not in its lockfile.
     // Manual wipe is needed to simulate a clean install.
-    await rm(join(appDir, "node_modules"), { recursive: true, force: true });
+    await cleanDir(join(appDir, "node_modules"));
     run("bun install --ignore-scripts", appDir);
     expect(
       await exists(apiIndex),
@@ -369,7 +374,7 @@ describe("standalone E2E: pnpm-app (vite build)", { timeout: 120_000 }, () => {
   });
 
   afterEach(async () => {
-    await rm(appDir, { recursive: true, force: true });
+    await cleanDir(appDir);
   });
 
   it("install → add → vite build → wipe → restore → vite build", async () => {
@@ -423,12 +428,12 @@ describe("standalone E2E: pnpm-app (vite build)", { timeout: 120_000 }, () => {
 
     // ── Wipe → restore → build again ──
     // Like bun, pnpm preserves packages outside its lockfile. Manual wipe needed.
-    await rm(join(appDir, "node_modules"), { recursive: true, force: true });
+    await cleanDir(join(appDir, "node_modules"));
     run("pnpm install --ignore-scripts", appDir);
     expect(await exists(apiIndex), "api-client wiped after rm + pnpm install").toBe(false);
 
     // Clean vite build output first
-    await rm(join(appDir, "dist"), { recursive: true, force: true });
+    await cleanDir(join(appDir, "dist"));
 
     const failAfterWipe = tryRun("npx vite build", appDir);
     expect(failAfterWipe.exitCode, "vite build should fail after wipe").not.toBe(0);
@@ -462,8 +467,8 @@ describe("standalone E2E: push to multiple consumers", { timeout: 120_000 }, () 
   });
 
   afterEach(async () => {
-    await rm(npmApp, { recursive: true, force: true });
-    await rm(bunApp, { recursive: true, force: true });
+    await cleanDir(npmApp);
+    await cleanDir(bunApp);
   });
 
   it("push from library updates all consumers", async () => {
@@ -538,7 +543,7 @@ export {
     );
     expect(npmApiContent).toBe(modifiedDist);
 
-    await rm(tempLib, { recursive: true, force: true });
+    await cleanDir(tempLib);
   });
 });
 
@@ -554,7 +559,7 @@ describe("standalone E2E: error handling", { timeout: 30_000 }, () => {
   });
 
   afterEach(async () => {
-    await rm(appDir, { recursive: true, force: true });
+    await cleanDir(appDir);
   });
 
   it("plunk add fails for package not in store", () => {
@@ -566,7 +571,7 @@ describe("standalone E2E: error handling", { timeout: 30_000 }, () => {
     const emptyDir = await mkdtemp(join(TMPDIR, "plunk-empty-"));
     const result = tryPlunk(`publish "${emptyDir}"`, appDir);
     expect(result.exitCode).not.toBe(0);
-    await rm(emptyDir, { recursive: true, force: true });
+    await cleanDir(emptyDir);
   });
 
   it("plunk restore is no-op with no linked packages", () => {
