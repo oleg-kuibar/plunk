@@ -29,7 +29,7 @@ export async function readMeta(
     return parsed;
   } catch (err) {
     if (isNodeError(err) && err.code !== "ENOENT") {
-      consola.warn(`Failed to read metadata for ${name}@${version}: ${err}`);
+      consola.warn(`Failed to read metadata for ${name}@${version}: ${err instanceof Error ? err.message : String(err)}`);
     }
     return null;
   }

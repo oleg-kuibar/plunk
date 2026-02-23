@@ -33,7 +33,7 @@ export async function readConsumerState(
     return parsed;
   } catch (err) {
     if (isNodeError(err) && err.code !== "ENOENT") {
-      consola.warn(`Failed to read consumer state: ${err}`);
+      consola.warn(`Failed to read consumer state: ${err instanceof Error ? err.message : String(err)}`);
     }
     return { version: "1", links: {} };
   }
@@ -100,7 +100,7 @@ export async function readConsumersRegistry(): Promise<ConsumersRegistry> {
     return parsed;
   } catch (err) {
     if (isNodeError(err) && err.code !== "ENOENT") {
-      consola.warn(`Failed to read consumers registry: ${err}`);
+      consola.warn(`Failed to read consumers registry: ${err instanceof Error ? err.message : String(err)}`);
     }
     return {};
   }

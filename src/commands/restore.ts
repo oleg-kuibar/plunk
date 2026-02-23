@@ -76,7 +76,7 @@ export default defineCommand({
             verbose(`[restore] ${packageName}@${link.version}: ${result.copied} files`);
             return { packageName, success: true, copied: result.copied };
           } catch (err) {
-            consola.error(`Failed to restore ${packageName}: ${err}`);
+            consola.error(`Failed to restore ${packageName}: ${err instanceof Error ? err.message : String(err)}`);
             return { packageName, success: false };
           }
         })

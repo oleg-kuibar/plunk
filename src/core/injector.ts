@@ -179,7 +179,7 @@ async function resolveTargetDir(
     }
   } catch (err) {
     if (isNodeError(err) && err.code !== "ENOENT") {
-      consola.debug(`pnpm symlink resolution error: ${err}`);
+      consola.debug(`pnpm symlink resolution error: ${err instanceof Error ? err.message : String(err)}`);
     }
     // Symlink doesn't exist yet, fall through
   }
@@ -219,7 +219,7 @@ async function resolveTargetDir(
   }
 
   // Fall back to direct path
-  consola.warn(`pnpm: falling back to direct node_modules path for ${packageName}`);
+  consola.warn(`pnpm: Could not find ${packageName} in .pnpm/ virtual store, using direct node_modules path`);
   return directPath;
 }
 
@@ -242,7 +242,7 @@ async function readPackageJson(dir: string): Promise<PackageJson | null> {
     return JSON.parse(content) as PackageJson;
   } catch (err) {
     if (isNodeError(err) && err.code !== "ENOENT") {
-      consola.warn(`Failed to read package.json in ${dir}: ${err}`);
+      consola.warn(`Failed to read package.json in ${dir}: ${err instanceof Error ? err.message : String(err)}`);
     }
     return null;
   }
