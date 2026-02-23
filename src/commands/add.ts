@@ -1,7 +1,8 @@
 import { defineCommand } from "citty";
+import { readFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { platform } from "node:os";
-import { resolve, basename } from "node:path";
+import { resolve, basename, join } from "node:path";
 import { consola } from "../utils/console.js";
 import { findStoreEntry } from "../core/store.js";
 import { publish } from "../core/publisher.js";
@@ -116,6 +117,9 @@ export default defineCommand({
     };
     await addLink(consumerPath, packageName, linkEntry);
     await registerConsumer(packageName, consumerPath);
+
+    // Warn if store version doesn't match the consumer's declared dep range
+    await warnVersionMismatch(consumerPath, packageName, entry.version);
 
     // Check for missing transitive deps
     const missing = await checkMissingDeps(entry, consumerPath);
@@ -235,4 +239,42 @@ function runInstallCommand(cmd: string, cwd: string): Promise<boolean> {
     child.on("close", (code) => resolve(code === 0));
     child.on("error", () => resolve(false));
   });
+}
+
+/**
+ * Warn if the store version doesn't match the consumer's declared dependency range.
+ * Uses a lightweight major-version check to avoid adding a semver dependency.
+ */
+async function warnVersionMismatch(
+  consumerPath: string,
+  packageName: string,
+  storeVersion: string,
+): Promise<void> {
+  try {
+    const raw = await readFile(join(consumerPath, "package.json"), "utf-8");
+    const pkg = JSON.parse(raw) as Record<string, Record<string, string> | undefined>;
+    const declared =
+      pkg.dependencies?.[packageName] ??
+      pkg.devDependencies?.[packageName] ??
+      pkg.peerDependencies?.[packageName];
+    if (!declared) return;
+
+    // Skip workspace/catalog protocols and wildcards
+    if (/^(workspace:|catalog:|\*)/.test(declared)) return;
+
+    // Extract the version part from the range (strip ^, ~, >=, etc.)
+    const match = declared.match(/(\d+)\.\d+\.\d+/);
+    if (!match) return;
+
+    const declaredMajor = parseInt(match[1], 10);
+    const storeMajor = parseInt(storeVersion.split(".")[0], 10);
+
+    if (declaredMajor !== storeMajor) {
+      consola.warn(
+        `Version mismatch: store has ${packageName}@${storeVersion} but your package.json declares "${declared}". Consider updating your dependency range.`
+      );
+    }
+  } catch {
+    // Non-critical — silently skip if package.json can't be read
+  }
 }
