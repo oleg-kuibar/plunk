@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { removeDir, exists } from "./fs.js";
 import { detectAllBundlers } from "./bundler-detect.js";
-import type { BundlerType } from "./bundler-detect.js";
+import type { BundlerInfo, BundlerType } from "./bundler-detect.js";
 import { verbose } from "./logger.js";
 
 /** Cache directories to clear for each bundler type */
@@ -11,10 +11,22 @@ const CACHE_DIRS: Partial<Record<NonNullable<BundlerType>, string[]>> = {
   webpack: ["node_modules/.cache"],
 };
 
+/** Per-consumer cache of detected bundlers to avoid redundant fs checks */
+const bundlerCache = new Map<string, BundlerInfo[]>();
+
+/** Reset the bundler detection cache (for testing) */
+export function resetBundlerDetectionCache(): void {
+  bundlerCache.clear();
+}
+
 export async function invalidateBundlerCache(
   consumerPath: string
 ): Promise<void> {
-  const bundlers = await detectAllBundlers(consumerPath);
+  let bundlers = bundlerCache.get(consumerPath);
+  if (!bundlers) {
+    bundlers = await detectAllBundlers(consumerPath);
+    bundlerCache.set(consumerPath, bundlers);
+  }
 
   for (const bundler of bundlers) {
     if (!bundler.type) continue;

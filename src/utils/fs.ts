@@ -158,20 +158,22 @@ export async function incrementalCopy(
     else skipped++;
   }
 
-  // Remove files in dest that don't exist in src
+  // Remove files in dest that don't exist in src (in parallel)
   try {
     const destFiles = await collectFiles(destDir);
     const srcRelPaths = new Set(srcFiles.map((f) => relative(srcDir, f)));
-    for (const destFile of destFiles) {
-      const rel = relative(destDir, destFile);
-      if (!srcRelPaths.has(rel)) {
-        verbose(`[remove] ${rel} (no longer in source)`);
-        if (!isDryRun()) {
-          await rm(destFile);
-        }
-        removed++;
-      }
-    }
+    const filesToRemove = destFiles.filter(
+      (f) => !srcRelPaths.has(relative(destDir, f))
+    );
+    await Promise.all(
+      filesToRemove.map((destFile) =>
+        ioLimit(async () => {
+          verbose(`[remove] ${relative(destDir, destFile)} (no longer in source)`);
+          if (!isDryRun()) await rm(destFile);
+        })
+      )
+    );
+    removed = filesToRemove.length;
   } catch (err) {
     if (isNodeError(err) && err.code === "ENOENT") {
       // dest dir might not exist yet, that's fine

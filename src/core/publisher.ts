@@ -106,7 +106,8 @@ export async function publish(
   // 4. Compute content hash
   const contentHash = await computeContentHash(files, publishDir);
 
-  // 5. Pre-load catalog definitions if any dep uses catalog: protocol
+  // 5. Pre-load workspace versions and catalog definitions
+  await preloadWorkspaceVersions(pkg, packageDir);
   await preloadCatalogs(pkg, packageDir);
 
   // 6. Fast path: check if already up to date (no lock needed)
@@ -329,6 +330,7 @@ function rewriteProtocolVersions(pkg: PackageJson, packageDir: string): PackageJ
     "dependencies",
     "devDependencies",
     "peerDependencies",
+    "optionalDependencies",
   ] as const) {
     const deps = pkg[depField];
     if (!deps) continue;
@@ -338,9 +340,10 @@ function rewriteProtocolVersions(pkg: PackageJson, packageDir: string): PackageJ
     for (const [name, version] of Object.entries(deps)) {
       if (version.startsWith("workspace:")) {
         const versionPart = version.slice("workspace:".length);
-        // workspace:* or workspace:^ or workspace:~ → use the package's own version
+        // workspace:* or workspace:^ or workspace:~ → use the dependency's version from the workspace
         if (versionPart === "*" || versionPart === "^" || versionPart === "~") {
-          newDeps[name] = versionPart === "*" ? pkg.version : versionPart + pkg.version;
+          const depVersion = _cachedWorkspaceVersions?.versions.get(name) ?? pkg.version;
+          newDeps[name] = versionPart === "*" ? depVersion : versionPart + depVersion;
         } else {
           // workspace:1.0.0 → 1.0.0
           newDeps[name] = versionPart;
@@ -394,6 +397,60 @@ function resolveCatalogVersion(
   return catalogs.named[catalogRef]?.[depName] ?? null;
 }
 
+// Cached workspace package versions to resolve workspace:* to the dependency's version.
+let _cachedWorkspaceVersions: { root: string; versions: Map<string, string> } | null = null;
+
+/**
+ * Pre-load workspace package versions so workspace:* resolves to the
+ * dependency's own version rather than the publisher's version.
+ */
+async function preloadWorkspaceVersions(
+  pkg: PackageJson,
+  packageDir: string
+): Promise<void> {
+  // Check if any dep uses workspace: protocol
+  const hasWorkspace = ([
+    "dependencies",
+    "devDependencies",
+    "peerDependencies",
+    "optionalDependencies",
+  ] as const).some((field) => {
+    const deps = pkg[field];
+    return deps && Object.values(deps).some((v) => v.startsWith("workspace:"));
+  });
+  if (!hasWorkspace) return;
+
+  const { findWorkspaceRoot, findWorkspacePackages } = await import("../utils/workspace.js");
+  const root = await findWorkspaceRoot(packageDir);
+  if (!root) {
+    _cachedWorkspaceVersions = null;
+    return;
+  }
+
+  // Reuse cache if same workspace root
+  if (_cachedWorkspaceVersions?.root === root) return;
+
+  const pkgDirs = await findWorkspacePackages(root);
+  const versions = new Map<string, string>();
+
+  await Promise.all(
+    pkgDirs.map(async (dir) => {
+      try {
+        const depPkg = JSON.parse(
+          await readFile(join(dir, "package.json"), "utf-8")
+        ) as PackageJson;
+        if (depPkg.name && depPkg.version) {
+          versions.set(depPkg.name, depPkg.version);
+        }
+      } catch {
+        // skip unreadable packages
+      }
+    })
+  );
+
+  _cachedWorkspaceVersions = { root, versions };
+}
+
 // Cached catalogs per workspace root to avoid re-parsing.
 // mtimeMs tracks the workspace config file so changes during watch mode invalidate the cache.
 let _cachedCatalogs: { root: string; mtimeMs: number; catalogs: Catalogs } | null = null;
@@ -414,7 +471,7 @@ async function preloadCatalogs(
   packageDir: string
 ): Promise<void> {
   // Check if any dep uses catalog: protocol
-  const hasCatalog = (["dependencies", "devDependencies", "peerDependencies"] as const).some(
+  const hasCatalog = (["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"] as const).some(
     (field) => {
       const deps = pkg[field];
       return deps && Object.values(deps).some((v) => v.startsWith("catalog:"));

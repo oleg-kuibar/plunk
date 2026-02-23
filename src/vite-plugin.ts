@@ -50,8 +50,9 @@ export default function plunkPlugin(): Plugin {
         // vite.config.ts which can fail with CJS/ESM errors (brace-expansion).
         // A full-reload makes the browser refetch; Vite discovers missing
         // pre-bundled deps and re-optimizes automatically.
-        // Uses server.ws (the WebSocket server) rather than server.hot (the HMR channel).
-        server.ws.send({ type: "full-reload", path: "*" });
+        // Vite 6+ uses server.hot; older versions use server.ws.
+        const channel = server.hot ?? (server as any).ws;
+        channel.send({ type: "full-reload", path: "*" });
       });
     },
   };

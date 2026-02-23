@@ -252,7 +252,7 @@ async function resolveWorkspaceGlobs(rootDir: string, patterns: string[]): Promi
       } else {
         // Complex glob: use picomatch
         const isMatch = picomatch(pattern);
-        const candidates = await collectDirs(rootDir, 4);
+        const candidates = await collectDirs(rootDir, 8);
         for (const candidate of candidates) {
           const rel = relative(rootDir, candidate).replace(/\\/g, "/");
           if (isMatch(rel) && await exists(join(candidate, "package.json"))) {
