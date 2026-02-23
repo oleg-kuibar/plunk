@@ -74,15 +74,15 @@ export default defineCommand({
     for (const s of statuses) {
       const statusIcon = s.issues.length === 0 ? pc.green("✓") : pc.yellow("!");
       const buildTag = s.buildId ? `[${s.buildId}]` : "[--------]";
-      console.log(
+      consola.log(
         `  ${statusIcon} ${pc.cyan(s.name)} ${pc.dim("@" + s.version)} ${pc.dim(buildTag)}`
       );
-      console.log(
+      consola.log(
         `    ${pc.dim(`linked ${new Date(s.linkedAt).toLocaleString()} from ${s.sourcePath}`)}`
       );
 
       for (const issue of s.issues) {
-        console.log(`    ${pc.yellow("⚠")} ${issue}`);
+        consola.log(`    ${pc.yellow("⚠")} ${issue}`);
       }
     }
 

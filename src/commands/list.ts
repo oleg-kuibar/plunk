@@ -51,7 +51,7 @@ async function listProject() {
     }
 
     const staleTag = stale ? pc.yellow(" (stale)") : "";
-    console.log(
+    consola.log(
       `  ${pc.cyan(name)} ${pc.dim("@" + link.version)} ${pc.dim(buildTag)}${staleTag}  ← ${pc.dim(link.sourcePath)}`
     );
     packages.push({ name, version: link.version, buildId: link.buildId ?? null, stale, sourcePath: link.sourcePath });
@@ -73,10 +73,10 @@ async function listStore() {
   for (const entry of entries) {
     const age = getRelativeTime(new Date(entry.meta.publishedAt));
     const buildTag = entry.meta.buildId ? `[${entry.meta.buildId}]` : "[--------]";
-    console.log(
+    consola.log(
       `  ${pc.cyan(entry.name)} ${pc.dim("@" + entry.version)} ${pc.dim(buildTag)}  ${pc.dim(`published ${age}`)}`
     );
-    console.log(`    ${pc.dim(`from: ${entry.meta.sourcePath}`)}`);
+    consola.log(`    ${pc.dim(`from: ${entry.meta.sourcePath}`)}`);
     storeEntries.push({
       name: entry.name,
       version: entry.version,

@@ -214,28 +214,28 @@ export default defineCommand({
       }
 
       // Consumer next steps
-      console.log("");
+      consola.log("");
       consola.info(`${pc.bold("Next steps:")}`);
-      console.log(
+      consola.log(
         `  1. ${pc.cyan("cd ../my-lib && plunk publish")}`
       );
-      console.log(
+      consola.log(
         `  2. ${pc.cyan("plunk add my-lib")}${bundler.type === "vite" ? "                     ← auto-updates vite config" : bundler.type === "next" ? "                     ← auto-updates next config" : ""}`
       );
-      console.log(
+      consola.log(
         `  3. ${pc.cyan("cd ../my-lib && plunk dev")}                  ← watch + rebuild + auto-push`
       );
     } else {
       // Library next steps
-      console.log("");
+      consola.log("");
       consola.info(`${pc.bold("Next steps:")}`);
-      console.log(
+      consola.log(
         `  1. ${pc.cyan("plunk publish")}                    ← copy built files to plunk store`
       );
-      console.log(
+      consola.log(
         `  2. ${pc.cyan(`${pm} run plunk:dev`)}               ← watch + rebuild + auto-push to consumers`
       );
-      console.log(
+      consola.log(
         `  3. In consumer project: ${pc.cyan("plunk add " + (await readPkgName(pkgPath)))}`
       );
     }

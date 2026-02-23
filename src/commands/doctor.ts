@@ -205,12 +205,12 @@ export default defineCommand({
     };
 
     for (const r of results) {
-      console.log(`  ${icons[r.status]} ${r.name}: ${pc.dim(r.message)}`);
+      consola.log(`  ${icons[r.status]} ${r.name}: ${pc.dim(r.message)}`);
     }
 
     const failCount = results.filter((r) => r.status === "fail").length;
     const warnCount = results.filter((r) => r.status === "warn").length;
-    console.log("");
+    consola.log("");
     if (failCount > 0) {
       consola.error(`${failCount} issue(s) found that need attention`);
     } else if (warnCount > 0) {

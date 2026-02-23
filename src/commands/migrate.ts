@@ -106,17 +106,17 @@ export default defineCommand({
     }
 
     // 5. Show next steps
-    console.log("");
+    consola.log("");
     consola.info(`${pc.bold("Migration complete!")} Next steps:\n`);
-    console.log(`  1. ${pc.cyan("plunk init")}`);
+    consola.log(`  1. ${pc.cyan("plunk init")}`);
     if (packages.length > 0) {
       for (const pkg of packages) {
-        console.log(
+        consola.log(
           `  2. ${pc.cyan(`plunk add ${pkg} --from <path-to-${pkg}>`)}`
         );
       }
     }
-    console.log(
+    consola.log(
       `\n  Run ${pc.cyan("plunk doctor")} to verify your setup.\n`
     );
 

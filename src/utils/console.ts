@@ -94,6 +94,10 @@ export const consola = {
   debug(msg: string, ...args: unknown[]) {
     if (_level >= 4) console.debug(pc.dim("D"), msg, ...args);
   },
+  /** Plain log (no icon) that still respects level suppression */
+  log(msg: string, ...args: unknown[]) {
+    if (_level >= 3) console.log(msg, ...args);
+  },
 
   prompt,
 };
