@@ -80,7 +80,7 @@ describe("publish", () => {
         "utf-8"
       )
     );
-    expect(meta.contentHash).toMatch(/^sha256:/);
+    expect(meta.contentHash).toMatch(/^sha256(v2)?:/);
     expect(meta.sourcePath).toBe(testLib);
     expect(meta.buildId).toMatch(/^[a-f0-9]{8}$/);
   });

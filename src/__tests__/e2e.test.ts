@@ -106,7 +106,7 @@ describe("publish with real example packages", () => {
     await publish(API_CLIENT_DIR);
     const second = await publish(API_CLIENT_DIR);
     expect(second.skipped).toBe(true);
-    expect(second.contentHash).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(second.contentHash).toMatch(/^sha256(v2)?:[a-f0-9]{64}$/);
   });
 
   it("stores correct metadata", async () => {
@@ -120,7 +120,7 @@ describe("publish with real example packages", () => {
       ".plunk-meta.json"
     );
     const meta = JSON.parse(await readFile(metaPath, "utf-8"));
-    expect(meta.contentHash).toMatch(/^sha256:/);
+    expect(meta.contentHash).toMatch(/^sha256(v2)?:/);
     expect(meta.sourcePath).toBe(API_CLIENT_DIR);
     expect(new Date(meta.publishedAt).getTime()).not.toBeNaN();
     expect(meta.buildId).toMatch(/^[a-f0-9]{8}$/);

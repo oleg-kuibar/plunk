@@ -42,16 +42,21 @@ export async function computeContentHash(
 
   // Use SHA-256 streaming for the aggregate content hash.
   // This is called once per publish (not per-file), and the deterministic
-  // prefix "sha256:" is stored in metadata — switching to xxhash here would
+  // prefix "sha256v2:" is stored in metadata — switching to xxhash here would
   // invalidate every existing store entry for no meaningful speedup.
   const hash = createHash("sha256");
+  const lenBuf = Buffer.alloc(4);
   for (const { rel, content } of contents) {
     hash.update(rel);
     hash.update("\0");
+    // Length-prefix content to prevent ambiguity between consecutive entries
+    // (without this, file A's content could blend into file B's path)
+    lenBuf.writeUInt32LE(content.length);
+    hash.update(lenBuf);
     hash.update(content);
   }
 
-  const result = "sha256:" + hash.digest("hex");
+  const result = "sha256v2:" + hash.digest("hex");
   verbose(`[hash] Result: ${result.slice(0, 20)}...`);
   return result;
 }

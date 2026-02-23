@@ -45,11 +45,11 @@ describe("computeContentHash", () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it("returns sha256-prefixed hash", async () => {
+  it("returns sha256v2-prefixed hash", async () => {
     const file = join(tempDir, "test.txt");
     await writeFile(file, "content");
     const hash = await computeContentHash([file], tempDir);
-    expect(hash).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(hash).toMatch(/^sha256v2:[a-f0-9]{64}$/);
   });
 
   it("is deterministic regardless of file order", async () => {
