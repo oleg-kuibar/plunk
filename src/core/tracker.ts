@@ -177,14 +177,16 @@ export async function cleanStaleConsumers(): Promise<{
     const updated: ConsumersRegistry = {};
 
     for (const [pkgName, consumers] of Object.entries(registry)) {
-      const validConsumers: string[] = [];
-      for (const consumerPath of consumers) {
-        if (await exists(consumerPath)) {
-          validConsumers.push(consumerPath);
-        } else {
-          removedConsumers++;
-        }
-      }
+      const results = await Promise.all(
+        consumers.map(async (consumerPath) => ({
+          consumerPath,
+          valid: await exists(consumerPath),
+        }))
+      );
+      const validConsumers = results
+        .filter((r) => r.valid)
+        .map((r) => r.consumerPath);
+      removedConsumers += consumers.length - validConsumers.length;
       if (validConsumers.length > 0) {
         updated[pkgName] = validConsumers;
       } else {
