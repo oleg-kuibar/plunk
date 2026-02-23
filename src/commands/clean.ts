@@ -37,12 +37,13 @@ export default defineCommand({
     const registry = await readConsumersRegistry();
     const referenced = new Set<string>();
 
-    for (const [, consumers] of Object.entries(registry)) {
-      for (const consumerPath of consumers) {
-        const state = await readConsumerState(consumerPath);
-        for (const [pkgName, link] of Object.entries(state.links)) {
-          referenced.add(`${pkgName}@${link.version}`);
-        }
+    const allConsumerPaths = [...new Set(Object.values(registry).flat())];
+    const states = await Promise.all(
+      allConsumerPaths.map(async (p) => ({ path: p, state: await readConsumerState(p) }))
+    );
+    for (const { state } of states) {
+      for (const [pkgName, link] of Object.entries(state.links)) {
+        referenced.add(`${pkgName}@${link.version}`);
       }
     }
     verbose(`[clean] Referenced entries: ${[...referenced].join(", ") || "(none)"}`);

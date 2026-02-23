@@ -140,14 +140,14 @@ export async function checkMissingDeps(
 
   if (Object.keys(allDeps).length === 0) return [];
 
-  const missing: string[] = [];
-  for (const dep of Object.keys(allDeps)) {
-    const depPath = join(consumerPath, "node_modules", dep);
-    if (!(await exists(depPath))) {
-      missing.push(dep);
-    }
-  }
-  return missing;
+  const depNames = Object.keys(allDeps);
+  const results = await Promise.all(
+    depNames.map(async (dep) => ({
+      dep,
+      installed: await exists(join(consumerPath, "node_modules", dep)),
+    }))
+  );
+  return results.filter((r) => !r.installed).map((r) => r.dep);
 }
 
 /**

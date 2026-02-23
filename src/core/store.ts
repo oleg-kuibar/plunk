@@ -89,13 +89,11 @@ export async function findStoreEntry(
 
   const matching = results.filter((r): r is StoreEntry => r !== null);
   if (matching.length === 0) return null;
-  // Sort by publishedAt descending
-  matching.sort(
-    (a, b) =>
-      new Date(b.meta.publishedAt).getTime() -
-      new Date(a.meta.publishedAt).getTime()
+  // Find the most recently published entry in O(n)
+  return matching.reduce((latest, entry) =>
+    new Date(entry.meta.publishedAt).getTime() > new Date(latest.meta.publishedAt).getTime()
+      ? entry : latest
   );
-  return matching[0];
 }
 
 /** List all entries in the store */
