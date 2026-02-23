@@ -68,7 +68,7 @@ export default defineCommand({
       // Get the store entry
       const entry = await getStoreEntry(result.name, result.version);
       if (!entry) {
-        errorWithSuggestion("Failed to read store entry after publish");
+        errorWithSuggestion(`Failed to read store entry for ${result.name}@${result.version} after publish`);
         return;
       }
 
@@ -113,7 +113,7 @@ export default defineCommand({
 
               return injectResult;
             } catch (err) {
-              consola.warn(`Failed to push to ${consumerPath}: ${err}`);
+              consola.warn(`Failed to push to ${consumerPath}: ${err instanceof Error ? err.message : String(err)}`);
               return null;
             }
           })

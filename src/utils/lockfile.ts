@@ -62,7 +62,7 @@ export async function withFileLock<T>(
 
   if (!acquired) {
     throw new Error(
-      `Failed to acquire lock on ${filePath} after ${DEFAULTS.retries} retries`,
+      `Failed to acquire lock after ${DEFAULTS.retries} attempts. Another plunk process may be running. If this persists, delete ${lockDir} and retry.`,
     );
   }
 

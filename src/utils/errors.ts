@@ -47,6 +47,22 @@ const SUGGESTIONS: Suggestion[] = [
     pattern: /private.*package/i,
     message: "Use --private flag to publish private packages.",
   },
+  {
+    pattern: /Failed to read store entry/i,
+    message: "The store may be corrupted. Try 'plunk clean' then re-publish.",
+  },
+  {
+    pattern: /Failed to acquire lock/i,
+    message: "Another plunk process may be running. Wait or delete stale .lk directories.",
+  },
+  {
+    pattern: /not a directory/i,
+    message: "Check that the path exists and is a directory.",
+  },
+  {
+    pattern: /timed out/i,
+    message: "Set PLUNK_HOOK_TIMEOUT to a higher value (in ms) if your scripts need more time.",
+  },
 ];
 
 /**

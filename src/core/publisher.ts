@@ -112,7 +112,7 @@ export async function publish(
   // 6. Fast path: check if already up to date (no lock needed)
   const existingMeta = await readMeta(pkg.name, pkg.version);
   if (existingMeta && existingMeta.contentHash === contentHash) {
-    consola.info(`${pkg.name}@${pkg.version} already up to date`);
+    consola.info(`${pkg.name}@${pkg.version} already up to date (no changes since last publish)`);
     return {
       name: pkg.name,
       version: pkg.version,
@@ -132,7 +132,7 @@ export async function publish(
       // Re-check hash under lock — another process may have published while we waited
       const metaUnderLock = await readMeta(pkg.name, pkg.version);
       if (metaUnderLock && metaUnderLock.contentHash === contentHash) {
-        consola.info(`${pkg.name}@${pkg.version} already up to date`);
+        consola.info(`${pkg.name}@${pkg.version} already up to date (no changes since last publish)`);
         return {
           name: pkg.name,
           version: pkg.version,
@@ -269,7 +269,7 @@ async function runLifecycleHook(
 
     const timer = setTimeout(() => {
       child.kill("SIGTERM");
-      reject(new Error(`${hookName} script timed out after ${HOOK_TIMEOUT}ms`));
+      reject(new Error(`${hookName} script timed out after ${HOOK_TIMEOUT / 1000}s. Increase PLUNK_HOOK_TIMEOUT env var if the script needs more time.`));
     }, HOOK_TIMEOUT);
 
     child.on("close", (code) => {

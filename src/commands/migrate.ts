@@ -59,7 +59,7 @@ export default defineCommand({
           );
         }
       } catch {
-        consola.warn("Could not parse yalc.lock");
+        consola.warn("Could not parse yalc.lock — the file may be corrupted. Continuing with cleanup.");
       }
     }
 
@@ -89,7 +89,7 @@ export default defineCommand({
           consola.success("Cleaned up package.json");
         }
       } catch (err) {
-        consola.warn(`Could not clean package.json: ${err}`);
+        consola.warn(`Could not clean package.json: ${err instanceof Error ? err.message : String(err)}. You may need to manually remove file:.yalc/ references.`);
       }
     }
 
