@@ -194,10 +194,25 @@ describe("resolvePackFiles", () => {
     const files = await resolvePackFiles(tempDir, pkg);
     const rels = files.map((f) => f.slice(tempDir.length + 1).replace(/\\/g, "/"));
 
-    // lib/a.js should be ignored, but lib/important.js should be kept
     expect(rels).not.toContain("lib/a.js");
-    // Note: negation un-ignoring requires the file to first match an ignore
-    // then get un-ignored. The current implementation checks negation after patterns.
+    expect(rels).toContain("lib/important.js");
+  });
+
+  it("negation patterns override DEFAULT_IGNORES", async () => {
+    await writeFile(join(tempDir, "package.json"), "{}");
+    await writeFile(join(tempDir, "index.js"), "");
+    await mkdir(join(tempDir, "test", "fixtures"), { recursive: true });
+    await writeFile(join(tempDir, "test", "spec.js"), "");
+    await writeFile(join(tempDir, "test", "fixtures", "data.json"), "{}");
+    await writeFile(join(tempDir, ".npmignore"), "test\n!test/fixtures/**\n");
+
+    const pkg: PackageJson = { name: "test", version: "1.0.0" };
+    const files = await resolvePackFiles(tempDir, pkg);
+    const rels = files.map((f) => f.slice(tempDir.length + 1).replace(/\\/g, "/"));
+
+    expect(rels).toContain("index.js");
+    expect(rels).not.toContain("test/spec.js");
+    expect(rels).toContain("test/fixtures/data.json");
   });
 
   it("rejects files patterns that escape package directory via ../", async () => {

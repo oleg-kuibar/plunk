@@ -146,20 +146,20 @@ interface IgnoreMatchers {
 }
 
 function shouldIgnore(relPath: string, matchers: IgnoreMatchers): boolean {
+  // Check negation patterns first — user-defined negations in .npmignore
+  // have highest precedence and override DEFAULT_IGNORES and other rules
+  for (const isMatch of matchers.negations) {
+    if (isMatch(relPath)) return false;
+  }
+
   const parts = relPath.split(/[\\/]/);
   for (const part of parts) {
     if (DEFAULT_IGNORES.has(part)) return true;
     if (matchers.literals.has(part)) return true;
   }
-  // Check full relative path against literals
   if (matchers.literals.has(relPath)) return true;
-  // Check glob patterns
   for (const isMatch of matchers.patterns) {
     if (isMatch(relPath)) return true;
-  }
-  // Check negation patterns (un-ignore)
-  for (const isMatch of matchers.negations) {
-    if (isMatch(relPath)) return false;
   }
   return false;
 }
