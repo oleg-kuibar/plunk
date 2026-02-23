@@ -185,7 +185,9 @@ export default defineCommand({
       {
         patterns,
         buildCmd,
-        debounce: args.debounce ? parseInt(args.debounce, 10) : undefined,
+        debounce: args.debounce
+          ? (Number.isFinite(parseInt(args.debounce, 10)) ? parseInt(args.debounce, 10) : undefined)
+          : undefined,
       },
       doPush,
     );
