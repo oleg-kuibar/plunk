@@ -1,5 +1,6 @@
 /** Metadata stored alongside each package in the plunk store */
 export interface PlunkMeta {
+  schemaVersion?: number;
   contentHash: string;
   publishedAt: string;
   sourcePath: string;

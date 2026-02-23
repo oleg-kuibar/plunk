@@ -13,7 +13,8 @@ export function isPlunkMeta(value: unknown): value is PlunkMeta {
     typeof v.contentHash === "string" &&
     typeof v.publishedAt === "string" &&
     typeof v.sourcePath === "string" &&
-    (v.buildId === undefined || typeof v.buildId === "string")
+    (v.buildId === undefined || typeof v.buildId === "string") &&
+    (v.schemaVersion === undefined || typeof v.schemaVersion === "number")
   );
 }
 

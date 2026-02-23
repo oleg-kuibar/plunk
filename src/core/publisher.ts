@@ -190,6 +190,7 @@ export async function publish(
 
         // Write metadata to temp dir
         const meta: PlunkMeta = {
+          schemaVersion: 1,
           contentHash,
           publishedAt: new Date().toISOString(),
           sourcePath: packageDir,
