@@ -59,13 +59,13 @@ export async function startWatcher(
         if (options.buildCmd) {
           const success = await runBuildCommand(options.buildCmd, watchDir);
           if (!success) {
-            consola.warn("Build failed, skipping push");
+            consola.warn("Build failed (see output above), skipping push");
             return;
           }
         }
         await onChange();
       } catch (err) {
-        consola.error("Push failed:", err);
+        consola.error(`Push failed: ${err instanceof Error ? err.message : String(err)}`);
       } finally {
         running = false;
 
@@ -109,6 +109,9 @@ export async function startWatcher(
   watcher.on("change", onFileEvent);
   watcher.on("add", onFileEvent);
   watcher.on("unlink", onFileEvent);
+  watcher.on("error", (err) => {
+    consola.error(`Watcher error: ${err instanceof Error ? err.message : String(err)}`);
+  });
 
   const watcherHandle = {
     close: async () => {

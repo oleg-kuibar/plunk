@@ -61,7 +61,7 @@ export default defineCommand({
     }
 
     if (removedConsumers === 0 && removedEntries === 0) {
-      consola.info("Nothing to clean up");
+      consola.info("Store is clean — no stale entries or registrations found");
     }
 
     consola.info(`Clean complete in ${timer.elapsed()}`);

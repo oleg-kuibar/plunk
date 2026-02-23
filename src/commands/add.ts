@@ -70,7 +70,6 @@ export default defineCommand({
       await ensureConsumerInit(consumerPath, pm);
       consola.success("Auto-initialized plunk (consumer mode)");
     }
-    verbose(`[add] Detected package manager: ${pm}`);
     consola.info(`Detected package manager: ${pm}`);
 
     // Check for Yarn PnP incompatibility
