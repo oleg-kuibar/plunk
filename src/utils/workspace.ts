@@ -1,5 +1,5 @@
 import { readFile, readdir } from "node:fs/promises";
-import { join, dirname, resolve } from "node:path";
+import { join, dirname, resolve, relative } from "node:path";
 import picomatch from "picomatch";
 import { exists } from "./fs.js";
 
@@ -254,7 +254,7 @@ async function resolveWorkspaceGlobs(rootDir: string, patterns: string[]): Promi
         const isMatch = picomatch(pattern);
         const candidates = await collectDirs(rootDir, 4);
         for (const candidate of candidates) {
-          const rel = candidate.slice(rootDir.length + 1).replace(/\\/g, "/");
+          const rel = relative(rootDir, candidate).replace(/\\/g, "/");
           if (isMatch(rel) && await exists(join(candidate, "package.json"))) {
             results.push(candidate);
           }

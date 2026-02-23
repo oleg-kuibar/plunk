@@ -295,26 +295,22 @@ const PUBLISH_CONFIG_OVERRIDES = [
 
 /**
  * Apply publishConfig field overrides to a package.json object.
- * Shallow-merges overridable fields and removes publishConfig from the result.
- * Returns a new object if changes were made, the same object if not.
+ * Shallow-merges overridable fields and strips publishConfig from the result.
+ * Always returns a new object when publishConfig is present (npm strips it at pack time).
  */
 function applyPublishConfig(pkg: PackageJson): PackageJson {
   if (!pkg.publishConfig) return pkg;
 
   const result = { ...pkg };
-  let changed = false;
 
   for (const field of PUBLISH_CONFIG_OVERRIDES) {
     if (field in pkg.publishConfig) {
       (result as Record<string, unknown>)[field] = pkg.publishConfig[field];
-      changed = true;
     }
   }
 
-  // Always strip publishConfig from the output (npm strips it at pack time)
   delete result.publishConfig;
-
-  return changed ? result : (delete result.publishConfig, result);
+  return result;
 }
 
 /**
@@ -353,7 +349,7 @@ function rewriteProtocolVersions(pkg: PackageJson, packageDir: string): PackageJ
       } else if (version.startsWith("catalog:")) {
         // Lazy-load catalogs only when needed
         if (!catalogsLoaded) {
-          catalogs = loadCatalogsSync(packageDir);
+          catalogs = loadCatalogsFromCache();
           catalogsLoaded = true;
         }
         if (catalogs) {
@@ -401,13 +397,10 @@ function resolveCatalogVersion(
 let _cachedCatalogs: { root: string; catalogs: Catalogs } | null = null;
 
 /**
- * Synchronously-cached catalog loader. Reads catalogs on first call per workspace root.
- * Returns null if no pnpm-workspace.yaml is found.
+ * Return pre-loaded catalogs from the module-level cache.
+ * Must be called after preloadCatalogs() has populated _cachedCatalogs.
  */
-function loadCatalogsSync(packageDir: string): Catalogs | null {
-  // This is called from a sync context within rewriteProtocolVersions,
-  // but we need async I/O. We pre-load catalogs before calling the rewrite function.
-  // See the preloadCatalogs() call in publish().
+function loadCatalogsFromCache(): Catalogs | null {
   return _cachedCatalogs?.catalogs ?? null;
 }
 
