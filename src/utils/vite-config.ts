@@ -1,4 +1,5 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
+import { atomicWriteFile } from "./fs.js";
 
 /**
  * Detect the indentation style used in a file.
@@ -127,7 +128,7 @@ export async function addPlunkVitePlugin(
     content = importLine + "\n" + content;
   }
 
-  await writeFile(configPath, content);
+  await atomicWriteFile(configPath, content);
   return { modified: true };
 }
 
@@ -176,7 +177,7 @@ export async function removeFromViteConfig(
   }
 
   if (modified) {
-    await writeFile(configPath, content);
+    await atomicWriteFile(configPath, content);
   }
 
   return { modified };

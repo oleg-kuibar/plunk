@@ -1,4 +1,5 @@
-import { readFile, readdir, writeFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
+import { atomicWriteFile } from "./fs.js";
 import { join, dirname, relative } from "node:path";
 
 const IGNORED_DIRS = new Set(["node_modules", ".plunk", "dist", ".git"]);
@@ -86,7 +87,7 @@ export async function addTailwindSource(
     content = sourceLine + "\n" + content;
   }
 
-  await writeFile(cssPath, content);
+  await atomicWriteFile(cssPath, content);
   return { modified: true };
 }
 
@@ -116,7 +117,7 @@ export async function removeTailwindSource(
   }
 
   content = content.replace(sourceRegex, "");
-  await writeFile(cssPath, content);
+  await atomicWriteFile(cssPath, content);
   return { modified: true };
 }
 

@@ -1,4 +1,5 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
+import { atomicWriteFile } from "./fs.js";
 
 /**
  * Detect the indentation style used in a file.
@@ -61,7 +62,7 @@ export async function addToTranspilePackages(
     items.push(packageName);
     const newArray = formatArray(items, indent);
     const updated = content.replace(transpileRegex, `transpilePackages: ${newArray}`);
-    await writeFile(configPath, updated);
+    await atomicWriteFile(configPath, updated);
     return { modified: true };
   }
 
@@ -73,7 +74,7 @@ export async function addToTranspilePackages(
     const insertPos = configObjMatch.index + configObjMatch[0].length;
     const newSection = `\n${indent}transpilePackages: ['${packageName}'],`;
     const updated = content.slice(0, insertPos) + newSection + content.slice(insertPos);
-    await writeFile(configPath, updated);
+    await atomicWriteFile(configPath, updated);
     return { modified: true };
   }
 
@@ -106,6 +107,6 @@ export async function removeFromTranspilePackages(
 
   const newArray = formatArray(filtered, indent);
   const updated = content.replace(transpileRegex, `transpilePackages: ${newArray}`);
-  await writeFile(configPath, updated);
+  await atomicWriteFile(configPath, updated);
   return { modified: true };
 }
