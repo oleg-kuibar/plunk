@@ -706,9 +706,10 @@ function App() {
 
   useEffect(() => {
     // Try to dynamically import the packages
+    // @vite-ignore tells Vite to skip import analysis (packages may not exist yet)
     Promise.all([
-      import('@example/api-client').catch(() => null),
-      import('@example/ui-kit').catch(() => null),
+      import(/* @vite-ignore */ '@example/api-client').catch(() => null),
+      import(/* @vite-ignore */ '@example/ui-kit').catch(() => null),
     ]).then(([api, ui]) => {
       setApiClient(api);
       setUiKit(ui);
