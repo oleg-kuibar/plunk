@@ -85,11 +85,11 @@ export default function plunkPlugin(): Plugin {
 
         console.log(`[plunk] Change detected: ${changedPath}`);
         server.config.logger.info(
-          `[plunk] Detected ${isStateFile ? "push" : "package"} change, reloading...`,
+          `[plunk] Detected ${isStateFile ? "push" : "package"} change, restarting server...`,
           { timestamp: true }
         );
 
-        // Clear Vite's cache directory
+        // Clear Vite's cache directory to ensure fresh module resolution
         try {
           if (existsSync(cacheDir)) {
             rmSync(cacheDir, { recursive: true, force: true });
@@ -99,20 +99,9 @@ export default function plunkPlugin(): Plugin {
           console.error(`[plunk] Failed to clear cache:`, err);
         }
 
-        // Invalidate ALL modules in the module graph
-        const seen = new Set<import("vite").ModuleNode>();
-        for (const mod of server.moduleGraph.idToModuleMap.values()) {
-          server.moduleGraph.invalidateModule(mod, seen);
-        }
-        console.log(`[plunk] Invalidated ${seen.size} modules`);
-
-        // Force re-optimization of dependencies
-        server.config.logger.info("[plunk] Triggering full reload...", {
-          timestamp: true,
-        });
-
-        const channel = server.hot ?? (server as any).ws;
-        channel.send({ type: "full-reload", path: "*" });
+        // Restart the server to force complete re-resolution of all modules
+        // This is more reliable than just invalidating the module graph
+        await server.restart();
       });
     },
   };
