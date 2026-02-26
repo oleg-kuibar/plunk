@@ -79,15 +79,15 @@ export async function doPush(
             link.packageManager
           );
 
-          // Update state.json so the Vite plugin detects the push
-          if (injectResult.copied > 0 || injectResult.removed > 0) {
-            await addLink(consumerPath, result.name, {
-              ...link,
-              contentHash: entry.meta.contentHash,
-              linkedAt: new Date().toISOString(),
-              buildId: entry.meta.buildId ?? "",
-            });
-          }
+          // Always update state.json so the Vite plugin detects the push
+          // and triggers a full reload. Even if no files were copied (all
+          // skipped as unchanged), the user expects a refresh after `plunk push`.
+          await addLink(consumerPath, result.name, {
+            ...link,
+            contentHash: entry.meta.contentHash,
+            linkedAt: new Date().toISOString(),
+            buildId: entry.meta.buildId ?? "",
+          });
 
           return injectResult;
         } catch (err) {
@@ -153,8 +153,13 @@ export async function resolveWatchConfig(
     }
   }
 
-  // Without a build command: watch the package.json `files` field (typically dist/)
-  if (!buildCmd) {
+  if (buildCmd) {
+    // With a build command: only watch source directories (not dist/)
+    // to avoid infinite loop where build output triggers another build
+    patterns = ["src", "lib"];
+    verbose(`[watch] Using source patterns with build command: ${patterns.join(", ")}`);
+  } else {
+    // Without a build command: watch the package.json `files` field (typically dist/)
     try {
       const pkg = JSON.parse(
         await readFile(join(packageDir, "package.json"), "utf-8")
