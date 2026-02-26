@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { WebContainer } from '@webcontainer/api';
 import type { FileSystemTree, WebContainerProcess } from '@webcontainer/api';
-import { basicTemplate } from '../templates/basic/files';
+import { basicTemplate, PLAYGROUND_NAME } from '../templates/basic/files';
 
 export type BootStatus =
   | 'idle'
@@ -31,6 +31,11 @@ export interface UseWebContainerResult {
 // Singleton WebContainer instance - only one per browser tab
 let bootPromise: Promise<WebContainer> | null = null;
 
+// The workdir is always based on PLAYGROUND_NAME which is now stable via sessionStorage
+function getWorkdir(): string {
+  return `/home/plunk-${PLAYGROUND_NAME}`;
+}
+
 export function useWebContainer(): UseWebContainerResult {
   const [status, setStatus] = useState<BootStatus>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +60,9 @@ export function useWebContainer(): UseWebContainerResult {
 
         // Use singleton pattern for WebContainer
         if (!bootPromise) {
-          bootPromise = WebContainer.boot();
+          bootPromise = WebContainer.boot({
+            workdirName: `plunk-${PLAYGROUND_NAME}`,
+          });
         }
 
         const container = await bootPromise;
@@ -65,7 +72,8 @@ export function useWebContainer(): UseWebContainerResult {
         containerRef.current = container;
         setStatus('mounting');
 
-        // Mount the template files
+        // Mount the template files at the workdir (default mount location)
+        // The workdir is /home/plunk-<name>/ based on workdirName
         await container.mount(basicTemplate as FileSystemTree);
 
         if (cancelled) return;
@@ -77,12 +85,10 @@ export function useWebContainer(): UseWebContainerResult {
 
         setStatus('installing');
 
-        // Install plunk globally from npm
-        const installProcess = await container.spawn('npm', [
-          'install',
-          '-g',
-          '@olegkuibar/plunk@latest',
-        ]);
+        // Install root devDependencies (includes @olegkuibar/plunk)
+        // This makes plunk available via npx without download prompts
+        // Don't specify cwd - it defaults to the workdir set by workdirName
+        const installProcess = await container.spawn('npm', ['install']);
 
         // Wait for install to complete
         const installExitCode = await installProcess.exit;
@@ -90,7 +96,20 @@ export function useWebContainer(): UseWebContainerResult {
         if (cancelled) return;
 
         if (installExitCode !== 0) {
-          console.warn('Plunk install returned non-zero exit code:', installExitCode);
+          console.warn('npm install returned non-zero exit code:', installExitCode);
+        }
+
+        // Install dependencies for packages (needed for tsc/build commands)
+        // This enables `plunk push --watch` to auto-detect and run build commands
+        const packageDirs = ['packages/api-client', 'packages/ui-kit', 'consumer-app'];
+        for (const dir of packageDirs) {
+          // Use shell to cd and install - more reliable than --prefix
+          const pkgInstall = await container.spawn('sh', ['-c', `cd ${dir} && npm install`]);
+          const pkgExitCode = await pkgInstall.exit;
+          if (pkgExitCode !== 0) {
+            console.warn(`npm install in ${dir} returned non-zero:`, pkgExitCode);
+          }
+          if (cancelled) return;
         }
 
         setStatus('ready');
@@ -123,10 +142,17 @@ export function useWebContainer(): UseWebContainerResult {
       if (!container) return null;
 
       try {
+        const workdir = getWorkdir();
         const shellProcess: WebContainerProcess = await container.spawn('jsh', {
           terminal: {
             cols: 80,
             rows: 24,
+          },
+          env: {
+            HOME: workdir,
+            PS1: `\x1b[1;33mplunk-${PLAYGROUND_NAME}\x1b[0m \x1b[1;32m❯\x1b[0m `,
+            // Include common npm global bin paths for WebContainer
+            PATH: '/usr/local/bin:/usr/bin:/bin:/home/.npm-global/bin:/root/.npm-global/bin:/usr/local/lib/node_modules/.bin',
           },
         });
 
@@ -163,13 +189,15 @@ export function useWebContainer(): UseWebContainerResult {
     []
   );
 
+  // WebContainer fs API operates relative to the workdir, so paths like "/" or "/packages"
+  // are already correct - no need to add workdir prefix
   const readFile = useCallback(async (path: string): Promise<string | null> => {
     const container = containerRef.current;
     if (!container) return null;
 
     try {
-      const contents = await container.fs.readFile(path, 'utf-8');
-      return contents;
+      const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+      return await container.fs.readFile(normalizedPath, 'utf-8');
     } catch {
       return null;
     }
@@ -180,7 +208,8 @@ export function useWebContainer(): UseWebContainerResult {
       const container = containerRef.current;
       if (!container) return;
 
-      await container.fs.writeFile(path, contents);
+      const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+      await container.fs.writeFile(normalizedPath, contents);
     },
     []
   );
@@ -190,7 +219,8 @@ export function useWebContainer(): UseWebContainerResult {
     if (!container) return [];
 
     try {
-      const entries = await container.fs.readdir(path, { withFileTypes: true });
+      const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+      const entries = await container.fs.readdir(normalizedPath, { withFileTypes: true });
       return entries.map((entry) =>
         entry.isDirectory() ? `${entry.name}/` : entry.name
       );
