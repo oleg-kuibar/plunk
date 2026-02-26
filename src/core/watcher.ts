@@ -31,62 +31,74 @@ export async function startWatcher(
 ): Promise<{ close: () => Promise<void> }> {
   const { watch } = await import("chokidar");
 
-  const patterns = options.patterns ?? ["src", "lib", "dist"];
+  // Default to source directories only; dist is added by resolveWatchConfig when no build command
+  const patterns = options.patterns ?? ["src", "lib"];
   const watchPaths = patterns.map((p) =>
     p.startsWith("/") || p.includes(":") ? p : `${watchDir}/${p}`
   );
 
-  const debounceMs = options.debounce ?? 100;
-  let coalesceTimer: ReturnType<typeof setTimeout> | null = null;
+  const debounceMs = options.debounce ?? 500;
+  const cooldownMs = 2000; // Minimum time between builds
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   let closed = false;
   let running = false;
-  let pendingWhileRunning = false;
+  let lastBuildEndTime = 0;
+  let hasPendingChanges = false;
 
-  const scheduleFlush = () => {
-    // Already scheduled — the existing timer will fire
-    if (coalesceTimer) return;
+  const doBuild = async () => {
+    if (closed || running) return;
 
-    coalesceTimer = setTimeout(async () => {
-      coalesceTimer = null;
-      if (closed) return;
+    // Check cooldown
+    const timeSinceLastBuild = Date.now() - lastBuildEndTime;
+    if (lastBuildEndTime > 0 && timeSinceLastBuild < cooldownMs) {
+      return;
+    }
 
-      if (running) {
-        // A push is in progress — flag that we need to re-run after it finishes
-        pendingWhileRunning = true;
-        return;
-      }
+    running = true;
+    hasPendingChanges = false;
 
-      running = true;
-      try {
-        if (options.buildCmd) {
-          const success = await runBuildCommand(options.buildCmd, watchDir);
-          if (!success) {
-            consola.warn("Build failed (see output above), skipping push");
-            return;
-          }
-        }
-        await onChange();
-      } catch (err) {
-        consola.error(`Push failed: ${err instanceof Error ? err.message : String(err)}`);
-      } finally {
-        running = false;
-
-        // If changes arrived while we were pushing, flush again
-        if (pendingWhileRunning) {
-          pendingWhileRunning = false;
-          scheduleFlush();
+    try {
+      if (options.buildCmd) {
+        const success = await runBuildCommand(options.buildCmd, watchDir);
+        if (!success) {
+          consola.warn("Build failed (see output above), skipping push");
+          return;
         }
       }
-    }, debounceMs);
+      await onChange();
+    } catch (err) {
+      consola.error(`Push failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      running = false;
+      lastBuildEndTime = Date.now();
+    }
   };
 
-  const onFileEvent = (_path: string) => {
-    // Reset the coalesce window on each event so rapid bursts collapse
-    if (coalesceTimer) {
-      clearTimeout(coalesceTimer);
-      coalesceTimer = null;
+  const onFileEvent = (path: string) => {
+    if (closed) return;
+
+    // Ignore events while a build is running
+    if (running) {
+      hasPendingChanges = true;
+      return;
     }
-    scheduleFlush();
+
+    // Ignore events during cooldown period
+    const timeSinceLastBuild = Date.now() - lastBuildEndTime;
+    if (lastBuildEndTime > 0 && timeSinceLastBuild < cooldownMs) {
+      hasPendingChanges = true;
+      return;
+    }
+
+    // Debounce: reset timer on each event
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
+
+    debounceTimer = setTimeout(() => {
+      debounceTimer = null;
+      doBuild();
+    }, debounceMs);
   };
 
   // Auto-enable awaitWriteFinish when watching output dirs directly (no build command).
@@ -118,7 +130,7 @@ export async function startWatcher(
   const watcherHandle = {
     close: async () => {
       closed = true;
-      if (coalesceTimer) clearTimeout(coalesceTimer);
+      if (debounceTimer) clearTimeout(debounceTimer);
       killActiveBuild();
       await watcher.close();
       activeWatcher = null;
