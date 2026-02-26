@@ -51,7 +51,7 @@ export const basicTemplate: FileSystemTree = {
             'push:ui': 'cd packages/ui-kit && npm run build && npx -y @olegkuibar/plunk push',
           },
           devDependencies: {
-            '@olegkuibar/plunk': '0.4.0-canary.2',
+            '@olegkuibar/plunk': '0.4.0-canary.2-canary.57167e4',
           },
         },
         null,
@@ -602,7 +602,7 @@ export declare const UI_VERSION: string;
                 'react-dom': '^18.3.1',
               },
               devDependencies: {
-                '@olegkuibar/plunk': '0.4.0-canary.2',
+                '@olegkuibar/plunk': '0.4.0-canary.2-canary.57167e4',
                 '@types/react': '^18.3.0',
                 '@types/react-dom': '^18.3.0',
                 '@vitejs/plugin-react': '^4.3.0',
