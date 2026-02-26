@@ -17,8 +17,27 @@ interface TreeNode {
   isLoading?: boolean;
 }
 
+// Special folders that should be shown but styled differently
+const SYSTEM_FOLDERS = ['node_modules', '.plunk', '.vite', 'dist'];
+
+// Hidden files/folders to always exclude (not useful for playground)
+const HIDDEN_ENTRIES = ['.jshrc', '.bashrc', '.profile', '.npm', '.cache'];
+
 function FileIcon({ name, isDirectory }: { name: string; isDirectory: boolean }) {
   if (isDirectory) {
+    // Special icons for system folders
+    if (name === 'node_modules') {
+      return <span className="mr-1.5 text-[10px] font-bold text-accent" aria-hidden="true">NM</span>;
+    }
+    if (name === '.plunk') {
+      return <span className="mr-1.5 text-[10px] font-bold text-success" aria-hidden="true">PK</span>;
+    }
+    if (name === '.vite') {
+      return <span className="mr-1.5 text-[10px] font-bold text-secondary" aria-hidden="true">VT</span>;
+    }
+    if (name === 'dist') {
+      return <span className="mr-1.5 text-[10px] font-bold text-warning" aria-hidden="true">D</span>;
+    }
     return <span className="mr-1.5 text-text-muted" aria-hidden="true">{'\uD83D\uDCC1'}</span>;
   }
 
@@ -176,7 +195,14 @@ export function FileTree({
       try {
         const entries = await readdir('/');
         const nodes: TreeNode[] = entries
-          .filter((name) => !name.startsWith('.') && name !== 'node_modules/')
+          .filter((name) => {
+            const cleanName = name.replace(/\/$/, '');
+            // Always show system folders like .plunk
+            if (SYSTEM_FOLDERS.includes(cleanName)) return true;
+            // Hide specific useless entries
+            if (HIDDEN_ENTRIES.includes(cleanName)) return false;
+            return true;
+          })
           .map((name) => ({
             name: name.replace(/\/$/, ''),
             path: `/${name.replace(/\/$/, '')}`,
@@ -184,9 +210,16 @@ export function FileTree({
             isExpanded: false,
           }));
 
+        // Sort: regular dirs first, then system dirs, then files
         nodes.sort((a, b) => {
           if (a.isDirectory !== b.isDirectory) {
             return a.isDirectory ? -1 : 1;
+          }
+          // Put system folders at the end of directories
+          const aIsSystem = SYSTEM_FOLDERS.includes(a.name) || a.name.startsWith('.');
+          const bIsSystem = SYSTEM_FOLDERS.includes(b.name) || b.name.startsWith('.');
+          if (aIsSystem !== bIsSystem) {
+            return aIsSystem ? 1 : -1;
           }
           return a.name.localeCompare(b.name);
         });
@@ -235,9 +268,12 @@ export function FileTree({
                 try {
                   const entries = await readdir(path);
                   const children: TreeNode[] = entries
-                    .filter(
-                      (name) => !name.startsWith('.') && name !== 'node_modules/'
-                    )
+                    .filter((name) => {
+                      const cleanName = name.replace(/\/$/, '');
+                      if (SYSTEM_FOLDERS.includes(cleanName)) return true;
+                      if (HIDDEN_ENTRIES.includes(cleanName)) return false;
+                      return true;
+                    })
                     .map((name) => ({
                       name: name.replace(/\/$/, ''),
                       path: `${path}/${name.replace(/\/$/, '')}`,
@@ -245,9 +281,15 @@ export function FileTree({
                       isExpanded: false,
                     }));
 
+                  // Sort: regular dirs first, then system dirs, then files
                   children.sort((a, b) => {
                     if (a.isDirectory !== b.isDirectory) {
                       return a.isDirectory ? -1 : 1;
+                    }
+                    const aIsSystem = SYSTEM_FOLDERS.includes(a.name) || a.name.startsWith('.');
+                    const bIsSystem = SYSTEM_FOLDERS.includes(b.name) || b.name.startsWith('.');
+                    if (aIsSystem !== bIsSystem) {
+                      return aIsSystem ? 1 : -1;
                     }
                     return a.name.localeCompare(b.name);
                   });
