@@ -598,10 +598,13 @@ export declare const UI_VERSION: string;
                 preview: 'vite preview',
               },
               dependencies: {
-                '@example/api-client': '*',
-                '@example/ui-kit': '*',
                 react: '^18.3.1',
                 'react-dom': '^18.3.1',
+              },
+              // @example packages are linked via plunk, not installed from npm
+              optionalDependencies: {
+                '@example/api-client': '*',
+                '@example/ui-kit': '*',
               },
               devDependencies: {
                 '@olegkuibar/plunk': '0.4.0-canary.2-canary.57167e4',
@@ -627,6 +630,14 @@ export default defineConfig({
   server: {
     port: 3000,
     host: true,
+  },
+  // Ensure @example packages are resolved from node_modules (linked by plunk)
+  resolve: {
+    preserveSymlinks: true,
+  },
+  optimizeDeps: {
+    // Don't pre-bundle linked packages - serve fresh from node_modules
+    exclude: ['@example/api-client', '@example/ui-kit'],
   },
 });
 `,
