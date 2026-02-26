@@ -598,6 +598,8 @@ export declare const UI_VERSION: string;
                 preview: 'vite preview',
               },
               dependencies: {
+                '@example/api-client': '*',
+                '@example/ui-kit': '*',
                 react: '^18.3.1',
                 'react-dom': '^18.3.1',
               },
