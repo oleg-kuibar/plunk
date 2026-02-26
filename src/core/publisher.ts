@@ -20,6 +20,8 @@ export interface PublishOptions {
   allowPrivate?: boolean;
   /** Whether to run prepack/postpack lifecycle hooks (default: true) */
   runScripts?: boolean;
+  /** Force publish, bypassing hash comparison */
+  force?: boolean;
 }
 
 export interface PublishResult {
@@ -111,17 +113,19 @@ export async function publish(
   await preloadCatalogs(pkg, packageDir);
 
   // 6. Fast path: check if already up to date (no lock needed)
-  const existingMeta = await readMeta(pkg.name, pkg.version);
-  if (existingMeta && existingMeta.contentHash === contentHash) {
-    consola.info(`${pkg.name}@${pkg.version} already up to date (no changes since last publish)`);
-    return {
-      name: pkg.name,
-      version: pkg.version,
-      fileCount: files.length,
-      skipped: true,
-      contentHash,
-      buildId: existingMeta.buildId ?? "",
-    };
+  if (!options.force) {
+    const existingMeta = await readMeta(pkg.name, pkg.version);
+    if (existingMeta && existingMeta.contentHash === contentHash) {
+      consola.info(`${pkg.name}@${pkg.version} already up to date (no changes since last publish)`);
+      return {
+        name: pkg.name,
+        version: pkg.version,
+        fileCount: files.length,
+        skipped: true,
+        contentHash,
+        buildId: existingMeta.buildId ?? "",
+      };
+    }
   }
 
   // 7. Acquire lock and copy files to store (prevents concurrent publish corruption)
@@ -131,17 +135,19 @@ export async function publish(
     storeEntryDir + ".lock",
     async () => {
       // Re-check hash under lock — another process may have published while we waited
-      const metaUnderLock = await readMeta(pkg.name, pkg.version);
-      if (metaUnderLock && metaUnderLock.contentHash === contentHash) {
-        consola.info(`${pkg.name}@${pkg.version} already up to date (no changes since last publish)`);
-        return {
-          name: pkg.name,
-          version: pkg.version,
-          fileCount: files.length,
-          skipped: true,
-          contentHash,
-          buildId: metaUnderLock.buildId ?? "",
-        } satisfies PublishResult;
+      if (!options.force) {
+        const metaUnderLock = await readMeta(pkg.name, pkg.version);
+        if (metaUnderLock && metaUnderLock.contentHash === contentHash) {
+          consola.info(`${pkg.name}@${pkg.version} already up to date (no changes since last publish)`);
+          return {
+            name: pkg.name,
+            version: pkg.version,
+            fileCount: files.length,
+            skipped: true,
+            contentHash,
+            buildId: metaUnderLock.buildId ?? "",
+          } satisfies PublishResult;
+        }
       }
 
       const tmpDir = storeEntryDir + ".tmp-" + Date.now();

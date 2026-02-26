@@ -23,6 +23,11 @@ export interface InjectResult {
   binLinks: number;
 }
 
+export interface InjectOptions {
+  /** Force copy all files, bypassing hash comparison */
+  force?: boolean;
+}
+
 /**
  * Inject a package from the store into a consumer's node_modules.
  * Strategy depends on the package manager:
@@ -32,7 +37,8 @@ export interface InjectResult {
 export async function inject(
   storeEntry: StoreEntry,
   consumerPath: string,
-  pm: PackageManager
+  pm: PackageManager,
+  options: InjectOptions = {}
 ): Promise<InjectResult> {
   const targetDir = await resolveTargetDir(
     consumerPath,
@@ -46,7 +52,8 @@ export async function inject(
   await ensureDir(targetDir);
   const { copied, removed, skipped } = await incrementalCopy(
     storeEntry.packageDir,
-    targetDir
+    targetDir,
+    { force: options.force }
   );
 
   verbose(`[inject] ${copied} copied, ${removed} removed, ${skipped} skipped`);

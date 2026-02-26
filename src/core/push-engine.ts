@@ -18,6 +18,8 @@ const consumerLimit = pLimit(4);
 
 export interface PushOptions {
   runScripts?: boolean;
+  /** Force copy all files, bypassing hash comparison */
+  force?: boolean;
 }
 
 /**
@@ -33,6 +35,7 @@ export async function doPush(
   // Publish to store
   const result = await publish(packageDir, {
     runScripts: options.runScripts,
+    force: options.force,
   });
   if (result.skipped) {
     consola.info("No changes to push");
@@ -76,7 +79,8 @@ export async function doPush(
           const injectResult = await inject(
             entry,
             consumerPath,
-            link.packageManager
+            link.packageManager,
+            { force: options.force }
           );
 
           // Always update state.json so the Vite plugin detects the push

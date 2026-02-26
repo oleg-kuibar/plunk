@@ -92,6 +92,11 @@ export async function collectFiles(dir: string): Promise<string[]> {
     .map((e) => join(e.parentPath, e.name));
 }
 
+export interface IncrementalCopyOptions {
+  /** Force copy all files, bypassing hash comparison */
+  force?: boolean;
+}
+
 /**
  * Incrementally copy files from src to dest directory.
  * Only copies files whose content has changed (stat size check + hash comparison).
@@ -100,7 +105,8 @@ export async function collectFiles(dir: string): Promise<string[]> {
  */
 export async function incrementalCopy(
   srcDir: string,
-  destDir: string
+  destDir: string,
+  options: IncrementalCopyOptions = {}
 ): Promise<{ copied: number; removed: number; skipped: number }> {
   const srcFiles = await collectFiles(srcDir);
   let copied = 0;
@@ -115,32 +121,38 @@ export async function incrementalCopy(
         const destFile = join(destDir, rel);
 
         let needsCopy = true;
-        try {
-          const [srcStat, destStat] = await Promise.all([
-            stat(srcFile),
-            stat(destFile),
-          ]);
-          // Fast path: different sizes means definitely different content
-          if (srcStat.size !== destStat.size) {
-            verbose(`[copy] ${rel} (size differs: ${srcStat.size} vs ${destStat.size})`);
-          } else {
-            // Same size: compare hashes (pass known sizes to skip redundant stat)
-            const [srcHash, destHash] = await Promise.all([
-              hashFile(srcFile, srcStat.size),
-              hashFile(destFile, destStat.size),
+
+        // Force mode: always copy
+        if (options.force) {
+          verbose(`[copy] ${rel} (forced)`);
+        } else {
+          try {
+            const [srcStat, destStat] = await Promise.all([
+              stat(srcFile),
+              stat(destFile),
             ]);
-            if (srcHash === destHash) {
-              needsCopy = false;
-              verbose(`[skip] ${rel} (unchanged)`);
+            // Fast path: different sizes means definitely different content
+            if (srcStat.size !== destStat.size) {
+              verbose(`[copy] ${rel} (size differs: ${srcStat.size} vs ${destStat.size})`);
             } else {
-              verbose(`[copy] ${rel} (hash differs)`);
+              // Same size: compare hashes (pass known sizes to skip redundant stat)
+              const [srcHash, destHash] = await Promise.all([
+                hashFile(srcFile, srcStat.size),
+                hashFile(destFile, destStat.size),
+              ]);
+              if (srcHash === destHash) {
+                needsCopy = false;
+                verbose(`[skip] ${rel} (unchanged)`);
+              } else {
+                verbose(`[copy] ${rel} (hash differs)`);
+              }
             }
-          }
-        } catch (err) {
-          if (isNodeError(err) && err.code === "ENOENT") {
-            verbose(`[copy] ${rel} (new file)`);
-          } else {
-            throw err;
+          } catch (err) {
+            if (isNodeError(err) && err.code === "ENOENT") {
+              verbose(`[copy] ${rel} (new file)`);
+            } else {
+              throw err;
+            }
           }
         }
 

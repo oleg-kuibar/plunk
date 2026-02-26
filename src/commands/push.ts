@@ -34,12 +34,21 @@ export default defineCommand({
       description: "Skip prepack/postpack lifecycle hooks",
       default: false,
     },
+    force: {
+      type: "boolean",
+      alias: "f",
+      description: "Force copy all files, bypassing hash comparison",
+      default: false,
+    },
   },
   async run({ args }) {
     suppressHumanOutput();
     const packageDir = resolve(".");
 
-    const push = () => doPush(packageDir, { runScripts: !args["no-scripts"] });
+    const push = () => doPush(packageDir, {
+      runScripts: !args["no-scripts"],
+      force: args.force,
+    });
 
     // Initial push
     await push();
