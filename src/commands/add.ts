@@ -180,6 +180,15 @@ export default defineCommand({
       const viteResult = await addPlunkVitePlugin(bundler.configFile);
       if (viteResult.modified) {
         consola.success(`Added plunk plugin to ${basename(bundler.configFile)}`);
+        // Install @olegkuibar/plunk as devDependency so Vite can resolve the plugin
+        const installCmd = buildDevInstallCommand(pm, "@olegkuibar/plunk");
+        consola.info("Installing @olegkuibar/plunk as devDependency...");
+        const ok = await runInstallCommand(installCmd, consumerPath);
+        if (ok) {
+          consola.success("Installed @olegkuibar/plunk");
+        } else {
+          consola.warn(`Install failed. Run manually: ${installCmd}`);
+        }
       } else if (viteResult.error) {
         consola.info(
           `Add manually:\n  import plunk from "@olegkuibar/plunk/vite"\n  plugins: [plunk()]`
@@ -222,6 +231,19 @@ function buildInstallCommand(pm: PackageManager, deps: string[]): string {
       return `bun add ${joined}`;
     default:
       return `npm install ${joined}`;
+  }
+}
+
+function buildDevInstallCommand(pm: PackageManager, dep: string): string {
+  switch (pm) {
+    case "pnpm":
+      return `pnpm add -D ${dep}`;
+    case "yarn":
+      return `yarn add -D ${dep}`;
+    case "bun":
+      return `bun add -d ${dep}`;
+    default:
+      return `npm install -D ${dep}`;
   }
 }
 
