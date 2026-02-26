@@ -1,66 +1,53 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useTerminalContext } from '../contexts/TerminalContext';
 
-interface TutorialStep {
-  id: number;
+interface Step {
+  id: string;
   title: string;
   description: string;
-  command?: string;
-  hint?: string;
+  action?: {
+    label: string;
+    command: string;
+  };
 }
 
-const steps: TutorialStep[] = [
+const STEPS: Step[] = [
   {
-    id: 1,
-    title: 'Explore the workspace',
-    description:
-      'This playground has a monorepo with two packages (api-client & ui-kit) and a consumer app that uses them.',
-    hint: 'Click on files in the tree to view their source code',
+    id: 'publish',
+    title: 'Publish packages',
+    description: 'Publish both packages to the local plunk store.',
+    action: {
+      label: 'Publish all',
+      command: 'npm run publish:all',
+    },
   },
   {
-    id: 2,
-    title: 'Publish api-client',
-    description:
-      'Publish the api-client package to the local plunk store. This makes it available for other projects to use.',
-    command: 'cd packages/api-client && plunk publish',
+    id: 'link',
+    title: 'Link to consumer',
+    description: 'Add packages to the consumer app.',
+    action: {
+      label: 'Link packages',
+      command: 'npm run link:all',
+    },
   },
   {
-    id: 3,
-    title: 'Publish ui-kit',
-    description: 'Do the same for the ui-kit package.',
-    command: 'cd ../ui-kit && plunk publish',
+    id: 'install',
+    title: 'Install & start',
+    description: 'Install dependencies and start the dev server.',
+    action: {
+      label: 'npm install & dev',
+      command: 'npm run start',
+    },
   },
   {
-    id: 4,
-    title: 'Add packages to consumer',
-    description:
-      'Link both packages to the consumer app. Plunk copies the built files into node_modules.',
-    command: 'cd ../../consumer-app && plunk add @example/api-client @example/ui-kit',
-  },
-  {
-    id: 5,
-    title: 'Install dependencies',
-    description: 'Install the consumer app dependencies.',
-    command: 'npm install',
-  },
-  {
-    id: 6,
-    title: 'Start dev server',
-    description: 'Start the Vite dev server. The preview will appear on the right.',
-    command: 'npm run dev',
-  },
-  {
-    id: 7,
-    title: 'Make a change',
-    description:
-      'Edit packages/api-client/src/index.ts - change the greeting message in getGreeting().',
-    hint: 'Find the getGreeting function and change the return string',
-  },
-  {
-    id: 8,
-    title: 'Push changes',
-    description:
-      'Run plunk push to update the consumer app. Watch the preview refresh with your changes!',
-    command: 'cd ../packages/api-client && plunk push',
+    id: 'edit',
+    title: 'Make changes',
+    description: 'Edit src/index.ts, build, then push to see changes:',
+    action: {
+      label: 'Build & Push',
+      command: 'npm run push:api',
+    },
   },
 ];
 
@@ -71,297 +58,192 @@ interface TutorialProps {
 
 export function Tutorial({ isCollapsed = false, onToggle }: TutorialProps) {
   const [currentStep, setCurrentStep] = useState(0);
-  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+  const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
+  const [isRunning, setIsRunning] = useState(false);
+  const { executeCommand, isShellConnected } = useTerminalContext();
 
-  const handleStepComplete = (stepId: number) => {
-    setCompletedSteps((prev) => new Set([...prev, stepId]));
-    if (currentStep < steps.length - 1) {
-      setCurrentStep((prev) => prev + 1);
+  const handleRunAction = useCallback((step: Step) => {
+    if (!isShellConnected || !step.action) return;
+
+    setIsRunning(true);
+    executeCommand(step.action.command);
+
+    // Mark as completed and move to next
+    setCompletedSteps(prev => new Set([...prev, step.id]));
+    if (currentStep < STEPS.length - 1) {
+      setTimeout(() => {
+        setCurrentStep(prev => prev + 1);
+        setIsRunning(false);
+      }, 500);
+    } else {
+      setIsRunning(false);
     }
-  };
+  }, [executeCommand, isShellConnected, currentStep]);
 
-  const handleCopyCommand = (command: string) => {
-    navigator.clipboard.writeText(command);
-  };
+  const progress = ((completedSteps.size) / STEPS.length) * 100;
+  const isComplete = completedSteps.size === STEPS.length;
 
+  // Collapsed state - floating button
   if (isCollapsed) {
     return (
-      <button
+      <motion.button
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        whileHover={{ scale: 1.05 }}
         onClick={onToggle}
-        style={{
-          position: 'fixed',
-          bottom: '16px',
-          right: '16px',
-          padding: '12px 16px',
-          backgroundColor: '#238636',
-          color: '#ffffff',
-          border: 'none',
-          borderRadius: '8px',
-          cursor: 'pointer',
-          fontSize: '14px',
-          fontWeight: 500,
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
-          zIndex: 100,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-        }}
+        className={`
+          fixed bottom-4 right-4 z-50
+          flex items-center gap-2 px-4 py-2.5
+          rounded-full shadow-lg
+          transition-colors
+          ${isComplete
+            ? 'bg-success text-white'
+            : 'bg-accent text-black'
+          }
+        `}
       >
-        <span>📚</span>
-        Tutorial
-        <span
-          style={{
-            padding: '2px 6px',
-            backgroundColor: 'rgba(255,255,255,0.2)',
-            borderRadius: '10px',
-            fontSize: '11px',
-          }}
-        >
-          {completedSteps.size}/{steps.length}
+        <span className="text-sm font-medium">
+          {isComplete ? 'Complete!' : 'Tutorial'}
         </span>
-      </button>
+        <span className="text-xs opacity-80">
+          {completedSteps.size}/{STEPS.length}
+        </span>
+      </motion.button>
     );
   }
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        bottom: '16px',
-        right: '16px',
-        width: '360px',
-        maxHeight: '70vh',
-        backgroundColor: '#161b22',
-        border: '1px solid #30363d',
-        borderRadius: '12px',
-        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
-        zIndex: 100,
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
+    <motion.div
+      initial={{ y: 20, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: 20, opacity: 0 }}
+      className="fixed bottom-4 right-4 z-50 w-80 bg-bg-elevated border border-border rounded-xl shadow-2xl overflow-hidden"
     >
       {/* Header */}
-      <div
-        style={{
-          padding: '16px',
-          borderBottom: '1px solid #30363d',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '18px' }}>📚</span>
-          <span style={{ fontWeight: 600, color: '#c9d1d9' }}>
-            Plunk Tutorial
-          </span>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+          <span className="font-medium text-sm text-text">Quick Start</span>
         </div>
         <button
           onClick={onToggle}
-          style={{
-            padding: '4px 8px',
-            backgroundColor: 'transparent',
-            border: 'none',
-            color: '#8b949e',
-            cursor: 'pointer',
-            fontSize: '18px',
-          }}
+          className="text-text-muted hover:text-text transition-colors p-1"
         >
-          ×
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M1 1l12 12M13 1L1 13" />
+          </svg>
         </button>
       </div>
 
       {/* Progress bar */}
-      <div style={{ padding: '0 16px', paddingTop: '12px' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            marginBottom: '8px',
-          }}
-        >
-          {steps.map((step, idx) => (
-            <div
-              key={step.id}
-              style={{
-                flex: 1,
-                height: '4px',
-                borderRadius: '2px',
-                backgroundColor:
-                  completedSteps.has(step.id)
-                    ? '#3fb950'
-                    : idx === currentStep
-                    ? '#58a6ff'
-                    : '#30363d',
-                transition: 'background-color 0.2s',
-              }}
-            />
-          ))}
-        </div>
-        <div style={{ fontSize: '12px', color: '#8b949e' }}>
-          Step {currentStep + 1} of {steps.length}
-        </div>
+      <div className="h-0.5 bg-border">
+        <motion.div
+          className="h-full bg-accent"
+          animate={{ width: `${progress}%` }}
+          transition={{ duration: 0.3 }}
+        />
       </div>
 
-      {/* Steps list */}
-      <div style={{ flex: 1, overflow: 'auto', padding: '12px 16px' }}>
-        {steps.map((step, idx) => {
+      {/* Steps */}
+      <div className="p-3 space-y-2">
+        {STEPS.map((step, idx) => {
           const isActive = idx === currentStep;
-          const isCompleted = completedSteps.has(step.id);
+          const isDone = completedSteps.has(step.id);
           const isPast = idx < currentStep;
 
           return (
-            <div
+            <motion.div
               key={step.id}
-              onClick={() => setCurrentStep(idx)}
-              style={{
-                padding: '12px',
-                marginBottom: '8px',
-                backgroundColor: isActive ? '#21262d' : 'transparent',
-                border: isActive
-                  ? '1px solid #58a6ff'
-                  : '1px solid transparent',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                opacity: isPast && !isActive ? 0.7 : 1,
+              initial={false}
+              animate={{
+                opacity: isActive ? 1 : isPast ? 0.5 : 0.7,
+                scale: isActive ? 1 : 0.98,
               }}
+              className={`
+                rounded-lg transition-colors
+                ${isActive ? 'bg-bg-subtle' : ''}
+              `}
             >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '10px',
-                }}
+              <button
+                onClick={() => !isDone && setCurrentStep(idx)}
+                disabled={isDone}
+                className="w-full flex items-start gap-3 p-3 text-left"
               >
-                <div
-                  style={{
-                    width: '20px',
-                    height: '20px',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    flexShrink: 0,
-                    backgroundColor: isCompleted
-                      ? '#3fb950'
-                      : isActive
-                      ? '#58a6ff'
-                      : '#30363d',
-                    color: isCompleted || isActive ? '#ffffff' : '#8b949e',
-                  }}
-                >
-                  {isCompleted ? '✓' : step.id}
+                {/* Step indicator */}
+                <div className={`
+                  w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0
+                  ${isDone
+                    ? 'bg-success text-white'
+                    : isActive
+                      ? 'bg-accent text-black'
+                      : 'bg-bg-muted text-text-muted'
+                  }
+                `}>
+                  {isDone ? '\u2713' : idx + 1}
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div
-                    style={{
-                      fontSize: '14px',
-                      fontWeight: 500,
-                      color: isActive ? '#c9d1d9' : '#8b949e',
-                      marginBottom: '4px',
-                    }}
-                  >
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className={`text-sm font-medium ${isActive ? 'text-text' : 'text-text-muted'}`}>
                     {step.title}
                   </div>
-                  {isActive && (
-                    <>
-                      <p
-                        style={{
-                          fontSize: '13px',
-                          color: '#8b949e',
-                          marginBottom: step.command ? '12px' : '0',
-                          lineHeight: 1.5,
-                        }}
-                      >
-                        {step.description}
-                      </p>
 
-                      {step.command && (
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            backgroundColor: '#0d1117',
-                            padding: '8px 10px',
-                            borderRadius: '6px',
-                            marginBottom: '8px',
-                          }}
-                        >
-                          <code
-                            style={{
-                              flex: 1,
-                              fontSize: '12px',
-                              color: '#3fb950',
-                              fontFamily:
-                                '"SF Mono", Monaco, "Cascadia Code", monospace',
-                            }}
-                          >
-                            {step.command}
-                          </code>
+                  <AnimatePresence>
+                    {isActive && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.15 }}
+                      >
+                        <p className="text-xs text-text-muted mt-1 mb-3">
+                          {step.description}
+                        </p>
+
+                        {step.action && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleCopyCommand(step.command!);
+                              handleRunAction(step);
                             }}
-                            style={{
-                              padding: '4px 8px',
-                              backgroundColor: '#21262d',
-                              border: '1px solid #30363d',
-                              borderRadius: '4px',
-                              color: '#8b949e',
-                              cursor: 'pointer',
-                              fontSize: '11px',
-                            }}
+                            disabled={!isShellConnected || isRunning}
+                            className={`
+                              w-full py-2 px-3 rounded-lg text-xs font-medium
+                              transition-all
+                              ${isShellConnected && !isRunning
+                                ? 'bg-accent text-black hover:bg-accent/90'
+                                : 'bg-bg-muted text-text-muted cursor-not-allowed'
+                              }
+                            `}
                           >
-                            Copy
+                            {isRunning ? 'Running...' : step.action.label}
                           </button>
-                        </div>
-                      )}
-
-                      {step.hint && (
-                        <p
-                          style={{
-                            fontSize: '12px',
-                            color: '#d29922',
-                            fontStyle: 'italic',
-                          }}
-                        >
-                          💡 {step.hint}
-                        </p>
-                      )}
-
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleStepComplete(step.id);
-                        }}
-                        style={{
-                          marginTop: '12px',
-                          padding: '6px 12px',
-                          backgroundColor: '#238636',
-                          border: 'none',
-                          borderRadius: '6px',
-                          color: '#ffffff',
-                          cursor: 'pointer',
-                          fontSize: '13px',
-                          fontWeight: 500,
-                        }}
-                      >
-                        {idx === steps.length - 1 ? 'Complete!' : 'Next Step →'}
-                      </button>
-                    </>
-                  )}
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-              </div>
-            </div>
+              </button>
+            </motion.div>
           );
         })}
       </div>
-    </div>
+
+      {/* Footer */}
+      {isComplete && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="px-4 py-3 border-t border-border bg-success/10 text-center"
+        >
+          <p className="text-sm text-success font-medium">
+            {'\u2728'} You're all set!
+          </p>
+          <p className="text-xs text-text-muted mt-1">
+            Try <code className="text-accent">plunk push --watch</code> for live reload
+          </p>
+        </motion.div>
+      )}
+    </motion.div>
   );
 }

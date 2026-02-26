@@ -42,7 +42,8 @@ export async function ensureGitignore(
 }
 
 /**
- * Add "postinstall": "plunk restore || true" to package.json scripts.
+ * Add "postinstall": "npx @olegkuibar/plunk restore || true" to package.json scripts.
+ * Uses npx to ensure the command works even if plunk isn't globally installed.
  * Returns true if it was added.
  */
 export async function addPostinstall(pkgPath: string): Promise<boolean> {
@@ -52,13 +53,13 @@ export async function addPostinstall(pkgPath: string): Promise<boolean> {
   if (pkg.scripts?.postinstall) {
     if (pkg.scripts.postinstall.includes("plunk")) return false;
     consola.warn(
-      `Existing postinstall script found. Add ${pc.cyan("plunk restore")} manually if needed.`,
+      `Existing postinstall script found. Add ${pc.cyan("npx @olegkuibar/plunk restore")} manually if needed.`,
     );
     return false;
   }
 
   if (!pkg.scripts) pkg.scripts = {};
-  pkg.scripts.postinstall = "plunk restore || true";
+  pkg.scripts.postinstall = "npx @olegkuibar/plunk restore || true";
 
   const indent = content.match(/^(\s+)"/m)?.[1] || "  ";
   await writeFile(pkgPath, JSON.stringify(pkg, null, indent) + "\n");
