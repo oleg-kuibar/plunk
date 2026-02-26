@@ -6,15 +6,30 @@ process.env.UV_THREADPOOL_SIZE ??= String(Math.max(availableParallelism(), 8));
 
 import { defineCommand, runMain } from "citty";
 import { initFlags } from "./utils/logger.js";
+import { showBanner } from "./utils/banner.js";
 
 initFlags();
+
+// Show banner when running without subcommand or with --help
+const args = process.argv.slice(2);
+const hasSubcommand = args.some(
+  (arg) =>
+    !arg.startsWith("-") &&
+    [
+      "init", "publish", "add", "remove", "push", "dev",
+      "restore", "list", "status", "update", "clean", "gc",
+      "doctor", "migrate",
+    ].includes(arg)
+);
+if (!hasSubcommand) {
+  showBanner();
+}
 
 const main = defineCommand({
   meta: {
     name: "plunk",
     version: "0.1.0",
-    description:
-      "Modern local package development tool. Smart file copying for node_modules injection.",
+    description: "",
   },
   args: {
     verbose: {
