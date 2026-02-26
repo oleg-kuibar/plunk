@@ -3,6 +3,7 @@
 </p>
 
 <p align="center">
+  <a href="https://plunk-playground.vercel.app"><img src="https://img.shields.io/badge/Try_in_Browser-Playground-58a6ff?style=flat&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0tMiAxNWwtNS01IDEuNDEtMS40MUwxMCAxNC4xN2w3LjU5LTcuNTlMMTkgOGwtOSA5eiIvPjwvc3ZnPg==" alt="Playground" /></a>
   <a href="https://www.npmjs.com/package/@olegkuibar/plunk"><img src="https://img.shields.io/npm/v/@olegkuibar/plunk?color=blue" alt="npm version" /></a>
   <a href="https://www.npmjs.com/package/@olegkuibar/plunk"><img src="https://img.shields.io/npm/dm/@olegkuibar/plunk" alt="npm downloads" /></a>
   <a href="https://github.com/oleg-kuibar/plunk/actions/workflows/ci.yml"><img src="https://github.com/oleg-kuibar/plunk/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
@@ -86,6 +87,12 @@ pnpm add -g plunk       # or npm, yarn, bun
 npx plunk init          # set up a consumer project
 ```
 
+## Try it online
+
+Experience plunk directly in your browser with our interactive playground:
+
+**[Open Playground](https://plunk-playground.vercel.app)** — Run real `plunk publish`, `plunk add`, and `plunk push` commands with live HMR preview.
+
 ## Documentation
 
 | | |
@@ -96,6 +103,7 @@ npx plunk init          # set up a consumer project
 | [Bundler Guide](docs/bundlers.md) | Vite, Webpack, esbuild, Turbopack setup |
 | [Comparison](docs/comparison.md) | npm link vs yalc vs plunk |
 | [Examples](examples/) | Try it yourself with real packages |
+| [Playground](playground/) | Interactive browser-based playground |
 | [Contributing](CONTRIBUTING.md) | Dev setup and guidelines |
 
 ## License
