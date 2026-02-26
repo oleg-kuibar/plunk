@@ -1,5 +1,39 @@
 import type { FileSystemTree } from '@webcontainer/api';
 
+// Fun adjective-noun combinations for terminal prompt
+const ADJECTIVES = [
+  'happy', 'swift', 'cosmic', 'fuzzy', 'mighty', 'turbo', 'ultra', 'mega',
+  'hyper', 'super', 'epic', 'dapper', 'snappy', 'zippy', 'groovy', 'funky',
+  'clever', 'blazing', 'stellar', 'nimble', 'witty', 'zesty', 'plucky', 'jolly',
+];
+
+const NOUNS = [
+  'panda', 'rocket', 'phoenix', 'koala', 'dragon', 'falcon', 'tiger', 'penguin',
+  'otter', 'fox', 'owl', 'badger', 'dolphin', 'hawk', 'wolf', 'lynx',
+  'raven', 'falcon', 'bear', 'moose', 'rabbit', 'heron', 'crane', 'finch',
+];
+
+function generateFunnyName(): string {
+  const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
+  const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
+  return `${adj}-${noun}`;
+}
+
+// Store the name in sessionStorage to keep it consistent across HMR reloads
+function getOrCreatePlaygroundName(): string {
+  if (typeof window !== 'undefined' && window.sessionStorage) {
+    const stored = sessionStorage.getItem('plunk-playground-name');
+    if (stored) return stored;
+    const name = generateFunnyName();
+    sessionStorage.setItem('plunk-playground-name', name);
+    return name;
+  }
+  return generateFunnyName();
+}
+
+// Generate a consistent name for this session (stable across HMR)
+export const PLAYGROUND_NAME = getOrCreatePlaygroundName();
+
 export const basicTemplate: FileSystemTree = {
   'package.json': {
     file: {
@@ -8,7 +42,16 @@ export const basicTemplate: FileSystemTree = {
           name: 'plunk-playground-workspace',
           private: true,
           scripts: {
-            dev: 'cd consumer-app && npm run dev',
+            'publish:all': 'cd packages/api-client && npx -y @olegkuibar/plunk publish && cd ../ui-kit && npx -y @olegkuibar/plunk publish',
+            'link:all': 'cd consumer-app && npx -y @olegkuibar/plunk add @example/api-client && npx -y @olegkuibar/plunk add @example/ui-kit',
+            'start': 'cd consumer-app && npm install && npm run dev',
+            'build:api': 'cd packages/api-client && npm run build',
+            'build:ui': 'cd packages/ui-kit && npm run build',
+            'push:api': 'cd packages/api-client && npm run build && npx -y @olegkuibar/plunk push',
+            'push:ui': 'cd packages/ui-kit && npm run build && npx -y @olegkuibar/plunk push',
+          },
+          devDependencies: {
+            '@olegkuibar/plunk': 'latest',
           },
         },
         null,
@@ -38,6 +81,7 @@ export const basicTemplate: FileSystemTree = {
                   files: ['dist'],
                   scripts: {
                     build: 'tsc',
+                    dev: 'tsc --watch',
                   },
                   devDependencies: {
                     typescript: '^5.7.0',
@@ -221,6 +265,7 @@ export declare const VERSION: string;
                   files: ['dist'],
                   scripts: {
                     build: 'tsc',
+                    dev: 'tsc --watch',
                   },
                   peerDependencies: {
                     react: '^18.0.0',
@@ -557,6 +602,7 @@ export declare const UI_VERSION: string;
                 'react-dom': '^18.3.1',
               },
               devDependencies: {
+                '@olegkuibar/plunk': 'latest',
                 '@types/react': '^18.3.0',
                 '@types/react-dom': '^18.3.0',
                 '@vitejs/plugin-react': '^4.3.0',
@@ -572,9 +618,10 @@ export declare const UI_VERSION: string;
         file: {
           contents: `import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import plunk from '@olegkuibar/plunk/vite';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), plunk()],
   server: {
     port: 3000,
     host: true,
