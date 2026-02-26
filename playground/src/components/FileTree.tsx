@@ -21,7 +21,15 @@ interface TreeNode {
 const SYSTEM_FOLDERS = ['node_modules', '.plunk', '.vite', 'dist'];
 
 // Hidden files/folders to always exclude (not useful for playground)
-const HIDDEN_ENTRIES = ['.jshrc', '.bashrc', '.profile', '.npm', '.cache'];
+const HIDDEN_ENTRIES = [
+  '.jshrc', '.bashrc', '.profile', '.npm', '.cache',
+  '.bin', '.package-lock.json', '.modules.yaml',
+  'package-lock.json', 'pnpm-lock.yaml', 'yarn.lock',
+  '.DS_Store', 'Thumbs.db',
+];
+
+// In node_modules, only show these relevant entries
+const NODE_MODULES_ALLOWLIST = ['@example', '.plunk'];
 
 function FileIcon({ name, isDirectory }: { name: string; isDirectory: boolean }) {
   if (isDirectory) {
@@ -267,9 +275,16 @@ export function FileTree({
 
                 try {
                   const entries = await readdir(path);
+                  const isInNodeModules = path.includes('node_modules');
                   const children: TreeNode[] = entries
                     .filter((name) => {
                       const cleanName = name.replace(/\/$/, '');
+                      // Inside node_modules, only show allowlisted entries
+                      if (isInNodeModules && path.endsWith('node_modules')) {
+                        return NODE_MODULES_ALLOWLIST.some(allowed =>
+                          cleanName === allowed || cleanName.startsWith(allowed)
+                        );
+                      }
                       if (SYSTEM_FOLDERS.includes(cleanName)) return true;
                       if (HIDDEN_ENTRIES.includes(cleanName)) return false;
                       return true;
