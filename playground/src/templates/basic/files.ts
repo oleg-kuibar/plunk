@@ -630,6 +630,7 @@ export default defineConfig({
   server: {
     port: 3000,
     host: true,
+    watch: { usePolling: true, interval: 1000 },
   },
   // Ensure @example packages are resolved from node_modules (linked by plunk)
   resolve: {

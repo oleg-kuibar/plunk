@@ -22,6 +22,7 @@ export default function plunkPlugin(): Plugin {
   let rootDir: string;
   let cacheDir: string;
   let nodeModulesDir: string;
+  let pollTimer: ReturnType<typeof setInterval> | undefined;
 
   return {
     name: "vite-plugin-plunk",
@@ -36,22 +37,33 @@ export default function plunkPlugin(): Plugin {
       const stateFile = join(root, ".plunk", "state.json");
       const linkedPackages = readLinkedPackagesSync(stateFile);
 
-      if (linkedPackages.length === 0) return;
+      const result: UserConfig = {};
 
-      // Merge with existing optimizeDeps.exclude
-      const existingExclude = config.optimizeDeps?.exclude ?? [];
-      const newExclude = [
-        ...existingExclude,
-        ...linkedPackages.filter((pkg) => !existingExclude.includes(pkg)),
-      ];
+      if (linkedPackages.length > 0) {
+        // Merge with existing optimizeDeps.exclude
+        const existingExclude = config.optimizeDeps?.exclude ?? [];
+        const newExclude = [
+          ...existingExclude,
+          ...linkedPackages.filter((pkg) => !existingExclude.includes(pkg)),
+        ];
 
-      console.log(`[plunk] Excluding from pre-bundling: ${newExclude.join(", ")}`);
+        console.log(`[plunk] Excluding from pre-bundling: ${newExclude.join(", ")}`);
+        result.optimizeDeps = { exclude: newExclude };
+      }
 
-      return {
-        optimizeDeps: {
-          exclude: newExclude,
-        },
-      } satisfies UserConfig;
+      // WebContainers don't emit native filesystem events, so chokidar
+      // never fires. Enable polling for file-watching to work.
+      const isWebContainer = !!process.versions?.webcontainer;
+      if (isWebContainer && !config.server?.watch?.usePolling) {
+        result.server = {
+          watch: { usePolling: true, interval: 1000 },
+        };
+        console.log("[plunk] WebContainer detected, enabling filesystem polling");
+      }
+
+      if (Object.keys(result).length === 0) return;
+
+      return result satisfies UserConfig;
     },
 
     configResolved(config) {
@@ -63,33 +75,35 @@ export default function plunkPlugin(): Plugin {
     },
 
     configureServer(server) {
-      server.watcher.add(plunkStateFile);
-      console.log(`[plunk] Added watcher for: ${plunkStateFile}`);
+      // Mutable set of watched packages — updated whenever state.json changes
+      const watchedPackages = new Set<string>();
+      let isRestarting = false;
 
-      // Also watch linked packages in node_modules directly
-      const linkedPackages = readLinkedPackagesSync(plunkStateFile);
-      for (const pkg of linkedPackages) {
-        const pkgPath = join(nodeModulesDir, pkg);
-        server.watcher.add(pkgPath);
-        console.log(`[plunk] Added watcher for package: ${pkgPath}`);
+      /** Re-read state.json and add watchers for any new linked packages */
+      function syncPackageWatchers() {
+        for (const pkg of readLinkedPackagesSync(plunkStateFile)) {
+          if (!watchedPackages.has(pkg)) {
+            watchedPackages.add(pkg);
+            const pkgPath = join(nodeModulesDir, pkg);
+            server.watcher.add(pkgPath);
+            console.log(`[plunk] Added watcher for package: ${pkgPath}`);
+          }
+        }
       }
 
-      server.watcher.on("change", async (changedPath: string) => {
-        const normalizedChanged = normalize(changedPath);
-        const isStateFile = normalizedChanged === plunkStateFile;
-        const isLinkedPackage = linkedPackages.some(pkg =>
-          normalizedChanged.includes(normalize(join(nodeModulesDir, pkg)))
-        );
+      /** Clear Vite cache and restart the server */
+      async function clearCacheAndRestart(source: string) {
+        if (isRestarting) return;
+        isRestarting = true;
 
-        if (!isStateFile && !isLinkedPackage) return;
+        syncPackageWatchers();
 
-        console.log(`[plunk] Change detected: ${changedPath}`);
+        console.log(`[plunk] ${source}, restarting server...`);
         server.config.logger.info(
-          `[plunk] Detected ${isStateFile ? "push" : "package"} change, restarting server...`,
+          `[plunk] ${source}, restarting server...`,
           { timestamp: true }
         );
 
-        // Clear Vite's cache directory to ensure fresh module resolution
         try {
           if (existsSync(cacheDir)) {
             rmSync(cacheDir, { recursive: true, force: true });
@@ -99,10 +113,68 @@ export default function plunkPlugin(): Plugin {
           console.error(`[plunk] Failed to clear cache:`, err);
         }
 
-        // Restart the server to force complete re-resolution of all modules
-        // This is more reliable than just invalidating the module graph
-        await server.restart();
+        try {
+          await server.restart();
+        } finally {
+          isRestarting = false;
+        }
+      }
+
+      server.watcher.add(plunkStateFile);
+      console.log(`[plunk] Added watcher for: ${plunkStateFile}`);
+
+      // Initial sync
+      syncPackageWatchers();
+
+      // Primary detection: chokidar watcher (works outside WebContainers,
+      // and inside when usePolling is enabled and chokidar respects it)
+      server.watcher.on("change", async (changedPath: string) => {
+        const normalizedChanged = normalize(changedPath);
+        const isStateFile = normalizedChanged === plunkStateFile;
+        const isLinkedPackage = [...watchedPackages].some(pkg =>
+          normalizedChanged.includes(normalize(join(nodeModulesDir, pkg)))
+        );
+
+        if (!isStateFile && !isLinkedPackage) return;
+
+        await clearCacheAndRestart(
+          `Detected ${isStateFile ? "state.json" : "package"} change via watcher`
+        );
       });
+
+      // Fallback detection for WebContainers: poll state.json directly.
+      // Chokidar's polling may not work reliably inside WebContainers
+      // (no native FS events, virtualized filesystem). This reads the
+      // file content and compares it, bypassing chokidar entirely.
+      if (process.versions?.webcontainer) {
+        // Clean up timer from previous server instance (restart cycle)
+        if (pollTimer) clearInterval(pollTimer);
+
+        let lastStateContent = "";
+        try {
+          lastStateContent = readFileSync(plunkStateFile, "utf-8");
+        } catch {
+          // state.json doesn't exist yet
+        }
+
+        pollTimer = setInterval(async () => {
+          try {
+            const content = readFileSync(plunkStateFile, "utf-8");
+            if (lastStateContent && content !== lastStateContent) {
+              lastStateContent = content;
+              await clearCacheAndRestart(
+                "Detected state.json change via polling fallback"
+              );
+            }
+            // First read — just record the baseline
+            if (!lastStateContent) lastStateContent = content;
+          } catch {
+            // state.json doesn't exist yet
+          }
+        }, 2000);
+
+        console.log("[plunk] WebContainer polling fallback active (2s interval)");
+      }
     },
   };
 }
