@@ -81,9 +81,35 @@ export default function plunkPlugin(): Plugin {
 
       /** Re-read state.json and add watchers for any new linked packages */
       function syncPackageWatchers() {
+        let added = false;
         for (const pkg of readLinkedPackagesSync(plunkStateFile)) {
           if (!watchedPackages.has(pkg)) {
             watchedPackages.add(pkg);
+            added = true;
+          }
+        }
+
+        if (added && watchedPackages.size > 0) {
+          // Vite hardcodes **/node_modules/** in its chokidar ignored list.
+          // Override with a regex that allows our linked packages through.
+          // This is the standard workaround from vitejs/vite#8619.
+          const escaped = [...watchedPackages]
+            .map(p => p.replace(/[/\\.*+?^${}()|[\]]/g, "\\$&"))
+            .join("|");
+
+          server.watcher.options = {
+            ...server.watcher.options,
+            ignored: [
+              new RegExp(`node_modules\\/(?!(?:${escaped})(?:\\/|$)).*`),
+              "**/.git/**",
+              "**/test-results/**",
+            ],
+          };
+          // Force chokidar to recompute its ignored filter (lazy cache)
+          (server.watcher as any)._userIgnored = undefined;
+
+          // Now add() calls actually register with chokidar
+          for (const pkg of watchedPackages) {
             const pkgPath = join(nodeModulesDir, pkg);
             server.watcher.add(pkgPath);
             console.log(`[plunk] Added watcher for package: ${pkgPath}`);
@@ -171,9 +197,9 @@ export default function plunkPlugin(): Plugin {
           } catch {
             // state.json doesn't exist yet
           }
-        }, 2000);
+        }, 1000);
 
-        console.log("[plunk] WebContainer polling fallback active (2s interval)");
+        console.log("[plunk] WebContainer polling fallback active (1s interval)");
       }
     },
   };

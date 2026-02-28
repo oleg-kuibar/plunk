@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { WebContainer } from '@webcontainer/api';
 import type { FileSystemTree, WebContainerProcess } from '@webcontainer/api';
-import { basicTemplate, PLAYGROUND_NAME } from '../templates/basic/files';
+import { createBasicTemplate, PLAYGROUND_NAME } from '../templates/basic/files';
 
 export type BootStatus =
   | 'idle'
@@ -26,6 +26,24 @@ export interface UseWebContainerResult {
   readFile: (path: string) => Promise<string | null>;
   writeFile: (path: string, contents: string) => Promise<void>;
   readdir: (path: string) => Promise<string[]>;
+}
+
+const NPM_REGISTRY_URL = 'https://registry.npmjs.org/@olegkuibar/plunk';
+
+/** Fetch the latest canary version of plunk from npm registry */
+async function fetchLatestPlunkVersion(): Promise<string> {
+  try {
+    const res = await fetch(NPM_REGISTRY_URL);
+    if (!res.ok) throw new Error(`npm registry returned ${res.status}`);
+    const data = await res.json();
+    const canary = data['dist-tags']?.canary;
+    if (canary) return canary;
+    // Fall back to latest if no canary tag exists
+    return data['dist-tags']?.latest ?? 'latest';
+  } catch (err) {
+    console.warn('[plunk playground] Failed to fetch latest canary version, using "latest":', err);
+    return 'latest';
+  }
 }
 
 // Singleton WebContainer instance - only one per browser tab
@@ -72,9 +90,14 @@ export function useWebContainer(): UseWebContainerResult {
         containerRef.current = container;
         setStatus('mounting');
 
+        // Fetch latest canary version from npm and build the template
+        const plunkVersion = await fetchLatestPlunkVersion();
+        console.log(`[plunk playground] Using plunk version: ${plunkVersion}`);
+        const template = createBasicTemplate(plunkVersion);
+
         // Mount the template files at the workdir (default mount location)
         // The workdir is /home/plunk-<name>/ based on workdirName
-        await container.mount(basicTemplate as FileSystemTree);
+        await container.mount(template as FileSystemTree);
 
         if (cancelled) return;
 

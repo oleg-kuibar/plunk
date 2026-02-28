@@ -1,1 +1,1 @@
-export { basicTemplate } from './files';
+export { createBasicTemplate } from './files';

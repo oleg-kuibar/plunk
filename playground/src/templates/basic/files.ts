@@ -34,7 +34,8 @@ function getOrCreatePlaygroundName(): string {
 // Generate a consistent name for this session (stable across HMR)
 export const PLAYGROUND_NAME = getOrCreatePlaygroundName();
 
-export const basicTemplate: FileSystemTree = {
+export function createBasicTemplate(plunkVersion: string): FileSystemTree {
+  return {
   'package.json': {
     file: {
       contents: JSON.stringify(
@@ -51,7 +52,7 @@ export const basicTemplate: FileSystemTree = {
             'push:ui': 'cd packages/ui-kit && npm run build && npx -y @olegkuibar/plunk push',
           },
           devDependencies: {
-            '@olegkuibar/plunk': '0.4.0-canary.28830ce',
+            '@olegkuibar/plunk': plunkVersion,
           },
         },
         null,
@@ -607,7 +608,7 @@ export declare const UI_VERSION: string;
                 '@example/ui-kit': '*',
               },
               devDependencies: {
-                '@olegkuibar/plunk': '0.4.0-canary.28830ce',
+                '@olegkuibar/plunk': plunkVersion,
                 '@types/react': '^18.3.0',
                 '@types/react-dom': '^18.3.0',
                 '@vitejs/plugin-react': '^4.3.0',
@@ -882,3 +883,4 @@ export default App;
     },
   },
 };
+}
