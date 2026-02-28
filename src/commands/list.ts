@@ -46,7 +46,7 @@ async function listProject() {
     // Check staleness against store
     let stale = false;
     const storeEntry = await getStoreEntry(name, link.version);
-    if (storeEntry && storeEntry.meta.buildId && link.buildId && storeEntry.meta.buildId !== link.buildId) {
+    if (storeEntry && storeEntry.meta.contentHash !== link.contentHash) {
       stale = true;
     }
 

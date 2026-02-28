@@ -8,9 +8,9 @@ plunk — Modern local package development tool. Copies built files into `node_m
 
 - TypeScript (ESM, strict), Node.js >= 22.12
 - Package manager: pnpm
-- CLI: citty, consola, picocolors
+- CLI: citty, picocolors, custom `consola` logger (`src/utils/console.ts`)
 - File watching: chokidar v5
-- File hashing: xxhash-wasm (per-file), SHA-256 (aggregate content hash)
+- File hashing: xxhash-wasm (per-file, incremental copy), SHA-256 (aggregate content hash)
 - Build: tsup (bundles all deps)
 - Tests: vitest
 

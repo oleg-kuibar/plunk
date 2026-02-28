@@ -1,5 +1,4 @@
 import { readFile, writeFile, rename, stat } from "node:fs/promises";
-import { randomBytes } from "node:crypto";
 import { join, relative, dirname, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { platform } from "node:os";
@@ -152,7 +151,8 @@ export async function publish(
 
       const tmpDir = storeEntryDir + ".tmp-" + Date.now();
       const tmpPackageDir = join(tmpDir, "package");
-      const buildId = randomBytes(4).toString("hex");
+      // Derive buildId from first 8 hex chars of contentHash (after "sha256v2:" prefix)
+      const buildId = contentHash.slice(9, 17);
 
       try {
         await ensurePrivateDir(tmpPackageDir);

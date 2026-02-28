@@ -32,6 +32,23 @@ describe("hashFile", () => {
     const hash2 = await hashFile(file2);
     expect(hash1).not.toBe(hash2);
   });
+
+  it("returns a hex string", async () => {
+    const file = join(tempDir, "hex.txt");
+    await writeFile(file, "test hex format");
+    const hash = await hashFile(file);
+    expect(hash).toMatch(/^[a-f0-9]+$/);
+  });
+
+  it("handles large files via streaming path (>1MB)", async () => {
+    const file = join(tempDir, "large.bin");
+    // 2MB file to exceed STREAM_THRESHOLD
+    await writeFile(file, Buffer.alloc(2 * 1024 * 1024, 0xab));
+    const hash1 = await hashFile(file);
+    const hash2 = await hashFile(file);
+    expect(hash1).toMatch(/^[a-f0-9]+$/);
+    expect(hash1).toBe(hash2);
+  });
 });
 
 describe("computeContentHash", () => {

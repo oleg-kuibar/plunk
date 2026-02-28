@@ -20,6 +20,9 @@ importers:
       picomatch:
         specifier: ^4.0.3
         version: 4.0.3
+      xxhash-wasm:
+        specifier: ^1.1.0
+        version: 1.1.0
     devDependencies:
       '@types/node':
         specifier: ^25.2.3
@@ -743,6 +746,9 @@ packages:
     engines: {node: '>=8'}
     hasBin: true
 
+  xxhash-wasm@1.1.0:
+    resolution: {integrity: sha512-147y/6YNh+tlp6nd/2pWq38i9h6mz/EuQ6njIrmW8D1BS5nCqs0P6DG+m6zTGnNz5I+uhZ0SHxBs9BsPrwcKDA==}
+
 snapshots:
 
   '@esbuild/aix-ppc64@0.27.3':
@@ -1281,3 +1287,5 @@ snapshots:
     dependencies:
       siginfo: 2.0.0
       stackback: 0.0.2
+
+  xxhash-wasm@1.1.0: {}
