@@ -149,7 +149,7 @@ export async function publish(
         }
       }
 
-      const tmpDir = storeEntryDir + ".tmp-" + Date.now();
+      const tmpDir = storeEntryDir + `.tmp-${process.pid}-${Date.now()}`;
       const tmpPackageDir = join(tmpDir, "package");
       // Derive buildId from first 8 hex chars of contentHash (after "sha256v2:" prefix)
       const buildId = contentHash.slice(9, 17);
@@ -370,7 +370,7 @@ function rewriteProtocolVersions(pkg: PackageJson): PackageJson {
             fieldChanged = true;
             changed = true;
           } else {
-            verbose(`[publish] catalog: specifier for "${name}" not found, leaving as-is`);
+            consola.warn(`catalog: specifier for "${name}" could not be resolved — published package.json will contain "${version}" which may cause install failures`);
           }
         } else {
           verbose(`[publish] No pnpm-workspace.yaml found, cannot resolve catalog: for "${name}"`);
