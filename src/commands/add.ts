@@ -4,7 +4,7 @@ import { spawn } from "node:child_process";
 import { platform } from "node:os";
 import { resolve, basename, join } from "node:path";
 import { consola } from "../utils/console.js";
-import { findStoreEntry } from "../core/store.js";
+import { findStoreEntry, getStoreEntry } from "../core/store.js";
 import { publish } from "../core/publisher.js";
 import { inject, backupExisting, checkMissingDeps } from "../core/injector.js";
 import { addLink, registerConsumer, getLink } from "../core/tracker.js";
@@ -46,7 +46,9 @@ export default defineCommand({
     suppressHumanOutput();
     const timer = new Timer();
     const consumerPath = resolve(".");
-    const packageName = args.package;
+
+    // Parse optional version: "my-lib@1.0.0" or "@scope/my-lib@1.0.0"
+    const { name: packageName, version: pinnedVersion } = parsePackageArg(args.package);
 
     // If --from specified, publish from that path first
     if (args.from) {
@@ -55,11 +57,14 @@ export default defineCommand({
       await publish(fromPath);
     }
 
-    // Find package in store
-    const entry = await findStoreEntry(packageName);
+    // Find package in store (pinned version or latest)
+    const entry = pinnedVersion
+      ? await getStoreEntry(packageName, pinnedVersion)
+      : await findStoreEntry(packageName);
     if (!entry) {
+      const versionHint = pinnedVersion ? `@${pinnedVersion} ` : "";
       errorWithSuggestion(
-        `Package "${packageName}" not found in store. Run 'plunk publish' in the package directory first, or use --from <path>.`
+        `Package "${packageName}"${versionHint ? " " + versionHint : ""} not found in store. Run 'plunk publish' in the package directory first, or use --from <path>.`
       );
       process.exit(1);
     }
@@ -277,6 +282,31 @@ function runInstallCommand(cmd: string, cwd: string): Promise<boolean> {
  * Warn if the store version doesn't match the consumer's declared dependency range.
  * Uses a lightweight major-version check to avoid adding a semver dependency.
  */
+/**
+ * Parse a package argument like "my-lib" or "my-lib@1.0.0" or "@scope/my-lib@1.0.0".
+ * Returns the package name and optional pinned version.
+ */
+function parsePackageArg(arg: string): { name: string; version: string | null } {
+  // For scoped packages (@scope/name@version), find the @ that's NOT at index 0
+  if (arg.startsWith("@")) {
+    const slashIdx = arg.indexOf("/");
+    if (slashIdx > 0) {
+      const afterScope = arg.indexOf("@", slashIdx);
+      if (afterScope > slashIdx) {
+        return { name: arg.slice(0, afterScope), version: arg.slice(afterScope + 1) };
+      }
+    }
+    return { name: arg, version: null };
+  }
+
+  // For unscoped packages (name@version)
+  const atIdx = arg.lastIndexOf("@");
+  if (atIdx > 0) {
+    return { name: arg.slice(0, atIdx), version: arg.slice(atIdx + 1) };
+  }
+  return { name: arg, version: null };
+}
+
 async function warnVersionMismatch(
   consumerPath: string,
   packageName: string,
