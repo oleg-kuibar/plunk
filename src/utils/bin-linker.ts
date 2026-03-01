@@ -61,7 +61,8 @@ export async function createBinLinks(
     if (isWindows) {
       // Create .cmd wrapper
       const cmdPath = join(binDir, `${binName}.cmd`);
-      const cmdContent = `@ECHO off\r\nGOTO start\r\n:find_dp0\r\nSET dp0=%~dp0\r\nEXIT /b\r\n:start\r\nCALL :find_dp0\r\n"%dp0%\\${targetRelative}" %*\r\n`;
+      const targetWindows = targetRelative.replace(/\//g, "\\");
+      const cmdContent = `@ECHO off\r\nGOTO start\r\n:find_dp0\r\nSET dp0=%~dp0\r\nEXIT /b\r\n:start\r\nCALL :find_dp0\r\n"%dp0%\\${targetWindows}" %*\r\n`;
       await writeFile(cmdPath, cmdContent);
 
       // Also create a shell script for Git Bash/WSL
