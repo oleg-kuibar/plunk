@@ -1,7 +1,7 @@
 {
   "name": "@olegkuibar/plunk",
   "version": "0.4.0",
-  "description": "Modern local package development tool. Smart file copying into node_modules — no symlinks, no git contamination.",
+  "description": "Local npm package development without symlinks. Copies built files into consumer node_modules with incremental sync and watch mode.",
   "type": "module",
   "bin": {
     "plunk": "./dist/cli.mjs"

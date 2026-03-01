@@ -2,7 +2,7 @@
 
 ## Project
 
-plunk — Modern local package development tool. Copies built files into `node_modules/` instead of using symlinks.
+plunk — Local npm package development without symlinks. Copies built files into consumer `node_modules/` with incremental sync and watch mode.
 
 ## Tech stack
 

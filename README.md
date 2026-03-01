@@ -16,7 +16,7 @@
 
 # plunk
 
-Modern local package development tool. Smart file copying into `node_modules` — no symlinks, no git contamination.
+Local npm package development without symlinks. Copies built files directly into consumer `node_modules/` with incremental sync, watch mode, and support for every package manager and bundler.
 
 ```bash
 npx plunk init       # set up your app
@@ -24,11 +24,11 @@ plunk add my-lib     # link a package
 plunk push --watch   # continuous dev mode
 ```
 
-## Why not symlinks?
+## Why plunk?
 
-`npm link` creates symlinks that break module resolution: duplicate React instances, peer dep mismatches, bundlers that can't follow links outside the project root. `yalc` improves on this but [still has issues](https://github.com/wclr/yalc/issues) with pnpm, git contamination, and watch mode.
+Symlink-based tools (`npm link`) break module resolution — duplicate React instances, peer dep mismatches, bundlers refusing to resolve outside the project root. These are fundamental limitations of how Node resolves symlinked packages.
 
-**plunk** just copies built files directly into `node_modules/`. It works.
+**plunk** sidesteps all of this by copying built files directly into `node_modules/`. Your consumer app sees real files exactly where it expects them — every bundler, every package manager, every framework just works.
 
 ## How it works
 
@@ -74,14 +74,18 @@ plunk push --watch --build "pnpm build"
 
 ## At a glance
 
-| | npm link | yalc | plunk |
-|---|---|---|---|
-| Module resolution | Broken (dual instances) | Works | Works |
-| Git contamination | None | package.json + .yalc/ | None |
-| Bundler HMR | Often broken | Fragile | Works |
-| pnpm support | Fragile | Broken since v7.10 | Works |
-| Watch mode | None | External | Built-in |
-| Survives `npm install` | No | No | `plunk restore` |
+| Feature | plunk |
+|---|---|
+| Mechanism | Copies real files into `node_modules/` |
+| Module resolution | Correct (no symlink issues) |
+| Git status | Clean (no modified files) |
+| Package managers | npm, pnpm, yarn, bun |
+| Bundler HMR | Works (Vite, Webpack, Turbopack, esbuild) |
+| Watch mode | Built-in (`plunk dev` / `plunk push --watch`) |
+| Survives `npm install` | Yes (`plunk restore`) |
+| Multi-consumer push | Yes (push to all apps at once) |
+| Incremental sync | xxHash-based file diffing, mtime fast-skip |
+| Copy-on-Write | APFS, btrfs, ReFS reflinks with auto fallback |
 
 ## Install
 

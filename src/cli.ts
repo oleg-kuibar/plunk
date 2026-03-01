@@ -31,7 +31,7 @@ const main = defineCommand({
   meta: {
     name: "plunk",
     version: typeof __PLUNK_VERSION__ !== "undefined" ? __PLUNK_VERSION__ : "0.0.0-dev",
-    description: "",
+    description: "Local npm package development — copies built files into consumer node_modules",
   },
   args: {
     verbose: {
