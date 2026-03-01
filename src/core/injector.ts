@@ -195,7 +195,7 @@ async function resolveTargetDir(
   const pnpmDir = join(consumerPath, "node_modules", ".pnpm");
   if (await exists(pnpmDir)) {
     verbose(`[inject] pnpm: scanning .pnpm/ for ${packageName}`);
-    const encodedName = packageName.replace("/", "+");
+    const encodedName = packageName.replaceAll("/", "+");
 
     // Try exact version match first
     if (version) {
