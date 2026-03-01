@@ -3,12 +3,10 @@
 </p>
 
 <p align="center">
-  <a href="https://plunk-playground.vercel.app"><img src="https://img.shields.io/badge/Try_in_Browser-Playground-58a6ff?style=flat&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0tMiAxNWwtNS01IDEuNDEtMS40MUwxMCAxNC4xN2w3LjU5LTcuNTlMMTkgOGwtOSA5eiIvPjwvc3ZnPg==" alt="Playground" /></a>
+  <a href="https://plunk.olegkuibar.dev/"><img src="https://img.shields.io/badge/Try_in_Browser-Playground-58a6ff?style=flat&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0tMiAxNWwtNS01IDEuNDEtMS40MUwxMCAxNC4xN2w3LjU5LTcuNTlMMTkgOGwtOSA5eiIvPjwvc3ZnPg==" alt="Playground" /></a>
   <a href="https://www.npmjs.com/package/@olegkuibar/plunk"><img src="https://img.shields.io/npm/v/@olegkuibar/plunk?color=blue" alt="npm version" /></a>
   <a href="https://www.npmjs.com/package/@olegkuibar/plunk"><img src="https://img.shields.io/npm/dm/@olegkuibar/plunk" alt="npm downloads" /></a>
-  <a href="https://bundlephobia.com/package/@olegkuibar/plunk"><img src="https://badgen.net/bundlephobia/minzip/@olegkuibar/plunk" alt="minzipped size" /></a>
-  <a href="https://bundlephobia.com/package/@olegkuibar/plunk"><img src="https://badgen.net/bundlephobia/dependency-count/@olegkuibar/plunk" alt="dependency count" /></a>
-  <a href="https://bundlephobia.com/package/@olegkuibar/plunk"><img src="https://badgen.net/bundlephobia/tree-shaking/@olegkuibar/plunk" alt="tree-shaking" /></a>
+  <a href="https://www.npmjs.com/package/@olegkuibar/plunk"><img src="https://img.shields.io/npm/unpacked-size/%40olegkuibar%2Fplunk" alt="npm package size" /></a>
   <a href="https://github.com/oleg-kuibar/plunk/actions/workflows/ci.yml"><img src="https://github.com/oleg-kuibar/plunk/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="https://github.com/oleg-kuibar/plunk/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="license" /></a>
   <img src="https://img.shields.io/badge/node-%3E%3D22.12-brightgreen" alt="node version" />
