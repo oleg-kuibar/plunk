@@ -1,6 +1,7 @@
 import { defineCommand } from "citty";
 import { resolve } from "node:path";
 import { consola } from "../utils/console.js";
+import pLimit from "../utils/concurrency.js";
 import { readConsumerState, addLink } from "../core/tracker.js";
 import { findStoreEntry, getStoreEntry } from "../core/store.js";
 import { inject } from "../core/injector.js";
@@ -9,6 +10,8 @@ import { suppressHumanOutput, output } from "../utils/output.js";
 import { errorWithSuggestion } from "../utils/errors.js";
 import { verbose } from "../utils/logger.js";
 import type { LinkEntry } from "../types.js";
+
+const updateLimit = pLimit(4);
 
 export default defineCommand({
   meta: {
@@ -48,38 +51,46 @@ export default defineCommand({
     let updated = 0;
     let skipped = 0;
 
-    for (const [packageName, link] of toUpdate) {
-      // Find the latest store entry for this package
-      const entry = await findStoreEntry(packageName);
-      if (!entry) {
-        consola.warn(`Store entry missing for ${packageName}. Re-publish it.`);
-        continue;
-      }
+    const results = await Promise.all(
+      toUpdate.map(([packageName, link]) =>
+        updateLimit(async () => {
+          // Find the latest store entry for this package
+          const entry = await findStoreEntry(packageName);
+          if (!entry) {
+            consola.warn(`Store entry missing for ${packageName}. Re-publish it.`);
+            return "missing" as const;
+          }
 
-      // Check if content hash has changed
-      if (entry.meta.contentHash === link.contentHash) {
-        verbose(`[update] ${packageName}@${entry.version} already up to date`);
-        skipped++;
-        continue;
-      }
+          // Check if content hash has changed
+          if (entry.meta.contentHash === link.contentHash) {
+            verbose(`[update] ${packageName}@${entry.version} already up to date`);
+            return "skipped" as const;
+          }
 
-      // Inject the updated version
-      const result = await inject(entry, consumerPath, link.packageManager);
+          // Inject the updated version
+          const result = await inject(entry, consumerPath, link.packageManager);
 
-      // Update link entry
-      const updatedLink: LinkEntry = {
-        ...link,
-        version: entry.version,
-        contentHash: entry.meta.contentHash,
-        buildId: entry.meta.buildId ?? "",
-        linkedAt: new Date().toISOString(),
-      };
-      await addLink(consumerPath, packageName, updatedLink);
+          // Update link entry
+          const updatedLink: LinkEntry = {
+            ...link,
+            version: entry.version,
+            contentHash: entry.meta.contentHash,
+            buildId: entry.meta.buildId ?? "",
+            linkedAt: new Date().toISOString(),
+          };
+          await addLink(consumerPath, packageName, updatedLink);
 
-      consola.success(
-        `Updated ${packageName}@${entry.version} (${result.copied} files changed)`
-      );
-      updated++;
+          consola.success(
+            `Updated ${packageName}@${entry.version} (${result.copied} files changed)`
+          );
+          return "updated" as const;
+        })
+      )
+    );
+
+    for (const r of results) {
+      if (r === "updated") updated++;
+      else if (r === "skipped") skipped++;
     }
 
     consola.info(
