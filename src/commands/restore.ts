@@ -83,6 +83,7 @@ export default defineCommand({
       )
     );
 
+    const failedPackages: string[] = [];
     for (const r of results) {
       if (r.success) {
         consola.success(
@@ -91,12 +92,13 @@ export default defineCommand({
         restored++;
       } else {
         failed++;
+        failedPackages.push(r.packageName);
       }
     }
 
     consola.info(
       `Restore complete: ${restored} restored, ${failed} failed in ${timer.elapsed()}`
     );
-    output({ restored, failed, elapsed: timer.elapsedMs() });
+    output({ restored, failed, failedPackages, elapsed: timer.elapsedMs() });
   },
 });
