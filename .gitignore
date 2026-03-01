@@ -23,6 +23,9 @@ Thumbs.db
 # Coverage
 coverage/
 
+# Benchmark results
+bench-results.json
+
 # Env
 .env
 .env.local

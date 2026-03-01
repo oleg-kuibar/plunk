@@ -10,5 +10,9 @@ export default defineConfig({
         lines: 70,
       },
     },
+    benchmark: {
+      include: ["**/*.bench.ts"],
+      outputJson: "bench-results.json",
+    },
   },
 });
