@@ -63,6 +63,18 @@ const SUGGESTIONS: Suggestion[] = [
     pattern: /timed out/i,
     message: "Set PLUNK_HOOK_TIMEOUT to a higher value (in ms) if your scripts need more time.",
   },
+  {
+    pattern: /state.*corrupt|corrupt.*state/i,
+    message: "Delete .plunk/state.json and re-run 'plunk add' for each package.",
+  },
+  {
+    pattern: /EBUSY/i,
+    message: "A file is locked by another process (e.g. dev server). Stop the process and retry.",
+  },
+  {
+    pattern: /Invalid package name/i,
+    message: "Package names must be non-empty. Use format: package-name or @scope/package-name.",
+  },
 ];
 
 /**
