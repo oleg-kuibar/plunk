@@ -38,7 +38,7 @@ export async function startWatcher(
   );
 
   const debounceMs = options.debounce ?? 500;
-  const cooldownMs = 2000; // Minimum time between builds
+  const cooldownMs = options.cooldown ?? 500;
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   let closed = false;
   let running = false;
@@ -71,6 +71,16 @@ export async function startWatcher(
     } finally {
       running = false;
       lastBuildEndTime = Date.now();
+
+      // Drain pending changes: if file events arrived while we were building,
+      // schedule a new build after cooldown so those changes aren't silently dropped.
+      if (hasPendingChanges && !closed) {
+        hasPendingChanges = false;
+        debounceTimer = setTimeout(() => {
+          debounceTimer = null;
+          doBuild();
+        }, cooldownMs);
+      }
     }
   };
 
@@ -83,10 +93,16 @@ export async function startWatcher(
       return;
     }
 
-    // Ignore events during cooldown period
+    // During cooldown: schedule a build for when cooldown expires
     const timeSinceLastBuild = Date.now() - lastBuildEndTime;
     if (lastBuildEndTime > 0 && timeSinceLastBuild < cooldownMs) {
-      hasPendingChanges = true;
+      if (!debounceTimer) {
+        const remainingCooldown = cooldownMs - timeSinceLastBuild;
+        debounceTimer = setTimeout(() => {
+          debounceTimer = null;
+          doBuild();
+        }, remainingCooldown + debounceMs);
+      }
       return;
     }
 
@@ -138,16 +154,6 @@ export async function startWatcher(
   };
 
   activeWatcher = watcherHandle;
-
-  // Register signal handlers for graceful shutdown (once to prevent accumulation)
-  const cleanup = async () => {
-    consola.info("Stopping watcher...");
-    await watcherHandle.close();
-    process.exit(0);
-  };
-
-  process.once("SIGINT", cleanup);
-  process.once("SIGTERM", cleanup);
 
   consola.info(`Watching for changes in: ${patterns.join(", ")}`);
 
