@@ -274,7 +274,7 @@ export async function atomicWriteFile(
     verbose(`[dry-run] would write ${filePath}`);
     return;
   }
-  const tmpPath = filePath + ".tmp";
+  const tmpPath = filePath + `.tmp-${process.pid}-${Date.now()}`;
   await writeFile(tmpPath, data);
   await rename(tmpPath, filePath);
 }
