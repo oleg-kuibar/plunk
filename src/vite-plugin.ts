@@ -78,6 +78,8 @@ export default function plunkPlugin(): Plugin {
       // Mutable set of watched packages — updated whenever state.json changes
       const watchedPackages = new Set<string>();
       let isRestarting = false;
+      let pendingRestart = false;
+      let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
       /** Re-read state.json and add watchers for any new linked packages */
       function syncPackageWatchers() {
@@ -117,9 +119,14 @@ export default function plunkPlugin(): Plugin {
         }
       }
 
-      /** Clear Vite cache and restart the server */
+      /** Clear Vite cache and restart the server, queuing if already restarting */
       async function clearCacheAndRestart(source: string) {
-        if (isRestarting) return;
+        if (isRestarting) {
+          // Queue a restart after the current one finishes
+          pendingRestart = true;
+          console.log(`[plunk] Restart already in progress, queued: ${source}`);
+          return;
+        }
         isRestarting = true;
 
         syncPackageWatchers();
@@ -143,7 +150,21 @@ export default function plunkPlugin(): Plugin {
           await server.restart();
         } finally {
           isRestarting = false;
+          // If another change arrived during restart, restart again
+          if (pendingRestart) {
+            pendingRestart = false;
+            await clearCacheAndRestart("Queued change detected");
+          }
         }
+      }
+
+      /** Debounced restart — coalesces rapid changes into one restart */
+      function scheduleRestart(source: string) {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          debounceTimer = null;
+          clearCacheAndRestart(source);
+        }, 100);
       }
 
       server.watcher.add(plunkStateFile);
@@ -163,7 +184,7 @@ export default function plunkPlugin(): Plugin {
 
         if (!isStateFile && !isLinkedPackage) return;
 
-        await clearCacheAndRestart(
+        scheduleRestart(
           `Detected ${isStateFile ? "state.json" : "package"} change via watcher`
         );
       });
@@ -188,7 +209,7 @@ export default function plunkPlugin(): Plugin {
             const content = readFileSync(plunkStateFile, "utf-8");
             if (lastStateContent && content !== lastStateContent) {
               lastStateContent = content;
-              await clearCacheAndRestart(
+              scheduleRestart(
                 "Detected state.json change via polling fallback"
               );
             }
