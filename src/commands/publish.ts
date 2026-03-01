@@ -1,11 +1,14 @@
 import { defineCommand } from "citty";
 import { resolve } from "node:path";
 import { consola } from "../utils/console.js";
+import pLimit from "../utils/concurrency.js";
 import { publish } from "../core/publisher.js";
 import { Timer } from "../utils/timer.js";
 import { suppressHumanOutput, output } from "../utils/output.js";
 import { errorWithSuggestion } from "../utils/errors.js";
 import { verbose } from "../utils/logger.js";
+
+const publishLimit = pLimit(4);
 
 export default defineCommand({
   meta: {
@@ -61,20 +64,25 @@ export default defineCommand({
       let skipped = 0;
       let failed = 0;
 
-      for (const pkgDir of packages) {
-        try {
-          const result = await publish(pkgDir, publishOpts);
-          if (result.skipped) {
-            skipped++;
-          } else {
-            published++;
-          }
-        } catch (err) {
-          failed++;
-          consola.warn(
-            `Failed to publish ${pkgDir}: ${err instanceof Error ? err.message : String(err)}`
-          );
-        }
+      const results = await Promise.all(
+        packages.map((pkgDir) =>
+          publishLimit(async () => {
+            try {
+              const result = await publish(pkgDir, publishOpts);
+              return result.skipped ? ("skipped" as const) : ("published" as const);
+            } catch (err) {
+              consola.warn(
+                `Failed to publish ${pkgDir}: ${err instanceof Error ? err.message : String(err)}`
+              );
+              return "failed" as const;
+            }
+          })
+        )
+      );
+      for (const r of results) {
+        if (r === "published") published++;
+        else if (r === "skipped") skipped++;
+        else failed++;
       }
 
       consola.success(
