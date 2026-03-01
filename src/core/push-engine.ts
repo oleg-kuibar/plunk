@@ -63,6 +63,7 @@ export async function doPush(
   let totalCopied = 0;
   let totalSkipped = 0;
   let pushCount = 0;
+  let failedCount = 0;
 
   const results = await Promise.all(
     consumers.map((consumerPath) =>
@@ -109,6 +110,8 @@ export async function doPush(
       totalCopied += r.copied;
       totalSkipped += r.skipped;
       pushCount++;
+    } else {
+      failedCount++;
     }
   }
 
@@ -122,6 +125,7 @@ export async function doPush(
     version: result.version,
     buildId: result.buildId,
     consumers: pushCount,
+    failedConsumers: failedCount,
     copied: totalCopied,
     skipped: totalSkipped,
     elapsed: timer.elapsedMs(),
@@ -131,6 +135,55 @@ export async function doPush(
 export interface WatchConfig {
   buildCmd?: string;
   patterns?: string[];
+}
+
+/** Common CLI args shared by push --watch and dev */
+export interface WatchArgs {
+  build?: string;
+  "skip-build"?: boolean;
+  debounce?: string;
+  cooldown?: string;
+}
+
+/** Parse a string CLI arg as an integer, returning undefined if invalid */
+function parseMs(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const n = parseInt(value, 10);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+/**
+ * Start watch mode: resolve config, start watcher, wait for signal.
+ * Shared by both `push --watch` and `dev` commands.
+ */
+export async function startWatchMode(
+  packageDir: string,
+  args: WatchArgs,
+  push: () => Promise<void>
+): Promise<void> {
+  const { startWatcher } = await import("./watcher.js");
+  const { buildCmd, patterns } = await resolveWatchConfig(packageDir, args);
+
+  const watcher = await startWatcher(
+    packageDir,
+    {
+      patterns,
+      buildCmd,
+      debounce: parseMs(args.debounce),
+      cooldown: parseMs(args.cooldown),
+    },
+    push
+  );
+
+  await new Promise<void>((resolve) => {
+    const cleanup = async () => {
+      consola.info("Stopping watcher...");
+      await watcher.close();
+      resolve();
+    };
+    process.once("SIGINT", cleanup);
+    process.once("SIGTERM", cleanup);
+  });
 }
 
 /**
@@ -158,9 +211,17 @@ export async function resolveWatchConfig(
   }
 
   if (buildCmd) {
-    // With a build command: only watch source directories (not dist/)
-    // to avoid infinite loop where build output triggers another build
-    patterns = ["src", "lib"];
+    // With a build command: watch source directories that actually exist.
+    // Avoids infinite loop where build output (dist/) triggers another build.
+    const { exists } = await import("../utils/fs.js");
+    const candidates = ["src", "lib", "source", "app", "pages", "components"];
+    const existing = (await Promise.all(
+      candidates.map(async (dir) => ({
+        dir,
+        exists: await exists(join(packageDir, dir)),
+      }))
+    )).filter((c) => c.exists).map((c) => c.dir);
+    patterns = existing.length > 0 ? existing : ["src", "lib"];
     verbose(`[watch] Using source patterns with build command: ${patterns.join(", ")}`);
   } else {
     // Without a build command: watch the package.json `files` field (typically dist/)

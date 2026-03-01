@@ -4,7 +4,8 @@ export interface PlunkMeta {
   contentHash: string;
   publishedAt: string;
   sourcePath: string;
-  buildId: string;
+  /** 8-char hex ID derived from content hash. Missing in pre-buildId store entries. */
+  buildId?: string;
 }
 
 /** A store entry representing a published package */
@@ -23,7 +24,8 @@ export interface LinkEntry {
   sourcePath: string;
   backupExists: boolean;
   packageManager: PackageManager;
-  buildId: string;
+  /** 8-char hex ID. Missing in pre-buildId state files. */
+  buildId?: string;
 }
 
 /** Consumer project state file (.plunk/state.json) */
@@ -48,8 +50,10 @@ export interface WatchOptions {
   patterns?: string[];
   /** Build command to run before publishing */
   buildCmd?: string;
-  /** Debounce delay in ms (default: 300) */
+  /** Debounce delay in ms (default: 500) */
   debounce?: number;
+  /** Minimum time between builds in ms (default: 500) */
+  cooldown?: number;
   /** Enable awaitWriteFinish for large/slow writes (auto-enabled when no buildCmd) */
   awaitWriteFinish?:
     | boolean

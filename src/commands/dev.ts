@@ -1,8 +1,7 @@
 import { defineCommand } from "citty";
 import { resolve } from "node:path";
 import { suppressHumanOutput } from "../utils/output.js";
-import { doPush, resolveWatchConfig } from "../core/push-engine.js";
-import { startWatcher } from "../core/watcher.js";
+import { doPush, startWatchMode } from "../core/push-engine.js";
 
 export default defineCommand({
   meta: {
@@ -22,7 +21,11 @@ export default defineCommand({
     },
     debounce: {
       type: "string",
-      description: "Debounce delay in ms (default: 100)",
+      description: "Debounce delay in ms (default: 500)",
+    },
+    cooldown: {
+      type: "string",
+      description: "Minimum time between builds in ms (default: 500)",
     },
     "no-scripts": {
       type: "boolean",
@@ -36,27 +39,10 @@ export default defineCommand({
 
     const push = () => doPush(packageDir, { runScripts: !args["no-scripts"] });
 
-    const { buildCmd, patterns } = await resolveWatchConfig(packageDir, args);
-
     // Initial push
     await push();
 
-    // Start watcher
-    await startWatcher(
-      packageDir,
-      {
-        patterns,
-        buildCmd,
-        debounce: args.debounce
-          ? (Number.isFinite(parseInt(args.debounce, 10)) ? parseInt(args.debounce, 10) : undefined)
-          : undefined,
-      },
-      push,
-    );
-
-    await new Promise<void>((resolve) => {
-      process.once("SIGINT", resolve);
-      process.once("SIGTERM", resolve);
-    });
+    // Start watching
+    await startWatchMode(packageDir, args, push);
   },
 });
