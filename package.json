@@ -1,6 +1,6 @@
 {
   "name": "@olegkuibar/plunk",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Local npm package development without symlinks. Copies built files into consumer node_modules with incremental sync and watch mode.",
   "type": "module",
   "bin": {
