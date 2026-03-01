@@ -93,16 +93,16 @@ export async function startWatcher(
       return;
     }
 
-    // During cooldown: schedule a build for when cooldown expires
+    // During cooldown: schedule a build for when cooldown expires.
+    // Reset the timer on each event to properly coalesce rapid changes.
     const timeSinceLastBuild = Date.now() - lastBuildEndTime;
     if (lastBuildEndTime > 0 && timeSinceLastBuild < cooldownMs) {
-      if (!debounceTimer) {
-        const remainingCooldown = cooldownMs - timeSinceLastBuild;
-        debounceTimer = setTimeout(() => {
-          debounceTimer = null;
-          doBuild();
-        }, remainingCooldown + debounceMs);
-      }
+      if (debounceTimer) clearTimeout(debounceTimer);
+      const remainingCooldown = cooldownMs - timeSinceLastBuild;
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        doBuild();
+      }, remainingCooldown + debounceMs);
       return;
     }
 
