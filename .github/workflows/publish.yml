@@ -158,9 +158,15 @@ jobs:
         if: steps.mode.outputs.mode == 'release' && inputs.dry_run != true
         run: npm publish --provenance --access public
 
+      - name: Generate release notes
+        if: steps.mode.outputs.mode == 'release' && inputs.dry_run != true
+        run: |
+          npx git-cliff --latest --strip header -o RELEASE_NOTES.md
+          cat RELEASE_NOTES.md
+
       - name: Create GitHub Release
         if: steps.mode.outputs.mode == 'release' && inputs.dry_run != true
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag || github.ref_name }}
-          generate_release_notes: true
+          body_path: RELEASE_NOTES.md
