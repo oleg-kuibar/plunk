@@ -4,7 +4,7 @@ import { defineCommand } from "citty";
 import { consola } from "../utils/console.js";
 import {
   readConsumersRegistry,
-  readConsumerState,
+  readConsumerStateSafe,
   cleanStaleConsumers,
 } from "../core/tracker.js";
 import { listStoreEntries, removeStoreEntry } from "../core/store.js";
@@ -39,13 +39,38 @@ export default defineCommand({
 
     const allConsumerPaths = [...new Set(Object.values(registry).flat())];
     const states = await Promise.all(
-      allConsumerPaths.map(async (p) => ({ path: p, state: await readConsumerState(p) }))
+      allConsumerPaths.map(async (p) => {
+        const { state, reliable } = await readConsumerStateSafe(p);
+        return { path: p, state, reliable };
+      })
     );
-    for (const { state } of states) {
-      for (const [pkgName, link] of Object.entries(state.links)) {
-        referenced.add(`${pkgName}@${link.version}`);
+    for (const { state, reliable } of states) {
+      if (reliable) {
+        for (const [pkgName, link] of Object.entries(state.links)) {
+          referenced.add(`${pkgName}@${link.version}`);
+        }
       }
     }
+
+    // Protect ALL packages registered to consumers with corrupt state files.
+    // We can't read their links, so we must preserve any store entry they might reference.
+    const protectedPackages = new Set<string>();
+    const unreliableConsumers = states.filter((s) => !s.reliable);
+    if (unreliableConsumers.length > 0) {
+      consola.warn(
+        `${unreliableConsumers.length} consumer(s) have corrupt state — their store entries will be preserved`
+      );
+      const unreliablePaths = new Set(
+        unreliableConsumers.map((s) => s.path.replace(/\\/g, "/"))
+      );
+      for (const [pkgName, consumers] of Object.entries(registry)) {
+        if (consumers.some((c) => unreliablePaths.has(c))) {
+          protectedPackages.add(pkgName);
+        }
+      }
+      verbose(`[clean] Protected packages (corrupt state): ${[...protectedPackages].join(", ")}`);
+    }
+
     verbose(`[clean] Referenced entries: ${[...referenced].join(", ") || "(none)"}`);
 
     // 3. Find and remove unreferenced store entries
@@ -55,6 +80,11 @@ export default defineCommand({
     for (const entry of storeEntries) {
       const key = `${entry.name}@${entry.version}`;
       if (!referenced.has(key)) {
+        // Protect entries for packages with unreadable consumer state
+        if (protectedPackages.has(entry.name)) {
+          verbose(`[clean] Preserving ${key} (consumer state unreadable)`);
+          continue;
+        }
         // Grace period: don't remove recently-published entries
         const age = Date.now() - new Date(entry.meta.publishedAt).getTime();
         if (age < 5 * 60 * 1000) {

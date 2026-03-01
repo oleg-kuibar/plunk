@@ -22,20 +22,35 @@ import { isConsumerState, isConsumersRegistry } from "../utils/validators.js";
 export async function readConsumerState(
   consumerPath: string
 ): Promise<ConsumerState> {
+  const { state } = await readConsumerStateSafe(consumerPath);
+  return state;
+}
+
+/**
+ * Read consumer state with reliability information.
+ * Returns `reliable: true` when the state is trustworthy (valid file or ENOENT).
+ * Returns `reliable: false` when the file exists but is corrupt/unreadable,
+ * meaning the consumer might have links we can't see.
+ */
+export async function readConsumerStateSafe(
+  consumerPath: string
+): Promise<{ state: ConsumerState; reliable: boolean }> {
   const statePath = getConsumerStatePath(consumerPath);
   try {
     const content = await readFile(statePath, "utf-8");
     const parsed = JSON.parse(content);
     if (!isConsumerState(parsed)) {
       consola.warn(`Invalid consumer state in ${statePath}, using defaults`);
-      return { version: "1", links: {} };
+      return { state: { version: "1", links: {} }, reliable: false };
     }
-    return parsed;
+    return { state: parsed, reliable: true };
   } catch (err) {
-    if (isNodeError(err) && err.code !== "ENOENT") {
-      consola.warn(`Failed to read consumer state: ${err instanceof Error ? err.message : String(err)}`);
+    if (isNodeError(err) && err.code === "ENOENT") {
+      // No state file → no links, this is reliable
+      return { state: { version: "1", links: {} }, reliable: true };
     }
-    return { version: "1", links: {} };
+    consola.warn(`Failed to read consumer state: ${err instanceof Error ? err.message : String(err)}`);
+    return { state: { version: "1", links: {} }, reliable: false };
   }
 }
 
