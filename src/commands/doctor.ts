@@ -2,7 +2,7 @@ import { defineCommand } from "citty";
 import { resolve, join } from "node:path";
 import { consola } from "../utils/console.js";
 import pc from "picocolors";
-import { readConsumerState, readConsumersRegistry } from "../core/tracker.js";
+import { readConsumerStateSafe, readConsumersRegistry } from "../core/tracker.js";
 import { listStoreEntries, getStoreEntry } from "../core/store.js";
 import { exists } from "../utils/fs.js";
 import { getStorePath, getConsumersPath } from "../utils/paths.js";
@@ -64,7 +64,14 @@ export default defineCommand({
     }
 
     // Check 3: Consumer state
-    const state = await readConsumerState(consumerPath);
+    const { state, reliable } = await readConsumerStateSafe(consumerPath);
+    if (!reliable) {
+      results.push({
+        name: "Consumer state",
+        status: "fail",
+        message: "state.json is corrupt or unreadable. Delete .plunk/state.json and re-run 'plunk add' for each package.",
+      });
+    }
     const links = Object.entries(state.links);
     if (links.length > 0) {
       results.push({
@@ -96,7 +103,7 @@ export default defineCommand({
           });
         }
 
-        // Check 5: node_modules presence
+        // Check 5: node_modules presence and version
         const nmPath = join(consumerPath, "node_modules", name);
         if (!(await exists(nmPath))) {
           results.push({
@@ -104,6 +111,21 @@ export default defineCommand({
             status: "fail",
             message: `Missing from node_modules. Run 'plunk restore'.`,
           });
+        } else {
+          // Verify the installed version matches what plunk injected
+          try {
+            const { readFile: rf } = await import("node:fs/promises");
+            const nmPkg = JSON.parse(await rf(join(nmPath, "package.json"), "utf-8"));
+            if (nmPkg.version && nmPkg.version !== link.version) {
+              results.push({
+                name: `node_modules: ${name}`,
+                status: "warn",
+                message: `node_modules has v${nmPkg.version} but plunk linked v${link.version}. Run 'plunk restore'.`,
+              });
+            }
+          } catch {
+            // Can't read package.json — skip version check
+          }
         }
       }
     } else {
