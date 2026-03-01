@@ -49,7 +49,7 @@ export default defineCommand({
           if (!entry) {
             issues.push("store entry missing");
           } else if (entry.meta.contentHash !== link.contentHash) {
-            issues.push("unpublished changes in store");
+            issues.push("store has newer content (run plunk update)");
           }
 
           // Check if node_modules version exists
