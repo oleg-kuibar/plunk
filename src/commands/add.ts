@@ -50,6 +50,14 @@ export default defineCommand({
     // Parse optional version: "my-lib@1.0.0" or "@scope/my-lib@1.0.0"
     const { name: packageName, version: pinnedVersion } = parsePackageArg(args.package);
 
+    // Validate package name
+    if (!packageName || packageName === "@" || (packageName.startsWith("@") && !packageName.includes("/"))) {
+      errorWithSuggestion(
+        `Invalid package name "${args.package}". Use format: package-name or @scope/package-name`
+      );
+      process.exit(1);
+    }
+
     // If --from specified, publish from that path first
     if (args.from) {
       const fromPath = resolve(args.from);
