@@ -129,9 +129,11 @@ export async function findWorkspacePackages(startDir: string): Promise<string[]>
   // Try pnpm-workspace.yaml first
   const pnpmRoot = await findWorkspaceRoot(startDir);
   if (pnpmRoot) {
-    const patterns = await parsePnpmWorkspacePackages(pnpmRoot);
-    if (patterns.length > 0) {
-      return resolveWorkspaceGlobs(pnpmRoot, patterns);
+    const allPatterns = await parsePnpmWorkspacePackages(pnpmRoot);
+    const positive = allPatterns.filter((p) => !p.startsWith("!"));
+    const negations = allPatterns.filter((p) => p.startsWith("!")).map((p) => p.slice(1));
+    if (positive.length > 0) {
+      return resolveWorkspaceGlobs(pnpmRoot, positive, negations);
     }
   }
 
@@ -145,7 +147,9 @@ export async function findWorkspacePackages(startDir: string): Promise<string[]>
       ? rootPkg.workspaces
       : rootPkg.workspaces?.packages ?? [];
     if (workspaces.length === 0) return [];
-    return resolveWorkspaceGlobs(rootDir, workspaces);
+    const positive = workspaces.filter((p) => !p.startsWith("!"));
+    const negations = workspaces.filter((p) => p.startsWith("!")).map((p) => p.slice(1));
+    return resolveWorkspaceGlobs(rootDir, positive, negations);
   } catch {
     return [];
   }
@@ -154,6 +158,7 @@ export async function findWorkspacePackages(startDir: string): Promise<string[]>
 /**
  * Parse pnpm-workspace.yaml for the `packages:` field.
  * Returns glob patterns like ["packages/*", "apps/*"].
+ * Negation patterns (e.g., "!packages/internal") are preserved.
  */
 async function parsePnpmWorkspacePackages(workspaceRoot: string): Promise<string[]> {
   const filePath = join(workspaceRoot, "pnpm-workspace.yaml");
@@ -181,10 +186,7 @@ async function parsePnpmWorkspacePackages(workspaceRoot: string): Promise<string
       // Lines like `  - "packages/*"` or `  - packages/*`
       const match = trimmed.match(/^-\s+["']?([^"']+)["']?$/);
       if (match) {
-        // Skip negation patterns (e.g., "!packages/internal")
-        if (!match[1].startsWith("!")) {
-          patterns.push(match[1]);
-        }
+        patterns.push(match[1]);
       }
     }
   }
@@ -213,8 +215,9 @@ async function findPackageJsonWorkspaceRoot(startDir: string): Promise<string | 
 /**
  * Resolve workspace glob patterns to actual package directories.
  * Each pattern like "packages/*" is expanded to actual directories containing package.json.
+ * Negation patterns (e.g., "packages/internal") are excluded from the results.
  */
-async function resolveWorkspaceGlobs(rootDir: string, patterns: string[]): Promise<string[]> {
+async function resolveWorkspaceGlobs(rootDir: string, patterns: string[], negations: string[] = []): Promise<string[]> {
   const results: string[] = [];
 
   for (const pattern of patterns) {
@@ -269,7 +272,15 @@ async function resolveWorkspaceGlobs(rootDir: string, patterns: string[]): Promi
     }
   }
 
-  return [...new Set(results)];
+  const unique = [...new Set(results)];
+  if (negations.length === 0) return unique;
+
+  // Apply negation patterns to filter out excluded directories
+  const isExcluded = picomatch(negations);
+  return unique.filter((dir) => {
+    const rel = relative(rootDir, dir).replace(/\\/g, "/");
+    return !isExcluded(rel);
+  });
 }
 
 /** Collect directories up to a given depth */
