@@ -124,27 +124,25 @@ export default defineCommand({
           );
         }
 
-        // Prompt for package name to link
-        let packageName = "{package-name}";
+        // Prompt for package name to link (skip when -y, user can add manually)
         if (!skipPrompts) {
           const input = await consola.prompt(
             "Package name to link (leave blank to skip):",
             { type: "text", default: "" }
           );
           if (typeof input === "string" && input.trim()) {
-            packageName = input.trim();
+            const packageName = input.trim();
+            const addScriptAdded = await addScript(
+              pkgPath,
+              "plunk:add",
+              `plunk add ${packageName}`
+            );
+            if (addScriptAdded) {
+              consola.success(
+                `Added "plunk:add": "plunk add ${packageName}" to package.json scripts`
+              );
+            }
           }
-        }
-
-        const addScriptAdded = await addScript(
-          pkgPath,
-          "plunk:add",
-          `plunk add ${packageName}`
-        );
-        if (addScriptAdded) {
-          consola.success(
-            `Added "plunk:add": "plunk add ${packageName}" to package.json scripts`
-          );
         }
       } else {
         // Detect or prompt for build command
