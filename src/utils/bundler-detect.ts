@@ -37,15 +37,26 @@ export async function detectBundler(projectDir: string): Promise<BundlerInfo> {
 /**
  * Detect ALL bundlers present in a project directory.
  * A Next.js project may also have webpack caches, etc.
+ * Checks all config files in parallel for speed.
  */
 export async function detectAllBundlers(projectDir: string): Promise<BundlerInfo[]> {
+  // Check all candidate config files in parallel
+  const checks = BUNDLER_CONFIGS.flatMap(([type, configFiles]) =>
+    configFiles.map(async (configFile) => ({
+      type,
+      configFile: join(projectDir, configFile),
+      found: await exists(join(projectDir, configFile)),
+    }))
+  );
+  const all = await Promise.all(checks);
+
+  // De-duplicate: keep first match per bundler type
+  const seen = new Set<BundlerType>();
   const results: BundlerInfo[] = [];
-  for (const [type, configFiles] of BUNDLER_CONFIGS) {
-    for (const configFile of configFiles) {
-      if (await exists(join(projectDir, configFile))) {
-        results.push({ type, configFile: join(projectDir, configFile) });
-        break;
-      }
+  for (const { type, configFile, found } of all) {
+    if (found && !seen.has(type)) {
+      seen.add(type);
+      results.push({ type, configFile });
     }
   }
   return results;
