@@ -50,6 +50,8 @@ export default defineCommand({
 
     let updated = 0;
     let skipped = 0;
+    let missing = 0;
+    let failed = 0;
 
     const results = await Promise.all(
       toUpdate.map(([packageName, link]) =>
@@ -67,23 +69,30 @@ export default defineCommand({
             return "skipped" as const;
           }
 
-          // Inject the updated version
-          const result = await inject(entry, consumerPath, link.packageManager);
+          try {
+            // Inject the updated version
+            const result = await inject(entry, consumerPath, link.packageManager);
 
-          // Update link entry
-          const updatedLink: LinkEntry = {
-            ...link,
-            version: entry.version,
-            contentHash: entry.meta.contentHash,
-            buildId: entry.meta.buildId ?? "",
-            linkedAt: new Date().toISOString(),
-          };
-          await addLink(consumerPath, packageName, updatedLink);
+            // Update link entry
+            const updatedLink: LinkEntry = {
+              ...link,
+              version: entry.version,
+              contentHash: entry.meta.contentHash,
+              buildId: entry.meta.buildId ?? "",
+              linkedAt: new Date().toISOString(),
+            };
+            await addLink(consumerPath, packageName, updatedLink);
 
-          consola.success(
-            `Updated ${packageName}@${entry.version} (${result.copied} files changed)`
-          );
-          return "updated" as const;
+            consola.success(
+              `Updated ${packageName}@${entry.version} (${result.copied} files changed)`
+            );
+            return "updated" as const;
+          } catch (err) {
+            consola.warn(
+              `Failed to update ${packageName}: ${err instanceof Error ? err.message : String(err)}`
+            );
+            return "failed" as const;
+          }
         })
       )
     );
@@ -91,11 +100,14 @@ export default defineCommand({
     for (const r of results) {
       if (r === "updated") updated++;
       else if (r === "skipped") skipped++;
+      else if (r === "missing") missing++;
+      else failed++;
     }
 
-    consola.info(
-      `Update complete: ${updated} updated, ${skipped} unchanged in ${timer.elapsed()}`
-    );
-    output({ updated, skipped, elapsed: timer.elapsedMs() });
+    const parts = [`${updated} updated`, `${skipped} unchanged`];
+    if (missing > 0) parts.push(`${missing} missing`);
+    if (failed > 0) parts.push(`${failed} failed`);
+    consola.info(`Update complete: ${parts.join(", ")} in ${timer.elapsed()}`);
+    output({ updated, skipped, missing, failed, elapsed: timer.elapsedMs() });
   },
 });
