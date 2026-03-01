@@ -27,6 +27,7 @@ plunk --help
 | `pnpm dev` | Build in watch mode |
 | `pnpm test` | Run tests |
 | `pnpm test:watch` | Run tests in watch mode |
+| `pnpm bench` | Run benchmarks |
 | `pnpm lint` | Type-check with tsc |
 
 ## Project structure
@@ -37,6 +38,7 @@ src/
 ├── commands/             # CLI command definitions (one file per command)
 ├── core/                 # Core logic (publisher, injector, store, tracker, watcher)
 ├── utils/                # Shared utilities (fs, hash, paths, pack-list, pm-detect, bin-linker)
+├── vite-plugin.ts        # Vite plugin entry (exported as @olegkuibar/plunk/vite)
 ├── types.ts              # Shared TypeScript types
 └── index.ts              # Public API exports
 ```
@@ -45,11 +47,17 @@ See [How it works](docs/how-it-works.md) for details on the store, injection, an
 
 ## Testing
 
-Tests use [vitest](https://vitest.dev/):
+Tests use [vitest](https://vitest.dev/) with a 70% line coverage threshold (`vitest.config.ts`).
 
-- Unit tests in `src/utils/__tests__/`
-- Integration tests in `src/__tests__/integration.test.ts` (uses temp dirs)
-- E2E tests in `src/__tests__/e2e.test.ts` (uses the `examples/` packages as real fixtures)
+### Test layers
+
+| Layer | Location | What it tests |
+|---|---|---|
+| Unit | `src/utils/__tests__/*.test.ts` (12 files) | Individual utilities in isolation |
+| Integration | `src/__tests__/integration.test.ts` | Core APIs (publish, inject, store) using temp dirs |
+| E2E | `src/__tests__/e2e.test.ts` | Full CLI flows using real fixtures from `examples/packages/` |
+| Standalone emulation | `src/__tests__/standalone-emulate.test.ts` | Real package manager install + CLI invocation |
+| Benchmarks | `src/__tests__/publish-inject.bench.ts`, `src/utils/__tests__/hash.bench.ts` | Performance measurements (run with `pnpm bench`) |
 
 ### Running e2e tests
 
@@ -62,6 +70,14 @@ cd ../../..
 pnpm test
 ```
 
+### `examples/` directory
+
+| Directory | Purpose |
+|---|---|
+| `examples/packages/` | Test fixture packages (`api-client`, `ui-kit`) — used by e2e tests |
+| `examples/standalone/` | Package manager demo apps (npm, pnpm, yarn, bun) for manual testing |
+| `examples/monorepo/` | Workspace example with multiple packages |
+
 ### Writing tests
 
 - Tests use `PLUNK_HOME` env var to redirect the store to a temp directory
@@ -70,7 +86,7 @@ pnpm test
 
 ## Submitting changes
 
-1. Fork the repo and create a branch from `main`
+1. Fork the repo and create a branch from `master`
 2. Make your changes
 3. Add or update tests as needed
 4. Run `pnpm test` and `pnpm lint` to verify

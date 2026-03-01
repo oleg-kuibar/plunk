@@ -62,9 +62,11 @@ A few things to note about the store:
 
 ```json
 {
-  "contentHash": "sha256:a1b2c3d4...",
+  "schemaVersion": 1,
+  "contentHash": "sha256v2:a1b2c3d4...",
   "publishedAt": "2026-02-17T10:30:00.000Z",
-  "sourcePath": "/home/user/projects/my-lib"
+  "sourcePath": "/home/user/projects/my-lib",
+  "buildId": "a1b2c3d4"
 }
 ```
 
@@ -82,7 +84,7 @@ flowchart TD
     G --> H{Hash matches store?}
     H -- Yes --> I["Skip (already up to date)"]
     H -- No --> J[Copy files to store]
-    J --> K[Rewrite workspace: protocol versions]
+    J --> K[Rewrite workspace: and catalog: versions]
     K --> L[Write .plunk-meta.json]
 
     style A fill:#1565c0,stroke:#64b5f6,color:#e3f2fd
@@ -101,7 +103,9 @@ File resolution follows `npm pack` rules:
 - `.npmignore` exclusions always apply
 - `package.json`, `README*`, `LICENSE*`, `CHANGELOG*` are always included
 
-If a dependency uses `workspace:*` (or `workspace:^`, `workspace:~`), plunk rewrites it to the actual version in the store copy. Your source `package.json` is never touched.
+If a dependency uses `workspace:*` (or `workspace:^`, `workspace:~`), plunk rewrites it to the actual version in the store copy. The `catalog:` protocol (pnpm's shared version definitions in `pnpm-workspace.yaml`) is also resolved — both `catalog:` (default catalog) and `catalog:<name>` (named catalog) specifiers get replaced with the actual version string. Your source `package.json` is never touched.
+
+When `publishConfig.directory` is set in `package.json`, plunk reads files from that subdirectory instead of the package root. This matches how npm/pnpm handle `publishConfig.directory` at pack time.
 
 ## Injection
 
@@ -190,7 +194,7 @@ flowchart TD
 ```
 
 1. Each `copyFile` first probes for CoW reflink support (`COPYFILE_FICLONE_FORCE`) on the target volume. The result is cached per volume root — if reflinks aren't supported (ext4, NTFS), all subsequent copies on that volume go straight to a plain `copyFile` with no wasted syscalls. On APFS (macOS), btrfs (Linux), and ReFS (Windows), the reflink is instant and uses no additional disk space.
-2. Before copying, plunk compares file sizes (fast reject) then hashes both source and destination files using xxhash (xxh64). Files over 1 MB fall back to SHA-256 streaming. Only changed files get copied, and files removed from the source get deleted from the destination. All file comparisons run in parallel, throttled to the CPU core count.
+2. Before copying, plunk compares file sizes (fast reject) then hashes both source and destination files using xxHash64. Files over 1 MB use xxHash64 streaming to avoid loading them into memory. Only changed files get copied, and files removed from the source get deleted from the destination. All file comparisons run in parallel, throttled to the CPU core count.
 3. Files are written directly to their final path in `node_modules/`, which generates the filesystem events bundler watchers need.
 
 ## State
@@ -203,11 +207,12 @@ Each consumer project gets a `.plunk/state.json` (gitignored):
   "links": {
     "my-lib": {
       "version": "1.0.0",
-      "contentHash": "sha256:abc123...",
+      "contentHash": "sha256v2:abc123...",
       "linkedAt": "2026-02-17T10:30:00Z",
       "sourcePath": "/home/user/my-lib",
       "backupExists": true,
-      "packageManager": "npm"
+      "packageManager": "npm",
+      "buildId": "abc12345"
     }
   }
 }
@@ -225,6 +230,47 @@ The global registry at `~/.plunk/consumers.json` maps packages to projects:
 ```
 
 This lets `plunk push` know which projects to update.
+
+## Hash strategy
+
+plunk uses two different hash algorithms for different purposes:
+
+| Hash | Algorithm | Where | Why |
+|---|---|---|---|
+| Per-file | xxHash64 (xxhash-wasm) | Incremental copy — comparing source vs destination files | Fast change detection. ~5-10x faster than SHA-256. Not persisted. |
+| Aggregate | SHA-256 | `contentHash` in `.plunk-meta.json` and `state.json` | Content identity across publishes. Deterministic, stable prefix `sha256v2:`. |
+
+The per-file hash is computed on every copy operation to decide which files actually changed. Small files (<=1 MB) are buffered and hashed in one shot. Large files use xxHash64 streaming to avoid loading them into memory.
+
+The aggregate hash is computed once per publish over all files (sorted by path, length-prefixed). It uses SHA-256 because the `sha256v2:` prefix is stored in metadata, and switching algorithms would invalidate every existing store entry for no meaningful speedup.
+
+The `buildId` is the first 8 hex characters of the content hash (after the `sha256v2:` prefix). It appears in logs and state files as a short identifier for each publish.
+
+## Lifecycle hooks
+
+When you run `plunk publish` (or push/dev, which call publish internally), plunk runs lifecycle scripts from `package.json` in this order:
+
+```
+preplunk → prepack → [publish files] → postpack → postplunk
+```
+
+- `preplunk` and `postplunk` always run if defined in `scripts`
+- `prepack` and `postpack` can be skipped with `--no-scripts`
+- Each hook has a 30-second timeout by default. Override with `PLUNK_HOOK_TIMEOUT` (milliseconds):
+  ```bash
+  PLUNK_HOOK_TIMEOUT=60000 plunk publish
+  ```
+- Hooks run in the package directory with `stdio: inherit`, so their output is visible
+
+## Atomic publish
+
+Publishing uses a two-phase write to prevent partial state:
+
+1. Files are copied to a temporary directory (`<store-entry>.tmp-<timestamp>`)
+2. The temp directory is atomically renamed to the final store path
+3. If the store entry already existed, the old copy is renamed aside first, then deleted after the swap succeeds
+
+A file lock (`withFileLock()`, using `mkdir` as an atomic lock primitive) prevents concurrent publishes of the same package from corrupting the store. The lock uses exponential backoff with stale detection — locks older than 60 seconds are considered abandoned and broken.
 
 ## Bin links
 

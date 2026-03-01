@@ -83,8 +83,8 @@ plunk push --watch --build "pnpm build"
 ## Install
 
 ```bash
-pnpm add -g plunk       # or npm, yarn, bun
-npx plunk init          # set up a consumer project
+pnpm add -g @olegkuibar/plunk       # or npm, yarn, bun
+npx @olegkuibar/plunk init          # set up a consumer project
 ```
 
 ## Try it online
@@ -102,6 +102,13 @@ Experience plunk directly in your browser with our interactive playground:
 | [How It Works](docs/how-it-works.md) | Store format, injection, CoW copies |
 | [Bundler Guide](docs/bundlers.md) | Vite, Webpack, esbuild, Turbopack setup |
 | [Comparison](docs/comparison.md) | npm link vs yalc vs plunk |
+| [CI/CD](docs/ci-cd.md) | Using plunk in CI pipelines |
+| [Monorepo Guide](docs/monorepo.md) | Workspace setup and recursive publish |
+| [Troubleshooting](docs/troubleshooting.md) | Common issues and fixes |
+| [FAQ](docs/faq.md) | Frequently asked questions |
+| [Migrating from yalc](docs/migrating-from-yalc.md) | Step-by-step migration guide |
+| [Architecture](docs/architecture.md) | Internals for contributors |
+| [API Reference](docs/api.md) | Programmatic API (TypeScript) |
 | [Examples](examples/) | Try it yourself with real packages |
 | [Playground](playground/) | Interactive browser-based playground |
 | [Contributing](CONTRIBUTING.md) | Dev setup and guidelines |

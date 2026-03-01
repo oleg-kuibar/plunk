@@ -3,10 +3,10 @@
 ## Install
 
 ```bash
-pnpm add -g plunk
+pnpm add -g @olegkuibar/plunk
 
 # or just use npx
-npx plunk init
+npx @olegkuibar/plunk init
 ```
 
 ## The workflow

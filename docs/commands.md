@@ -21,6 +21,7 @@ Flags:
 | Flag | Description |
 |---|---|
 | `-y, --yes` | Skip confirmation prompts, use detected defaults |
+| `--role <role>` | Project role: `"consumer"` or `"library"` |
 
 ---
 
@@ -41,13 +42,18 @@ Flags:
 | Flag | Description |
 |---|---|
 | `--private` | Allow publishing packages with `"private": true` in package.json |
+| `--no-scripts` | Skip `prepack`/`postpack` lifecycle hooks |
+| `-r, --recursive` | Publish all packages in the workspace |
 
 Included files:
 
 - Files listed in the `files` field of `package.json`
 - Always: `package.json`, `README`, `LICENSE`/`LICENCE`, `CHANGELOG`
 - `.npmignore` exclusions apply
-- `workspace:*` protocol versions get rewritten to real versions in the store copy (source is untouched)
+- `workspace:*` and `catalog:` protocol versions get rewritten to real versions in the store copy (source is untouched)
+- When `publishConfig.directory` is set, files are read from that subdirectory
+
+Lifecycle hooks run in this order: `preplunk` → `prepack` → [publish] → `postpack` → `postplunk`. The `prepack`/`postpack` hooks are skipped with `--no-scripts`. Default timeout is 30s (override with `PLUNK_HOOK_TIMEOUT` env var).
 
 ---
 
@@ -100,6 +106,8 @@ Flags:
 | `--build <cmd>` | Build command to run before publishing (watch mode) |
 | `--skip-build` | Watch output dirs directly, skip build command detection |
 | `--debounce <ms>` | Coalesce delay in milliseconds (default: `100`) |
+| `--no-scripts` | Skip `prepack`/`postpack` lifecycle hooks |
+| `-f, --force` | Force copy all files, bypassing hash comparison |
 
 Without `--watch`, it runs once: publish, then copy changed files to all consumers.
 
@@ -155,6 +163,7 @@ Flags:
 | `--build <cmd>` | Override build command (default: auto-detect from package.json) |
 | `--skip-build` | Watch output dirs directly, skip build command detection |
 | `--debounce <ms>` | Coalesce delay in milliseconds (default: `100`) |
+| `--no-scripts` | Skip `prepack`/`postpack` lifecycle hooks |
 
 On startup, `plunk dev`:
 
@@ -185,7 +194,15 @@ Remove a plunk link and restore the original npm-installed version.
 ```bash
 plunk remove my-lib
 plunk remove @scope/my-lib
+plunk remove --all              # remove all linked packages
 ```
+
+Flags:
+
+| Flag | Description |
+|---|---|
+| `--all` | Remove all linked packages at once |
+| `--force` | Skip error checking (e.g., if the package isn't linked) |
 
 Removes injected files from `node_modules/` and cleans up `.bin/` entries. Restores the backup (original npm-installed version) if one exists. Also removes the package from `transpilePackages` in next.config and cleans up tracking state. If this was the last plunk-linked package, removes the plunk Vite plugin from your Vite config.
 
@@ -348,6 +365,7 @@ When `--json` is active, structured output goes to stdout and all human-readable
 | Variable | Description |
 |---|---|
 | `PLUNK_HOME` | Override the store location (default: `~/.plunk/`) |
+| `PLUNK_HOOK_TIMEOUT` | Lifecycle hook timeout in milliseconds (default: `30000`) |
 
 ```bash
 PLUNK_HOME=/tmp/my-store plunk publish
