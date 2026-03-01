@@ -50,13 +50,21 @@ export default defineCommand({
       }
 
       let removed = 0;
+      let failed = 0;
       for (const [packageName, link] of links) {
-        await removeSinglePackage(consumerPath, packageName, link);
-        removed++;
+        try {
+          await removeSinglePackage(consumerPath, packageName, link);
+          removed++;
+        } catch (err) {
+          failed++;
+          consola.warn(
+            `Failed to remove ${packageName}: ${err instanceof Error ? err.message : String(err)}`
+          );
+        }
       }
 
-      consola.success(`Removed ${removed} plunk link(s) in ${timer.elapsed()}`);
-      output({ removed, elapsed: timer.elapsedMs() });
+      consola.success(`Removed ${removed} plunk link(s)${failed > 0 ? `, ${failed} failed` : ""} in ${timer.elapsed()}`);
+      output({ removed, failed, elapsed: timer.elapsedMs() });
       return;
     }
 
