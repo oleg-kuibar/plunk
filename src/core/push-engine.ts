@@ -246,6 +246,11 @@ export async function resolveWatchConfig(
       if (pkg.files && pkg.files.length > 0) {
         patterns = pkg.files;
         consola.info(`Watching from package.json "files": ${patterns.join(", ")}`);
+      } else {
+        consola.warn(
+          `No "files" field in package.json — falling back to watching src/ and lib/. ` +
+          `Add a "files" field or use --build to specify a build command.`
+        );
       }
     } catch (err) {
       verbose(
