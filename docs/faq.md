@@ -23,7 +23,7 @@ When plunk copies files, it probes each volume for reflink support using `COPYFI
 
 On filesystems that do not support reflinks (ext4, NTFS), plunk caches the failure and all subsequent copies on that volume go straight to a plain `copyFile` — no wasted syscalls retrying an unsupported operation.
 
-plunk also uses incremental copying: it compares file sizes first (fast reject), then hashes both source and destination files using xxhash (xxh64, ~10x faster than SHA-256). Only files whose content changed get copied. Files removed from the source are deleted from the destination. All comparisons run in parallel, throttled to the available CPU core count.
+plunk also uses incremental copying with a three-tier check: it compares file sizes first (fast reject), then compares mtimes (plunk preserves source mtime on the destination after each copy, so matching size+mtime guarantees identical content — skip without hashing), and only falls back to hashing both files with xxhash (xxh64, ~10x faster than SHA-256) when sizes match but mtimes differ. Only files whose content changed get copied. Files removed from the source are deleted from the destination. All comparisons run in parallel, throttled to the available CPU core count.
 
 ## How is plunk different from yalc?
 

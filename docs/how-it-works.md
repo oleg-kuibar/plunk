@@ -174,27 +174,32 @@ flowchart TD
     B -- Yes --> C["Instant copy-on-write<br/>(APFS, btrfs, ReFS)"]
     B -- No --> D["Plain fs.copyFile<br/>(cached per volume)"]
 
-    E[incrementalCopy] --> F["Hash source files (xxhash)"]
-    F --> G["Hash dest files (xxhash)"]
-    G --> H{File changed?}
-    H -- Yes --> A
-    H -- No --> I[Skip]
-    G --> J{File removed from source?}
-    J -- Yes --> K[Delete from dest]
+    E[incrementalCopy] --> F{Size differs?}
+    F -- Yes --> A
+    F -- No --> G{mtime matches?}
+    G -- Yes --> I[Skip]
+    G -- No --> H["Hash both files (xxhash)"]
+    H --> K{Hash differs?}
+    K -- Yes --> A
+    K -- No --> I
+    E --> J{File removed from source?}
+    J -- Yes --> L[Delete from dest]
 
     style A fill:#1565c0,stroke:#64b5f6,color:#e3f2fd
     style B fill:#6a1b9a,stroke:#ba68c8,color:#f3e5f5
     style C fill:#2e7d32,stroke:#66bb6a,color:#e8f5e9
     style D fill:#e65100,stroke:#ffb74d,color:#fff3e0
     style E fill:#1565c0,stroke:#64b5f6,color:#e3f2fd
-    style H fill:#6a1b9a,stroke:#ba68c8,color:#f3e5f5
+    style F fill:#6a1b9a,stroke:#ba68c8,color:#f3e5f5
+    style G fill:#6a1b9a,stroke:#ba68c8,color:#f3e5f5
     style I fill:#2e7d32,stroke:#66bb6a,color:#e8f5e9
+    style K fill:#6a1b9a,stroke:#ba68c8,color:#f3e5f5
     style J fill:#6a1b9a,stroke:#ba68c8,color:#f3e5f5
-    style K fill:#c62828,stroke:#ef5350,color:#ffebee
+    style L fill:#c62828,stroke:#ef5350,color:#ffebee
 ```
 
 1. Each `copyFile` first probes for CoW reflink support (`COPYFILE_FICLONE_FORCE`) on the target volume. The result is cached per volume root — if reflinks aren't supported (ext4, NTFS), all subsequent copies on that volume go straight to a plain `copyFile` with no wasted syscalls. On APFS (macOS), btrfs (Linux), and ReFS (Windows), the reflink is instant and uses no additional disk space.
-2. Before copying, plunk compares file sizes (fast reject) then hashes both source and destination files using xxHash64. Files over 1 MB use xxHash64 streaming to avoid loading them into memory. Only changed files get copied, and files removed from the source get deleted from the destination. All file comparisons run in parallel, throttled to the CPU core count.
+2. Before copying, plunk runs a three-tier check: (a) compare file sizes — different sizes mean different content, copy immediately; (b) compare mtimes — if size and mtime both match, skip without hashing (plunk preserves source mtime on the destination after each copy, so matching mtime+size guarantees identical content); (c) hash both files using xxHash64 — only reached when size matches but mtime differs. Files over 1 MB use xxHash64 streaming to avoid loading them into memory. Only changed files get copied, and files removed from the source get deleted from the destination. All file comparisons run in parallel, throttled to the CPU core count.
 3. Files are written directly to their final path in `node_modules/`, which generates the filesystem events bundler watchers need.
 
 ## State

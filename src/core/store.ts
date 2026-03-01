@@ -19,29 +19,20 @@ export async function readMeta(
   version: string
 ): Promise<PlunkMeta | null> {
   const metaPath = getStoreMetaPath(name, version);
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const content = await readFile(metaPath, "utf-8");
-      const parsed = JSON.parse(content);
-      if (!isPlunkMeta(parsed)) {
-        consola.warn(`Invalid metadata for ${name}@${version}, ignoring`);
-        return null;
-      }
-      return parsed;
-    } catch (err) {
-      if (isNodeError(err) && err.code === "ENOENT" && attempt === 0) {
-        // Brief ENOENT can occur during a concurrent publish's atomic swap;
-        // retry once after a short delay to let the rename complete.
-        await new Promise((r) => setTimeout(r, 100));
-        continue;
-      }
-      if (isNodeError(err) && err.code !== "ENOENT") {
-        consola.warn(`Failed to read metadata for ${name}@${version}: ${err instanceof Error ? err.message : String(err)}`);
-      }
+  try {
+    const content = await readFile(metaPath, "utf-8");
+    const parsed = JSON.parse(content);
+    if (!isPlunkMeta(parsed)) {
+      consola.warn(`Invalid metadata for ${name}@${version}, ignoring`);
       return null;
     }
+    return parsed;
+  } catch (err) {
+    if (isNodeError(err) && err.code !== "ENOENT") {
+      consola.warn(`Failed to read metadata for ${name}@${version}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    return null;
   }
-  return null;
 }
 
 /** Write .plunk-meta.json for a store entry */

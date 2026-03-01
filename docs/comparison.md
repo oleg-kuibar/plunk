@@ -64,7 +64,7 @@ Copies files to a global store, then from the store into `node_modules/`. State 
 | CI safe | Yes | Risk of leaking | Nothing in git |
 | npm publish safe | Yes | Risk of leaking | Nothing in package.json |
 | Transitive dep warnings | No | No | Yes |
-| Incremental copy | N/A | Full copy each time | xxhash diff (parallel) |
+| Incremental copy | N/A | Full copy each time | mtime + xxhash diff (parallel) |
 | Backup/restore | No | No | Yes |
 | Scoped packages | Works | Fragile | Works |
 

@@ -180,7 +180,8 @@ export async function publish(
                 // Write the rewritten package.json
                 await writeFile(dest, JSON.stringify(processedPkg, null, 2));
               } else {
-                await copyWithCoW(file, dest);
+                // Parent dirs already pre-created above
+                await copyWithCoW(file, dest, { ensureParent: false });
               }
             })
           )
@@ -403,6 +404,17 @@ function resolveCatalogVersion(
   return catalogs.named[catalogRef]?.[depName] ?? null;
 }
 
+// Cached workspace root lookup shared by preloadWorkspaceVersions and preloadCatalogs.
+let _cachedWorkspaceRoot: { dir: string; root: string | null } | null = null;
+
+async function getWorkspaceRoot(packageDir: string): Promise<string | null> {
+  if (_cachedWorkspaceRoot?.dir === packageDir) return _cachedWorkspaceRoot.root;
+  const { findWorkspaceRoot } = await import("../utils/workspace.js");
+  const root = await findWorkspaceRoot(packageDir);
+  _cachedWorkspaceRoot = { dir: packageDir, root };
+  return root;
+}
+
 // Cached workspace package versions to resolve workspace:* to the dependency's version.
 let _cachedWorkspaceVersions: { root: string; versions: Map<string, string> } | null = null;
 
@@ -426,8 +438,7 @@ async function preloadWorkspaceVersions(
   });
   if (!hasWorkspace) return;
 
-  const { findWorkspaceRoot, findWorkspacePackages } = await import("../utils/workspace.js");
-  const root = await findWorkspaceRoot(packageDir);
+  const root = await getWorkspaceRoot(packageDir);
   if (!root) {
     _cachedWorkspaceVersions = null;
     return;
@@ -436,6 +447,7 @@ async function preloadWorkspaceVersions(
   // Reuse cache if same workspace root
   if (_cachedWorkspaceVersions?.root === root) return;
 
+  const { findWorkspacePackages } = await import("../utils/workspace.js");
   const pkgDirs = await findWorkspacePackages(root);
   const versions = new Map<string, string>();
 
@@ -485,8 +497,7 @@ async function preloadCatalogs(
   );
   if (!hasCatalog) return;
 
-  const { findWorkspaceRoot, parseCatalogs } = await import("../utils/workspace.js");
-  const root = await findWorkspaceRoot(packageDir);
+  const root = await getWorkspaceRoot(packageDir);
   if (!root) {
     _cachedCatalogs = null;
     return;
@@ -497,6 +508,7 @@ async function preloadCatalogs(
   const mtimeMs = (await stat(workspaceFile).catch(() => null))?.mtimeMs ?? 0;
   if (_cachedCatalogs?.root === root && _cachedCatalogs.mtimeMs === mtimeMs) return;
 
+  const { parseCatalogs } = await import("../utils/workspace.js");
   const catalogs = await parseCatalogs(root);
   _cachedCatalogs = { root, mtimeMs, catalogs };
 }

@@ -88,21 +88,15 @@ export async function resolvePackFiles(
     }
   }
 
-  // Always include common root files
+  // Always include common root files (check tree walk result instead of stat)
   const fileSet = new Set(files);
+  const allFileSet = new Set(allFiles);
   for (const name of ["README.md", "README", "LICENSE", "LICENCE", "CHANGELOG.md"]) {
     const p = join(absDir, name);
     if (fileSet.has(p)) continue;
-    try {
-      await stat(p);
-      files.push(p);
-      fileSet.add(p);
-    } catch (err) {
-      if (isNodeError(err) && err.code !== "ENOENT") {
-        throw err;
-      }
-      // doesn't exist
-    }
+    if (!allFileSet.has(p)) continue;
+    files.push(p);
+    fileSet.add(p);
   }
 
   // Deduplicate

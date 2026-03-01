@@ -79,7 +79,7 @@ The watcher uses a "debounce effects, not detection" strategy: changes are detec
 
 | Hash | Algorithm | Use | Stored? |
 |---|---|---|---|
-| Per-file | xxHash64 (xxhash-wasm) | Incremental copy change detection | No |
+| Per-file | xxHash64 (xxhash-wasm) | Incremental copy change detection (fallback when mtime differs) | No |
 | Aggregate | SHA-256 | Content identity (`sha256v2:` prefix in `.plunk-meta.json`) | Yes |
 
 xxHash64 is lazy-initialized as a WASM singleton. Files >1 MB use streaming to cap memory usage.

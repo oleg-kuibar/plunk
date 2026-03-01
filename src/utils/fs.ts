@@ -6,6 +6,7 @@ import {
   rename,
   rm,
   stat,
+  utimes,
   writeFile,
   constants,
 } from "node:fs/promises";
@@ -48,12 +49,18 @@ function volumeRoot(filePath: string): string {
  * share an inode, so source mutations silently propagate to the destination,
  * breaking change detection.
  */
-export async function copyWithCoW(src: string, dest: string): Promise<void> {
+export async function copyWithCoW(
+  src: string,
+  dest: string,
+  options?: { ensureParent?: boolean }
+): Promise<void> {
   if (isDryRun()) {
     verbose(`[dry-run] would copy ${src} → ${dest}`);
     return;
   }
-  await mkdir(dirname(dest), { recursive: true });
+  if (options?.ensureParent !== false) {
+    await mkdir(dirname(dest), { recursive: true });
+  }
 
   const root = volumeRoot(dest);
   const supportsReflink = reflinkSupported.get(root);
@@ -121,6 +128,7 @@ export async function incrementalCopy(
         const destFile = join(destDir, rel);
 
         let needsCopy = true;
+        let srcTimes: { atime: Date; mtime: Date } | null = null;
 
         // Force mode: always copy
         if (options.force) {
@@ -131,11 +139,16 @@ export async function incrementalCopy(
               stat(srcFile),
               stat(destFile),
             ]);
+            srcTimes = { atime: srcStat.atime, mtime: srcStat.mtime };
             // Fast path: different sizes means definitely different content
             if (srcStat.size !== destStat.size) {
               verbose(`[copy] ${rel} (size differs: ${srcStat.size} vs ${destStat.size})`);
+            } else if (srcStat.mtimeMs === destStat.mtimeMs) {
+              // Same size + same mtime: plunk is the sole writer, so skip without hashing
+              needsCopy = false;
+              verbose(`[skip] ${rel} (size+mtime match)`);
             } else {
-              // Same size: compare hashes (pass known sizes to skip redundant stat)
+              // Same size, different mtime: compare hashes (pass known sizes to skip redundant stat)
               const [srcHash, destHash] = await Promise.all([
                 hashFile(srcFile, srcStat.size),
                 hashFile(destFile, destStat.size),
@@ -158,6 +171,12 @@ export async function incrementalCopy(
 
         if (needsCopy) {
           await copyWithCoW(srcFile, destFile);
+          // Preserve source mtime so the mtime fast-path fires on subsequent checks
+          if (!srcTimes) {
+            const s = await stat(srcFile);
+            srcTimes = { atime: s.atime, mtime: s.mtime };
+          }
+          await utimes(destFile, srcTimes.atime, srcTimes.mtime);
           return "copied" as const;
         }
         return "skipped" as const;

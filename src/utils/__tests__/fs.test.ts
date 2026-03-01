@@ -91,6 +91,39 @@ describe("incrementalCopy", () => {
     expect(await readFile(join(dest, "a.txt"), "utf-8")).toBe("modified");
   });
 
+  it("copies file when content changes but size is preserved", async () => {
+    const src = join(tempDir, "src");
+    const dest = join(tempDir, "dest");
+    await mkdir(src, { recursive: true });
+    await writeFile(join(src, "a.txt"), "aaa");
+
+    await incrementalCopy(src, dest);
+    expect(await readFile(join(dest, "a.txt"), "utf-8")).toBe("aaa");
+
+    // Overwrite with same-size but different content
+    await writeFile(join(src, "a.txt"), "bbb");
+    const result = await incrementalCopy(src, dest);
+    expect(result.copied).toBe(1);
+    expect(result.skipped).toBe(0);
+    expect(await readFile(join(dest, "a.txt"), "utf-8")).toBe("bbb");
+  });
+
+  it("skips file via mtime fast path on second copy", async () => {
+    const src = join(tempDir, "src");
+    const dest = join(tempDir, "dest");
+    await mkdir(src, { recursive: true });
+    await writeFile(join(src, "a.txt"), "hello world");
+
+    // First copy sets mtime on dest to match src
+    const first = await incrementalCopy(src, dest);
+    expect(first.copied).toBe(1);
+
+    // Second copy should skip via mtime fast-path (no hashing needed)
+    const second = await incrementalCopy(src, dest);
+    expect(second.copied).toBe(0);
+    expect(second.skipped).toBe(1);
+  });
+
   it("removes files not in source", async () => {
     const src = join(tempDir, "src");
     const dest = join(tempDir, "dest");
