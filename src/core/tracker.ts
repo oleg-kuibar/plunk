@@ -72,7 +72,13 @@ export async function addLink(
 ): Promise<void> {
   const statePath = getConsumerStatePath(consumerPath);
   await withFileLock(statePath, async () => {
-    const state = await readConsumerState(consumerPath);
+    const { state, reliable } = await readConsumerStateSafe(consumerPath);
+    if (!reliable) {
+      throw new Error(
+        `Consumer state in ${statePath} is corrupt — refusing to write to avoid destroying existing links. ` +
+        `Delete .plunk/state.json and re-run 'plunk add' for each package.`
+      );
+    }
     state.links[packageName] = entry;
     await writeConsumerState(consumerPath, state);
   });
@@ -85,7 +91,13 @@ export async function removeLink(
 ): Promise<void> {
   const statePath = getConsumerStatePath(consumerPath);
   await withFileLock(statePath, async () => {
-    const state = await readConsumerState(consumerPath);
+    const { state, reliable } = await readConsumerStateSafe(consumerPath);
+    if (!reliable) {
+      throw new Error(
+        `Consumer state in ${statePath} is corrupt — refusing to write to avoid destroying existing links. ` +
+        `Delete .plunk/state.json and re-run 'plunk add' for each package.`
+      );
+    }
     delete state.links[packageName];
     await writeConsumerState(consumerPath, state);
   });
