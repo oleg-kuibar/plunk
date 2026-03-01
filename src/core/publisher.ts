@@ -158,7 +158,7 @@ export async function publish(
         await ensurePrivateDir(tmpPackageDir);
 
         // Handle workspace:* protocol and publishConfig field overrides
-        let processedPkg = rewriteProtocolVersions(pkg, packageDir);
+        let processedPkg = rewriteProtocolVersions(pkg);
         processedPkg = applyPublishConfig(processedPkg);
 
         verbose(`[publish] Copying files to temp store...`);
@@ -327,7 +327,7 @@ function applyPublishConfig(pkg: PackageJson): PackageJson {
  * Only modifies dependencies/devDependencies/peerDependencies.
  * Returns a new object if changes were made, the same object if not.
  */
-function rewriteProtocolVersions(pkg: PackageJson, packageDir: string): PackageJson {
+function rewriteProtocolVersions(pkg: PackageJson): PackageJson {
   let changed = false;
   const result = { ...pkg };
   let catalogs: Catalogs | null = null;
