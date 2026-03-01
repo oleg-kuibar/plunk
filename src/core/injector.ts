@@ -226,7 +226,10 @@ async function resolveTargetDir(
   }
 
   // Fall back to direct path
-  consola.warn(`pnpm: Could not find ${packageName} in .pnpm/ virtual store, using direct node_modules path`);
+  consola.warn(
+    `pnpm: Could not find ${packageName} in .pnpm/ virtual store, using direct node_modules path. ` +
+    `If this causes issues, run 'pnpm install' to rebuild the virtual store, then 'plunk add' again.`
+  );
   return directPath;
 }
 
