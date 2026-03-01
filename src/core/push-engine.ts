@@ -54,9 +54,22 @@ export async function doPush(
   // Push to all consumers in parallel
   const consumers = await getConsumers(result.name);
   if (consumers.length === 0) {
-    consola.info(
-      "No consumers registered. Use 'plunk add' in a consumer project first."
+    consola.success(
+      `Published ${result.name}@${result.version} to store`
     );
+    consola.info(
+      "No consumers registered yet. Run 'plunk add " + result.name + "' in a consumer project to start receiving pushes."
+    );
+    output({
+      name: result.name,
+      version: result.version,
+      buildId: result.buildId,
+      consumers: 0,
+      failedConsumers: 0,
+      copied: 0,
+      skipped: 0,
+      elapsed: timer.elapsedMs(),
+    });
     return;
   }
 
@@ -225,15 +238,14 @@ export async function resolveWatchConfig(
     verbose(`[watch] Using source patterns with build command: ${patterns.join(", ")}`);
   } else {
     // Without a build command: watch the package.json `files` field (typically dist/)
+    consola.info("No build command detected — watching output directories directly");
     try {
       const pkg = JSON.parse(
         await readFile(join(packageDir, "package.json"), "utf-8")
       ) as PackageJson;
       if (pkg.files && pkg.files.length > 0) {
         patterns = pkg.files;
-        verbose(
-          `[watch] Using package.json files field: ${patterns.join(", ")}`
-        );
+        consola.info(`Watching from package.json "files": ${patterns.join(", ")}`);
       }
     } catch (err) {
       verbose(
