@@ -97,13 +97,20 @@ async function removeSinglePackage(
 
   // Restore backup if it exists
   if (link.backupExists) {
-    const restored = await restoreBackup(
-      consumerPath,
-      packageName,
-      link.packageManager
-    );
-    if (restored) {
-      consola.success(`Restored original ${packageName} from backup`);
+    try {
+      const restored = await restoreBackup(
+        consumerPath,
+        packageName,
+        link.packageManager
+      );
+      if (restored) {
+        consola.success(`Restored original ${packageName} from backup`);
+      }
+    } catch (err) {
+      consola.warn(
+        `Failed to restore backup for ${packageName}: ${err instanceof Error ? err.message : String(err)}. ` +
+        `Run your package manager's install command to restore it.`
+      );
     }
   }
 
