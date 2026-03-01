@@ -2,7 +2,7 @@ import { defineCommand } from "citty";
 import { resolve } from "node:path";
 import { consola } from "../utils/console.js";
 import pLimit from "../utils/concurrency.js";
-import { readConsumerState } from "../core/tracker.js";
+import { readConsumerState, addLink } from "../core/tracker.js";
 import { getStoreEntry } from "../core/store.js";
 import { inject } from "../core/injector.js";
 import { Timer } from "../utils/timer.js";
@@ -73,6 +73,13 @@ export default defineCommand({
 
           try {
             const result = await inject(entry, consumerPath, link.packageManager);
+            // Update state so contentHash and linkedAt stay current
+            await addLink(consumerPath, packageName, {
+              ...link,
+              contentHash: entry.meta.contentHash,
+              buildId: entry.meta.buildId ?? "",
+              linkedAt: new Date().toISOString(),
+            });
             verbose(`[restore] ${packageName}@${link.version}: ${result.copied} files`);
             return { packageName, success: true, copied: result.copied };
           } catch (err) {
