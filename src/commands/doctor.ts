@@ -177,7 +177,7 @@ export default defineCommand({
       });
     }
 
-    // Check 8: .gitignore includes .plunk/
+    // Check 9: .gitignore includes .plunk/
     const gitignorePath = join(consumerPath, ".gitignore");
     if (await exists(gitignorePath)) {
       const { readFile } = await import("node:fs/promises");
@@ -195,6 +195,22 @@ export default defineCommand({
           message: ".plunk/ not in .gitignore. Run 'plunk init' to fix.",
         });
       }
+    }
+
+    // Check 10: Node.js version
+    const nodeMajor = parseInt(process.versions.node.split(".")[0], 10);
+    if (nodeMajor >= 22) {
+      results.push({
+        name: "Node.js version",
+        status: "pass",
+        message: `v${process.versions.node}`,
+      });
+    } else {
+      results.push({
+        name: "Node.js version",
+        status: "fail",
+        message: `v${process.versions.node} — plunk requires Node.js >= 22`,
+      });
     }
 
     // Render results

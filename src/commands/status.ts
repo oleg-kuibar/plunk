@@ -58,6 +58,11 @@ export default defineCommand({
             issues.push("missing from node_modules (run plunk restore)");
           }
 
+          // Check if source directory still exists
+          if (!(await exists(link.sourcePath))) {
+            issues.push(`source directory missing: ${link.sourcePath}`);
+          }
+
           return {
             name,
             version: link.version,
