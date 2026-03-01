@@ -2,8 +2,9 @@ import { defineCommand } from "citty";
 import { resolve } from "node:path";
 import { consola } from "../utils/console.js";
 import pc from "picocolors";
-import { readConsumerState } from "../core/tracker.js";
+import { readConsumerState, readConsumersRegistry } from "../core/tracker.js";
 import { listStoreEntries, getStoreEntry } from "../core/store.js";
+import pLimit from "../utils/concurrency.js";
 import { suppressHumanOutput, output } from "../utils/output.js";
 
 export default defineCommand({
@@ -39,28 +40,34 @@ async function listProject() {
   }
 
   consola.info(`Linked packages (${links.length}):\n`);
-  const packages = [];
-  for (const [name, link] of links) {
-    const buildTag = link.buildId ? `[${link.buildId}]` : "[--------]";
 
-    // Check staleness against store
-    let stale = false;
-    const storeEntry = await getStoreEntry(name, link.version);
-    if (storeEntry && storeEntry.meta.contentHash !== link.contentHash) {
-      stale = true;
-    }
+  // Check staleness in parallel
+  const limit = pLimit(8);
+  const packages = await Promise.all(
+    links.map(([name, link]) =>
+      limit(async () => {
+        const storeEntry = await getStoreEntry(name, link.version);
+        const stale = !!(storeEntry && storeEntry.meta.contentHash !== link.contentHash);
+        return { name, version: link.version, buildId: link.buildId ?? null, stale, sourcePath: link.sourcePath };
+      })
+    )
+  );
 
-    const staleTag = stale ? pc.yellow(" (stale)") : "";
+  for (const pkg of packages) {
+    const buildTag = pkg.buildId ? `[${pkg.buildId}]` : "[--------]";
+    const staleTag = pkg.stale ? pc.yellow(" (stale)") : "";
     consola.log(
-      `  ${pc.cyan(name)} ${pc.dim("@" + link.version)} ${pc.dim(buildTag)}${staleTag}  ← ${pc.dim(link.sourcePath)}`
+      `  ${pc.cyan(pkg.name)} ${pc.dim("@" + pkg.version)} ${pc.dim(buildTag)}${staleTag}  ← ${pc.dim(pkg.sourcePath)}`
     );
-    packages.push({ name, version: link.version, buildId: link.buildId ?? null, stale, sourcePath: link.sourcePath });
   }
   output({ packages });
 }
 
 async function listStore() {
-  const entries = await listStoreEntries();
+  const [entries, registry] = await Promise.all([
+    listStoreEntries(),
+    readConsumersRegistry(),
+  ]);
 
   if (entries.length === 0) {
     consola.info("Plunk store is empty");
@@ -73,8 +80,12 @@ async function listStore() {
   for (const entry of entries) {
     const age = getRelativeTime(new Date(entry.meta.publishedAt));
     const buildTag = entry.meta.buildId ? `[${entry.meta.buildId}]` : "[--------]";
+    const consumers = registry[entry.name]?.length ?? 0;
+    const consumersTag = consumers > 0
+      ? pc.green(`${consumers} consumer${consumers > 1 ? "s" : ""}`)
+      : pc.dim("no consumers");
     consola.log(
-      `  ${pc.cyan(entry.name)} ${pc.dim("@" + entry.version)} ${pc.dim(buildTag)}  ${pc.dim(`published ${age}`)}`
+      `  ${pc.cyan(entry.name)} ${pc.dim("@" + entry.version)} ${pc.dim(buildTag)}  ${pc.dim(`published ${age}`)}  ${consumersTag}`
     );
     consola.log(`    ${pc.dim(`from: ${entry.meta.sourcePath}`)}`);
     storeEntries.push({
@@ -83,6 +94,7 @@ async function listStore() {
       buildId: entry.meta.buildId ?? null,
       publishedAt: entry.meta.publishedAt,
       sourcePath: entry.meta.sourcePath,
+      consumers,
     });
   }
   output({ entries: storeEntries });
