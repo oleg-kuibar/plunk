@@ -7,7 +7,7 @@ import { consola } from "../utils/console.js";
 import { findStoreEntry } from "../core/store.js";
 import { publish } from "../core/publisher.js";
 import { inject, backupExisting, checkMissingDeps } from "../core/injector.js";
-import { addLink, registerConsumer } from "../core/tracker.js";
+import { addLink, registerConsumer, getLink } from "../core/tracker.js";
 import { exists } from "../utils/fs.js";
 import { detectPackageManager, detectYarnNodeLinker, hasYarnrcYml } from "../utils/pm-detect.js";
 import { detectBundler } from "../utils/bundler-detect.js";
@@ -86,6 +86,16 @@ export default defineCommand({
           `Then run: yarn install`
         );
         process.exit(1);
+      }
+    }
+
+    // Inform user if package is already linked
+    const existingLink = await getLink(consumerPath, packageName);
+    if (existingLink) {
+      if (existingLink.version === entry.version) {
+        consola.info(`Updating ${packageName}@${entry.version} (already linked)`);
+      } else {
+        consola.info(`Updating ${packageName}: ${existingLink.version} → ${entry.version}`);
       }
     }
 
