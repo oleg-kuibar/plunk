@@ -7,7 +7,6 @@ import { resolvePackFiles } from "../utils/pack-list.js";
 import { publish } from "../core/publisher.js";
 import { inject } from "../core/injector.js";
 import { getStoreEntry } from "../core/store.js";
-import { detectPackageManager } from "../utils/pm-detect.js";
 import type { PackageJson, StoreEntry } from "../types.js";
 
 const API_CLIENT_DIR = resolve(__dirname, "../../examples/packages/api-client");
@@ -83,6 +82,11 @@ describe("publish", () => {
       },
     }
   );
+
+  bench("skip (no changes)", async () => {
+    // Hot path in watch mode: hash matches, publish is skipped
+    await publish(API_CLIENT_DIR);
+  });
 });
 
 describe("inject", () => {
@@ -120,6 +124,57 @@ describe("inject", () => {
     {
       async setup() {
         // Ensure store is populated and first inject is done
+        await publish(API_CLIENT_DIR, { force: true });
+        const entry = (await getStoreEntry(
+          apiPkg.name,
+          apiPkg.version
+        )) as StoreEntry;
+        await inject(entry, consumerDir, "npm");
+      },
+    }
+  );
+});
+
+describe("push (publish + inject)", () => {
+  bench(
+    "full cycle",
+    async () => {
+      await publish(API_CLIENT_DIR, { force: true });
+      const entry = (await getStoreEntry(
+        apiPkg.name,
+        apiPkg.version
+      )) as StoreEntry;
+      await inject(entry, consumerDir, "npm");
+    },
+    {
+      async setup() {
+        // Clear store and consumer for a full push each iteration
+        const entryPath = join(plunkHome, "store");
+        if (await exists(entryPath)) {
+          await removeDir(entryPath);
+        }
+        const pkgDir = join(consumerDir, "node_modules", apiPkg.name);
+        if (await exists(pkgDir)) {
+          await removeDir(pkgDir);
+        }
+      },
+    }
+  );
+
+  bench(
+    "no-op (nothing changed)",
+    async () => {
+      // Simulates the hot path in watch mode: publish skips, inject skips
+      const result = await publish(API_CLIENT_DIR);
+      const entry = (await getStoreEntry(
+        apiPkg.name,
+        apiPkg.version
+      )) as StoreEntry;
+      await inject(entry, consumerDir, "npm");
+    },
+    {
+      async setup() {
+        // Ensure everything is already published and injected
         await publish(API_CLIENT_DIR, { force: true });
         const entry = (await getStoreEntry(
           apiPkg.name,
