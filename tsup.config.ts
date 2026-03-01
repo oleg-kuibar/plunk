@@ -1,4 +1,7 @@
 import { defineConfig } from "tsup";
+import { readFileSync } from "node:fs";
+
+const { version } = JSON.parse(readFileSync("package.json", "utf-8"));
 
 export default defineConfig([
   {
@@ -14,6 +17,9 @@ export default defineConfig([
     noExternal: [/.*/],
     minify: true,
     treeshake: true,
+    define: {
+      __PLUNK_VERSION__: JSON.stringify(version),
+    },
     esbuildOptions(options) {
       options.keepNames = true;
       options.legalComments = "none";

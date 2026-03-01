@@ -8,6 +8,8 @@ import { defineCommand, runMain } from "citty";
 import { initFlags } from "./utils/logger.js";
 import { showBanner } from "./utils/banner.js";
 
+declare const __PLUNK_VERSION__: string;
+
 initFlags();
 
 // Show banner when running without subcommand or with --help
@@ -28,7 +30,7 @@ if (!hasSubcommand) {
 const main = defineCommand({
   meta: {
     name: "plunk",
-    version: "0.1.0",
+    version: typeof __PLUNK_VERSION__ !== "undefined" ? __PLUNK_VERSION__ : "0.0.0-dev",
     description: "",
   },
   args: {
