@@ -4,9 +4,12 @@
 
 <p align="center">
   <a href="https://plunk.olegkuibar.dev/"><img src="https://img.shields.io/badge/Try_in_Browser-Playground-58a6ff?style=flat&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyem0tMiAxNWwtNS01IDEuNDEtMS40MUwxMCAxNC4xN2w3LjU5LTcuNTlMMTkgOGwtOSA5eiIvPjwvc3ZnPg==" alt="Playground" /></a>
+  <br>
   <a href="https://www.npmjs.com/package/@olegkuibar/plunk"><img src="https://img.shields.io/npm/v/@olegkuibar/plunk?color=blue" alt="npm version" /></a>
   <a href="https://www.npmjs.com/package/@olegkuibar/plunk"><img src="https://img.shields.io/npm/dm/@olegkuibar/plunk" alt="npm downloads" /></a>
-  <a href="https://www.npmjs.com/package/@olegkuibar/plunk"><img src="https://img.shields.io/npm/unpacked-size/%40olegkuibar%2Fplunk" alt="npm package size" /></a>
+  <a href="https://www.npmjs.com/package/@olegkuibar/plunk"><img src="https://img.shields.io/npm/unpacked-size/%40olegkuibar%2Fplunk" alt="unpacked size" /></a>
+  <a href="https://bundlephobia.com/package/@olegkuibar/plunk"><img src="https://badgen.net/bundlephobia/minzip/%40olegkuibar%2Fplunk" alt="minzipped size" /></a>
+  <br>
   <a href="https://github.com/oleg-kuibar/plunk/actions/workflows/ci.yml"><img src="https://github.com/oleg-kuibar/plunk/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="https://github.com/oleg-kuibar/plunk/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="license" /></a>
   <img src="https://img.shields.io/badge/node-%3E%3D22.12-brightgreen" alt="node version" />
@@ -72,16 +75,16 @@ plunk push --watch --build "pnpm build"
 
 ## At a glance
 
-| | npm link | yalc | plunk |
-|---|---|---|---|
-| Mechanism | Symlinks | Copy + package.json rewrite | Copy only |
-| Module resolution | Broken (dual instances) | Works | Works |
-| Git contamination | None | package.json + .yalc/ | None |
-| Bundler HMR | Often broken | Varies | Works |
-| pnpm support | Fragile | Limited | Full |
-| Watch mode | None | External | Built-in |
-| Survives `npm install` | No | No | `plunk restore` |
-| Incremental sync | N/A | Full copy each time | mtime + xxhash diff |
+|                        | npm link                | yalc                        | plunk               |
+| ---------------------- | ----------------------- | --------------------------- | ------------------- |
+| Mechanism              | Symlinks                | Copy + package.json rewrite | Copy only           |
+| Module resolution      | Broken (dual instances) | Works                       | Works               |
+| Git contamination      | None                    | package.json + .yalc/       | None                |
+| Bundler HMR            | Often broken            | Varies                      | Works               |
+| pnpm support           | Fragile                 | Limited                     | Full                |
+| Watch mode             | None                    | External                    | Built-in            |
+| Survives `npm install` | No                      | No                          | `plunk restore`     |
+| Incremental sync       | N/A                     | Full copy each time         | mtime + xxhash diff |
 
 See [detailed comparison](docs/comparison.md) for a deeper breakdown.
 
@@ -100,23 +103,23 @@ Experience plunk directly in your browser with our interactive playground:
 
 ## Documentation
 
-| | |
-| --- | --- |
-| [Getting Started](docs/getting-started.md) | Install, first publish/add cycle, watch mode |
-| [Commands](docs/commands.md) | Every command, every flag |
-| [How It Works](docs/how-it-works.md) | Store format, injection, CoW copies |
-| [Bundler Guide](docs/bundlers.md) | Vite, Webpack, esbuild, Turbopack setup |
-| [Comparison](docs/comparison.md) | npm link vs yalc vs plunk |
-| [CI/CD](docs/ci-cd.md) | Using plunk in CI pipelines |
-| [Monorepo Guide](docs/monorepo.md) | Workspace setup and recursive publish |
-| [Troubleshooting](docs/troubleshooting.md) | Common issues and fixes |
-| [FAQ](docs/faq.md) | Frequently asked questions |
-| [Migrating from yalc](docs/migrating-from-yalc.md) | Step-by-step migration guide |
-| [Architecture](docs/architecture.md) | Internals for contributors |
-| [API Reference](docs/api.md) | Programmatic API (TypeScript) |
-| [Examples](examples/) | Try it yourself with real packages |
-| [Playground](playground/) | Interactive browser-based playground |
-| [Contributing](CONTRIBUTING.md) | Dev setup and guidelines |
+|                                                    |                                              |
+| -------------------------------------------------- | -------------------------------------------- |
+| [Getting Started](docs/getting-started.md)         | Install, first publish/add cycle, watch mode |
+| [Commands](docs/commands.md)                       | Every command, every flag                    |
+| [How It Works](docs/how-it-works.md)               | Store format, injection, CoW copies          |
+| [Bundler Guide](docs/bundlers.md)                  | Vite, Webpack, esbuild, Turbopack setup      |
+| [Comparison](docs/comparison.md)                   | npm link vs yalc vs plunk                    |
+| [CI/CD](docs/ci-cd.md)                             | Using plunk in CI pipelines                  |
+| [Monorepo Guide](docs/monorepo.md)                 | Workspace setup and recursive publish        |
+| [Troubleshooting](docs/troubleshooting.md)         | Common issues and fixes                      |
+| [FAQ](docs/faq.md)                                 | Frequently asked questions                   |
+| [Migrating from yalc](docs/migrating-from-yalc.md) | Step-by-step migration guide                 |
+| [Architecture](docs/architecture.md)               | Internals for contributors                   |
+| [API Reference](docs/api.md)                       | Programmatic API (TypeScript)                |
+| [Examples](examples/)                              | Try it yourself with real packages           |
+| [Playground](playground/)                          | Interactive browser-based playground         |
+| [Contributing](CONTRIBUTING.md)                    | Dev setup and guidelines                     |
 
 ## License
 
