@@ -1,5 +1,5 @@
 import { join, normalize } from "node:path";
-import { readFileSync, existsSync, rmSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import type { Plugin, UserConfig } from "vite";
 
 interface PlunkState {
@@ -19,8 +19,6 @@ function readLinkedPackagesSync(stateFile: string): string[] {
 
 export default function plunkPlugin(): Plugin {
   let plunkStateFile: string;
-  let rootDir: string;
-  let cacheDir: string;
   let nodeModulesDir: string;
   let pollTimer: ReturnType<typeof setInterval> | undefined;
 
@@ -67,8 +65,6 @@ export default function plunkPlugin(): Plugin {
     },
 
     configResolved(config) {
-      rootDir = config.root;
-      cacheDir = config.cacheDir;
       nodeModulesDir = join(config.root, "node_modules");
       plunkStateFile = normalize(join(config.root, ".plunk", "state.json"));
       console.log(`[plunk] Watching state file: ${plunkStateFile}`);
@@ -116,28 +112,11 @@ export default function plunkPlugin(): Plugin {
             server.watcher.add(pkgPath);
             console.log(`[plunk] Added watcher for package: ${pkgPath}`);
           }
-
-          // Vite caches node_modules in its module graph — invalidate the
-          // stale modules and send a full-reload so the browser fetches fresh code.
-          server.watcher.on("change", (changedPath: string) => {
-            const normalized = normalize(changedPath);
-            for (const pkg of watchedPackages) {
-              if (normalized.includes(join("node_modules", pkg))) {
-                console.log(`[plunk] Linked package file changed: ${changedPath}`);
-                const mods = server.moduleGraph.getModulesByFile(normalized);
-                if (mods) {
-                  mods.forEach((m) => server.moduleGraph.invalidateModule(m));
-                }
-                server.hot.send({ type: "full-reload", path: "*" });
-                return;
-              }
-            }
-          });
         }
       }
 
-      /** Clear Vite cache and restart the server (for config-level changes like new packages) */
-      async function clearCacheAndRestart(source: string) {
+      /** Restart the dev server to pick up changes */
+      async function restartServer(source: string) {
         if (isRestarting) {
           pendingRestart = true;
           console.log(`[plunk] Restart already in progress, queued: ${source}`);
@@ -154,21 +133,12 @@ export default function plunkPlugin(): Plugin {
         );
 
         try {
-          if (existsSync(cacheDir)) {
-            rmSync(cacheDir, { recursive: true, force: true });
-            console.log(`[plunk] Cleared cache: ${cacheDir}`);
-          }
-        } catch (err) {
-          console.error(`[plunk] Failed to clear cache:`, err);
-        }
-
-        try {
           await server.restart();
         } finally {
           isRestarting = false;
           if (pendingRestart) {
             pendingRestart = false;
-            await clearCacheAndRestart("Queued change detected");
+            await restartServer("Queued change detected");
           }
         }
       }
@@ -178,7 +148,7 @@ export default function plunkPlugin(): Plugin {
         if (debounceTimer) clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
           debounceTimer = null;
-          clearCacheAndRestart(source);
+          restartServer(source);
         }, 100);
       }
 
@@ -188,23 +158,31 @@ export default function plunkPlugin(): Plugin {
       // Initial sync
       syncPackageWatchers();
 
-      // Watch for state.json changes (new package linked → need config restart).
-      // Linked package file changes are handled by Vite's built-in HMR pipeline
-      // automatically, since we unignored those paths in chokidar above.
-      // Only restart when the set of linked packages changes (plunk add/remove),
-      // not on every push (which only updates hashes/timestamps).
+      // Watch for changes to state.json and linked package files.
+      // state.json: only restart when new packages appear (plunk add/remove).
+      // Linked package files: always restart to pick up pushed changes.
+      // Vite's built-in HMR doesn't reliably handle node_modules changes
+      // (especially in WebContainers), so server.restart() is needed.
       server.watcher.on("change", async (changedPath: string) => {
         const normalizedChanged = normalize(changedPath);
-        if (normalizedChanged !== plunkStateFile) return;
 
-        const currentPackages = readLinkedPackagesSync(plunkStateFile);
-        const hasNew = currentPackages.some((pkg) => !watchedPackages.has(pkg));
-        if (!hasNew) {
-          console.log("[plunk] state.json changed but no new packages, skipping restart");
+        if (normalizedChanged === plunkStateFile) {
+          const currentPackages = readLinkedPackagesSync(plunkStateFile);
+          const hasNew = currentPackages.some((pkg) => !watchedPackages.has(pkg));
+          if (!hasNew) {
+            console.log("[plunk] state.json changed but no new packages, skipping restart");
+            return;
+          }
+          scheduleRestart("New package linked");
           return;
         }
 
-        scheduleRestart("New package linked");
+        const isLinkedPackage = [...watchedPackages].some((pkg) =>
+          normalizedChanged.includes(normalize(join(nodeModulesDir, pkg)))
+        );
+        if (isLinkedPackage) {
+          scheduleRestart("Linked package file changed");
+        }
       });
 
       // Fallback detection for WebContainers: poll state.json directly.

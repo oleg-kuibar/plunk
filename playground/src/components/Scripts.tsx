@@ -55,14 +55,14 @@ export function Scripts({ readFile, readdir, isReady }: ScriptsProps) {
                   plunk.push({
                     id: `plunk-publish-${pkgName}`,
                     name: `publish ${pkgName}`,
-                    command: `cd && cdpackages/${pkgName} && npx -y @olegkuibar/plunk publish`,
+                    command: `cd packages/${pkgName} && npx -y @olegkuibar/plunk publish`,
                     source: pkgName,
                     category: 'plunk',
                   });
                   plunk.push({
                     id: `plunk-push-${pkgName}`,
                     name: `push ${pkgName}`,
-                    command: `cd && cdpackages/${pkgName} && npx -y @olegkuibar/plunk push`,
+                    command: `cd packages/${pkgName} && npx -y @olegkuibar/plunk push`,
                     source: pkgName,
                     category: 'plunk',
                   });
@@ -74,7 +74,7 @@ export function Scripts({ readFile, readdir, isReady }: ScriptsProps) {
                     npm.push({
                       id: `npm-${pkgName}-${scriptName}`,
                       name: scriptName,
-                      command: `cd && cdpackages/${pkgName} && npm run ${scriptName}`,
+                      command: `cd packages/${pkgName} && npm run ${scriptName}`,
                       source: pkgName,
                       category: 'npm',
                     });

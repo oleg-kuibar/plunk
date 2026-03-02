@@ -625,11 +625,13 @@ export declare const UI_VERSION: string;
           contents: `import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// Lightweight HMR plugin for plunk-linked packages.
-// Overrides Vite's default node_modules ignore so chokidar
-// watches linked package dirs and HMR picks up pushed changes.
+// Plunk Vite plugin — watches linked packages and restarts on changes.
+// Overrides Vite's default node_modules ignore so chokidar sees linked
+// package dirs, then triggers server.restart() when files change.
 function plunkHMR() {
   const PACKAGES = ['@example/api-client', '@example/ui-kit'];
+  var restartTimer = null;
+  var isRestarting = false;
   return {
     name: 'vite-plugin-plunk',
     apply: 'serve',
@@ -648,13 +650,21 @@ function plunkHMR() {
       for (const pkg of PACKAGES) {
         server.watcher.add('node_modules/' + pkg);
       }
-      // Vite caches node_modules in its module graph — invalidate + reload
-      server.watcher.on('change', (path) => {
-        if (PACKAGES.some(pkg => path.includes('node_modules/' + pkg))) {
-          const mods = server.moduleGraph.getModulesByFile(path);
-          if (mods) mods.forEach(m => server.moduleGraph.invalidateModule(m));
-          server.hot.send({ type: 'full-reload', path: '*' });
-        }
+      // Restart when linked package files change.
+      // Vite's built-in HMR doesn't reliably pick up node_modules
+      // changes in WebContainers — server.restart() is needed.
+      server.watcher.on('change', function(path) {
+        var isLinked = PACKAGES.some(function(pkg) {
+          return path.includes('node_modules/' + pkg);
+        });
+        if (!isLinked || isRestarting) return;
+        if (restartTimer) clearTimeout(restartTimer);
+        restartTimer = setTimeout(function() {
+          restartTimer = null;
+          isRestarting = true;
+          console.log('[plunk] Package change detected, restarting...');
+          server.restart().finally(function() { isRestarting = false; });
+        }, 200);
       });
     },
   };
