@@ -135,6 +135,21 @@ export function useWebContainer(): UseWebContainerResult {
           if (cancelled) return;
         }
 
+        // Pre-populate @example packages into consumer-app/node_modules so
+        // Vite can resolve static imports immediately — before the tutorial
+        // runs `plunk publish` / `plunk add`. The tutorial later overwrites
+        // these with proper plunk-tracked versions.
+        const seed = await container.spawn('sh', ['-c',
+          'mkdir -p consumer-app/node_modules/@example/api-client && ' +
+          'cp packages/api-client/package.json consumer-app/node_modules/@example/api-client/ && ' +
+          'cp -r packages/api-client/dist consumer-app/node_modules/@example/api-client/ && ' +
+          'mkdir -p consumer-app/node_modules/@example/ui-kit && ' +
+          'cp packages/ui-kit/package.json consumer-app/node_modules/@example/ui-kit/ && ' +
+          'cp -r packages/ui-kit/dist consumer-app/node_modules/@example/ui-kit/'
+        ]);
+        await seed.exit;
+        if (cancelled) return;
+
         setStatus('ready');
       } catch (err) {
         if (cancelled) return;
