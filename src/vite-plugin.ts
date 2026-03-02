@@ -117,13 +117,17 @@ export default function plunkPlugin(): Plugin {
             console.log(`[plunk] Added watcher for package: ${pkgPath}`);
           }
 
-          // Vite skips HMR for node_modules files — send explicit full-reload
-          // when linked package files change (avoids needing server.restart).
+          // Vite caches node_modules in its module graph — invalidate the
+          // stale modules and send a full-reload so the browser fetches fresh code.
           server.watcher.on("change", (changedPath: string) => {
             const normalized = normalize(changedPath);
             for (const pkg of watchedPackages) {
               if (normalized.includes(join("node_modules", pkg))) {
                 console.log(`[plunk] Linked package file changed: ${changedPath}`);
+                const mods = server.moduleGraph.getModulesByFile(normalized);
+                if (mods) {
+                  mods.forEach((m) => server.moduleGraph.invalidateModule(m));
+                }
                 server.hot.send({ type: "full-reload", path: "*" });
                 return;
               }

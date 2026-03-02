@@ -648,9 +648,11 @@ function plunkHMR() {
       for (const pkg of PACKAGES) {
         server.watcher.add('node_modules/' + pkg);
       }
-      // Vite skips HMR for node_modules files — send explicit full-reload
+      // Vite caches node_modules in its module graph — invalidate + reload
       server.watcher.on('change', (path) => {
         if (PACKAGES.some(pkg => path.includes('node_modules/' + pkg))) {
+          const mods = server.moduleGraph.getModulesByFile(path);
+          if (mods) mods.forEach(m => server.moduleGraph.invalidateModule(m));
           server.hot.send({ type: 'full-reload', path: '*' });
         }
       });
