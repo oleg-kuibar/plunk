@@ -648,6 +648,12 @@ function plunkHMR() {
       for (const pkg of PACKAGES) {
         server.watcher.add('node_modules/' + pkg);
       }
+      // Vite skips HMR for node_modules files — send explicit full-reload
+      server.watcher.on('change', (path) => {
+        if (PACKAGES.some(pkg => path.includes('node_modules/' + pkg))) {
+          server.hot.send({ type: 'full-reload', path: '*' });
+        }
+      });
     },
   };
 }
