@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
+import { motion, LayoutGroup } from 'framer-motion';
 import { useTerminal } from '../hooks/useTerminal';
 import { useTerminalContext } from '../contexts/TerminalContext';
 import type { BootStatus } from '../hooks/useWebContainer';
@@ -25,7 +26,7 @@ export function Terminal({ status, spawnShell }: TerminalProps) {
   const [tabs, setTabs] = useState<TerminalTab[]>([{ id: 0, name: 'Terminal 1' }]);
   const [activeTabId, setActiveTabId] = useState(0);
   const shellWritersRef = useRef<Map<number, (data: string) => void>>(new Map());
-  const { registerShell } = useTerminalContext();
+  const { registerShell, registerNewTabHandler } = useTerminalContext();
 
   // Register shell writer for a tab
   const registerTabShell = useCallback((tabId: number, write: (data: string) => void) => {
@@ -59,6 +60,11 @@ export function Terminal({ status, spawnShell }: TerminalProps) {
     setActiveTabId(newTab.id);
   }, []);
 
+  // Let TerminalContext trigger new tab creation (used by Tutorial)
+  useEffect(() => {
+    registerNewTabHandler(addTab);
+  }, [addTab, registerNewTabHandler]);
+
   const closeTab = useCallback((tabId: number, e: React.MouseEvent) => {
     e.stopPropagation();
 
@@ -87,48 +93,52 @@ export function Terminal({ status, spawnShell }: TerminalProps) {
       {/* Tab bar */}
       <div className="flex items-center bg-bg-elevated border-b border-border text-xs">
         <div className="flex items-center overflow-x-auto flex-1">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTabId(tab.id)}
-              className={`
-                group flex items-center gap-1.5 px-3 py-2 border-r border-border
-                transition-colors shrink-0
-                ${activeTabId === tab.id
-                  ? 'bg-bg text-text border-b-2 border-b-accent -mb-px'
-                  : 'text-text-muted hover:text-text hover:bg-bg-subtle'
-                }
-              `}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-60">
-                <polyline points="4 17 10 11 4 5" />
-                <line x1="12" y1="19" x2="20" y2="19" />
-              </svg>
-              <span>{tab.name}</span>
-              {tabs.length > 1 && (
-                <span
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => closeTab(tab.id, e)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      closeTab(tab.id, e as unknown as React.MouseEvent);
-                    }
-                  }}
-                  className={`
-                    ml-1 w-4 h-4 flex items-center justify-center rounded
-                    hover:bg-danger/20 hover:text-danger
-                    ${activeTabId === tab.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}
-                    transition-opacity
-                  `}
-                  aria-label={`Close ${tab.name}`}
-                >
-                  {'\u00D7'}
-                </span>
-              )}
-            </button>
-          ))}
+          <LayoutGroup>
+            {tabs.map((tab) => (
+              <motion.button
+                key={tab.id}
+                layout
+                layoutId={`term-tab-${tab.id}`}
+                onClick={() => setActiveTabId(tab.id)}
+                className={`
+                  group flex items-center gap-1.5 px-3 py-2 border-r border-border
+                  transition-colors shrink-0
+                  ${activeTabId === tab.id
+                    ? 'bg-bg text-text border-b-2 border-b-accent -mb-px'
+                    : 'text-text-muted hover:text-text hover:bg-bg-subtle'
+                  }
+                `}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="opacity-60">
+                  <polyline points="4 17 10 11 4 5" />
+                  <line x1="12" y1="19" x2="20" y2="19" />
+                </svg>
+                <span>{tab.name}</span>
+                {tabs.length > 1 && (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => closeTab(tab.id, e)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        closeTab(tab.id, e as unknown as React.MouseEvent);
+                      }
+                    }}
+                    className={`
+                      ml-1 w-4 h-4 flex items-center justify-center rounded
+                      hover:bg-danger/20 hover:text-danger
+                      ${activeTabId === tab.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}
+                      transition-opacity
+                    `}
+                    aria-label={`Close ${tab.name}`}
+                  >
+                    {'\u00D7'}
+                  </span>
+                )}
+              </motion.button>
+            ))}
+          </LayoutGroup>
         </div>
         <button
           onClick={addTab}

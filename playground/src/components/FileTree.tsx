@@ -166,17 +166,23 @@ function TreeItem({
             transition={{ duration: 0.15 }}
             className="overflow-hidden"
           >
-            {node.children.map((child) => (
-              <TreeItem
+            {node.children.map((child, idx) => (
+              <motion.div
                 key={child.path}
-                node={child}
-                depth={depth + 1}
-                onToggle={onToggle}
-                onSelect={onSelect}
-                selectedPath={selectedPath}
-                focusedPath={focusedPath}
-                onFocus={onFocus}
-              />
+                initial={{ opacity: 0, x: -6 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: idx * 0.03, duration: 0.15 }}
+              >
+                <TreeItem
+                  node={child}
+                  depth={depth + 1}
+                  onToggle={onToggle}
+                  onSelect={onSelect}
+                  selectedPath={selectedPath}
+                  focusedPath={focusedPath}
+                  onFocus={onFocus}
+                />
+              </motion.div>
             ))}
           </motion.div>
         )}

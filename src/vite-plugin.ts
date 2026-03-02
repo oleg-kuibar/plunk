@@ -119,10 +119,9 @@ export default function plunkPlugin(): Plugin {
         }
       }
 
-      /** Clear Vite cache and restart the server, queuing if already restarting */
+      /** Clear Vite cache and restart the server (for config-level changes like new packages) */
       async function clearCacheAndRestart(source: string) {
         if (isRestarting) {
-          // Queue a restart after the current one finishes
           pendingRestart = true;
           console.log(`[plunk] Restart already in progress, queued: ${source}`);
           return;
@@ -150,7 +149,6 @@ export default function plunkPlugin(): Plugin {
           await server.restart();
         } finally {
           isRestarting = false;
-          // If another change arrived during restart, restart again
           if (pendingRestart) {
             pendingRestart = false;
             await clearCacheAndRestart("Queued change detected");
@@ -158,7 +156,7 @@ export default function plunkPlugin(): Plugin {
         }
       }
 
-      /** Debounced restart — coalesces rapid changes into one restart */
+      /** Debounced restart for state.json changes (new packages linked) */
       function scheduleRestart(source: string) {
         if (debounceTimer) clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
@@ -173,28 +171,27 @@ export default function plunkPlugin(): Plugin {
       // Initial sync
       syncPackageWatchers();
 
-      // Primary detection: chokidar watcher (works outside WebContainers,
-      // and inside when usePolling is enabled and chokidar respects it)
+      // Watch for state.json changes (new package linked → need config restart).
+      // Linked package file changes are handled by Vite's built-in HMR pipeline
+      // automatically, since we unignored those paths in chokidar above.
+      // Only restart when the set of linked packages changes (plunk add/remove),
+      // not on every push (which only updates hashes/timestamps).
       server.watcher.on("change", async (changedPath: string) => {
         const normalizedChanged = normalize(changedPath);
-        const isStateFile = normalizedChanged === plunkStateFile;
-        const isLinkedPackage = [...watchedPackages].some(pkg =>
-          normalizedChanged.includes(normalize(join(nodeModulesDir, pkg)))
-        );
+        if (normalizedChanged !== plunkStateFile) return;
 
-        if (!isStateFile && !isLinkedPackage) return;
+        const currentPackages = readLinkedPackagesSync(plunkStateFile);
+        const hasNew = currentPackages.some((pkg) => !watchedPackages.has(pkg));
+        if (!hasNew) {
+          console.log("[plunk] state.json changed but no new packages, skipping restart");
+          return;
+        }
 
-        scheduleRestart(
-          `Detected ${isStateFile ? "state.json" : "package"} change via watcher`
-        );
+        scheduleRestart("New package linked");
       });
 
       // Fallback detection for WebContainers: poll state.json directly.
-      // Chokidar's polling may not work reliably inside WebContainers
-      // (no native FS events, virtualized filesystem). This reads the
-      // file content and compares it, bypassing chokidar entirely.
       if (process.versions?.webcontainer) {
-        // Clean up timer from previous server instance (restart cycle)
         if (pollTimer) clearInterval(pollTimer);
 
         let lastStateContent = "";
@@ -209,11 +206,14 @@ export default function plunkPlugin(): Plugin {
             const content = readFileSync(plunkStateFile, "utf-8");
             if (lastStateContent && content !== lastStateContent) {
               lastStateContent = content;
-              scheduleRestart(
-                "Detected state.json change via polling fallback"
+              const currentPackages = readLinkedPackagesSync(plunkStateFile);
+              const hasNew = currentPackages.some(
+                (pkg) => !watchedPackages.has(pkg)
               );
+              if (hasNew) {
+                scheduleRestart("New package linked (polling fallback)");
+              }
             }
-            // First read — just record the baseline
             if (!lastStateContent) lastStateContent = content;
           } catch {
             // state.json doesn't exist yet

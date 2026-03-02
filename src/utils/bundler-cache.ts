@@ -4,9 +4,13 @@ import { detectAllBundlers } from "./bundler-detect.js";
 import type { BundlerInfo, BundlerType } from "./bundler-detect.js";
 import { verbose } from "./logger.js";
 
-/** Cache directories to clear for each bundler type */
+/** Cache directories to clear for each bundler type.
+ *  Vite is intentionally excluded — linked packages are served directly
+ *  (excluded from optimizeDeps), so the .vite pre-bundle cache doesn't
+ *  contain them. Clearing it just forces Vite to re-optimize unrelated
+ *  deps and triggers an unnecessary full page reload. The Vite plugin
+ *  handles cache clearing when it's actually needed (new package linked). */
 const CACHE_DIRS: Partial<Record<NonNullable<BundlerType>, string[]>> = {
-  vite: ["node_modules/.vite"],
   next: [".next/cache"],
   webpack: ["node_modules/.cache"],
 };

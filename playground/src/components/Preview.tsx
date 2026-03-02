@@ -1,23 +1,102 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { useTerminalContext } from '../contexts/TerminalContext';
+import { CodeLoader } from './Loader';
 
 interface PreviewProps {
   url: string | null;
 }
 
-const LOAD_TIMEOUT_MS = 30000; // 30 seconds
+const LOAD_TIMEOUT_MS = 30000;
+
+type Viewport = 'responsive' | 'mobile' | 'tablet';
+
+const VIEWPORTS: { id: Viewport; label: string; width: number | null; icon: string }[] = [
+  { id: 'responsive', label: 'Responsive', width: null, icon: '\u2922' },
+  { id: 'mobile', label: 'Mobile', width: 375, icon: '\u2706' },
+  { id: 'tablet', label: 'Tablet', width: 768, icon: '\u2B1C' },
+];
+
+function RichIdleState() {
+  const { executeCommand, isShellConnected } = useTerminalContext();
+  const [isAutoStarting, setIsAutoStarting] = useState(false);
+
+  const steps = [
+    { num: 1, label: 'Publish packages', done: false },
+    { num: 2, label: 'Link to consumer', done: false },
+    { num: 3, label: 'Start dev server', done: false },
+  ];
+
+  const handleAutoStart = useCallback(() => {
+    if (!isShellConnected || isAutoStarting) return;
+    setIsAutoStarting(true);
+    executeCommand('npm run publish:all && npm run link:all && npm run start');
+  }, [executeCommand, isShellConnected, isAutoStarting]);
+
+  return (
+    <div className="flex flex-col items-center justify-center h-full text-text-muted text-sm text-center p-6 bg-bg">
+      <div className="max-w-[300px] w-full space-y-5">
+        <div>
+          <div className="text-3xl mb-3 opacity-40" aria-hidden="true">{'\u25B6\uFE0F'}</div>
+          <h3 className="text-text font-medium text-sm mb-1">No preview running</h3>
+          <p className="text-xs text-text-subtle">Follow these steps to see your app:</p>
+        </div>
+
+        {/* Step guide */}
+        <div className="space-y-2 text-left">
+          {steps.map((step, idx) => (
+            <motion.div
+              key={step.num}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: idx * 0.1 }}
+              className="flex items-center gap-3 px-3 py-2 rounded-lg bg-bg-elevated border border-border"
+            >
+              <span className="w-6 h-6 rounded-full bg-bg-muted flex items-center justify-center text-xs font-bold text-text-subtle">
+                {step.num}
+              </span>
+              <span className="text-xs text-text-muted">{step.label}</span>
+              {idx < steps.length - 1 && (
+                <span className="ml-auto text-text-subtle text-[10px]">{'\u2192'}</span>
+              )}
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Auto-start button */}
+        <button
+          onClick={handleAutoStart}
+          disabled={!isShellConnected || isAutoStarting}
+          className={`
+            w-full py-2.5 px-4 rounded-lg text-xs font-medium transition-all
+            ${isShellConnected && !isAutoStarting
+              ? 'bg-accent text-black hover:bg-accent/90'
+              : 'bg-bg-muted text-text-muted cursor-not-allowed'
+            }
+          `}
+        >
+          {isAutoStarting ? 'Starting...' : 'Auto-start (publish, link & dev)'}
+        </button>
+
+        <div className="border-t border-border pt-3">
+          <p className="text-[10px] text-text-subtle">
+            Or run manually: <code className="text-success">cd consumer-app && npm run dev</code>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function Preview({ url }: PreviewProps) {
   const [loadState, setLoadState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
   const [key, setKey] = useState(0);
+  const [viewport, setViewport] = useState<Viewport>('responsive');
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Reset loading state when URL changes
   useEffect(() => {
     if (url) {
       setLoadState('loading');
-
-      // Set timeout for loading
       timeoutRef.current = setTimeout(() => {
         setLoadState('error');
       }, LOAD_TIMEOUT_MS);
@@ -52,25 +131,38 @@ export function Preview({ url }: PreviewProps) {
   }, []);
 
   if (!url) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-text-muted text-sm text-center p-6 bg-bg">
-        <div className="text-4xl mb-4 opacity-40" role="img" aria-label="Monitor">{'\uD83D\uDDA5\uFE0F'}</div>
-        <p className="mb-4">No preview available</p>
-        <div className="bg-bg-elevated border border-border rounded-lg p-4 max-w-[280px] text-left">
-          <p className="text-text text-xs mb-2">Start the dev server:</p>
-          <code className="block px-3 py-2 bg-bg rounded text-success text-xs font-mono">
-            cd consumer-app && npm run dev
-          </code>
-        </div>
-      </div>
-    );
+    return <RichIdleState />;
   }
+
+  const activeViewport = VIEWPORTS.find(v => v.id === viewport);
+  const iframeMaxWidth = activeViewport?.width ? `${activeViewport.width}px` : undefined;
 
   return (
     <div className="h-full flex flex-col">
       {/* Preview header */}
       <div className="flex items-center gap-2 px-3 py-2 bg-bg-elevated border-b border-border text-xs">
         <span className="text-text font-medium">Preview</span>
+
+        {/* Viewport toggle */}
+        <div className="flex items-center gap-0.5 ml-2 bg-bg rounded px-1 py-0.5">
+          {VIEWPORTS.map((vp) => (
+            <button
+              key={vp.id}
+              onClick={() => setViewport(vp.id)}
+              className={`
+                px-1.5 py-0.5 rounded text-[10px] transition-colors
+                ${viewport === vp.id
+                  ? 'bg-bg-elevated text-accent font-medium'
+                  : 'text-text-subtle hover:text-text-muted'
+                }
+              `}
+              title={vp.label}
+            >
+              {vp.icon}
+            </button>
+          ))}
+        </div>
+
         <div
           className="flex-1 mx-2 px-2 py-1 bg-bg border border-border rounded text-[11px] text-text-muted overflow-hidden text-ellipsis whitespace-nowrap"
           title={url}
@@ -102,14 +194,15 @@ export function Preview({ url }: PreviewProps) {
       </div>
 
       {/* Preview iframe */}
-      <div className="flex-1 relative bg-white">
+      <div className="flex-1 relative bg-white flex justify-center">
         {loadState === 'loading' && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="absolute inset-0 flex flex-col items-center justify-center bg-bg z-10"
+            className="absolute inset-0 flex flex-col items-center justify-center bg-bg z-10 gap-4"
           >
-            <div className="w-32 h-1 bg-border rounded-full overflow-hidden mb-4">
+            <CodeLoader size="md" />
+            <div className="w-32 h-1 bg-border rounded-full overflow-hidden">
               <motion.div
                 className="h-full bg-accent rounded-full"
                 initial={{ x: '-100%' }}
@@ -118,7 +211,7 @@ export function Preview({ url }: PreviewProps) {
                 style={{ width: '50%' }}
               />
             </div>
-            <p className="text-text-muted text-sm">Loading preview...</p>
+            <p className="text-text-muted text-sm">Starting Vite dev server...</p>
           </motion.div>
         )}
 
@@ -137,7 +230,11 @@ export function Preview({ url }: PreviewProps) {
           src={url}
           onLoad={handleLoad}
           onError={handleError}
-          className="w-full h-full border-none"
+          className="h-full border-none transition-[max-width] duration-200"
+          style={{
+            width: '100%',
+            maxWidth: iframeMaxWidth,
+          }}
           title="App Preview"
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
         />

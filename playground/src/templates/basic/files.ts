@@ -45,7 +45,7 @@ export function createBasicTemplate(plunkVersion: string): FileSystemTree {
           scripts: {
             'publish:all': 'cd packages/api-client && npx -y @olegkuibar/plunk publish && cd ../ui-kit && npx -y @olegkuibar/plunk publish',
             'link:all': 'cd consumer-app && npx -y @olegkuibar/plunk add @example/api-client && npx -y @olegkuibar/plunk add @example/ui-kit',
-            'start': 'cd consumer-app && npm install && npm run dev',
+            'start': 'cd consumer-app && npm run dev',
             'build:api': 'cd packages/api-client && npm run build',
             'build:ui': 'cd packages/ui-kit && npm run build',
             'push:api': 'cd packages/api-client && npm run build && npx -y @olegkuibar/plunk push',
@@ -135,7 +135,7 @@ export interface ApiResponse<T> {
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Mock user database
-const users: User[] = [
+export const users: User[] = [
   { id: 1, name: 'Alice Johnson', email: 'alice@example.com' },
   { id: 2, name: 'Bob Smith', email: 'bob@example.com' },
   { id: 3, name: 'Charlie Brown', email: 'charlie@example.com' },
@@ -188,7 +188,7 @@ export const VERSION = '1.0.0';
                   contents: `// @example/api-client - A simple API client package
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-const users = [
+export const users = [
   { id: 1, name: 'Alice Johnson', email: 'alice@example.com' },
   { id: 2, name: 'Bob Smith', email: 'bob@example.com' },
   { id: 3, name: 'Charlie Brown', email: 'charlie@example.com' },
@@ -235,6 +235,7 @@ export interface ApiResponse<T> {
   timestamp: string;
 }
 
+export declare const users: User[];
 export declare function getUser(id: number): Promise<ApiResponse<User | null>>;
 export declare function getUsers(): Promise<ApiResponse<User[]>>;
 export declare function getGreeting(user: User): string;
@@ -293,7 +294,7 @@ export declare const VERSION: string;
                     outDir: './dist',
                     strict: true,
                     skipLibCheck: true,
-                    jsx: 'react-jsx',
+                    jsx: 'react',
                   },
                   include: ['src'],
                 },
@@ -311,14 +312,14 @@ export declare const VERSION: string;
 import React from 'react';
 
 export interface CardProps {
-  title: string;
+  title?: string;
   children: React.ReactNode;
   variant?: 'default' | 'success' | 'warning';
 }
 
 /**
- * A styled card component
- * ✨ Try changing the styles and run \`plunk push\`!
+ * Card with left-border accent.
+ * Try changing the borderColor and run \`plunk push\`!
  */
 export function Card({ title, children, variant = 'default' }: CardProps) {
   const variantStyles = {
@@ -339,9 +340,15 @@ export function Card({ title, children, variant = 'default' }: CardProps) {
         marginBottom: '12px',
       }}
     >
-      <h3 style={{ margin: '0 0 12px 0', color: '#c9d1d9', fontSize: '16px' }}>
-        {title}
-      </h3>
+      {title && (
+        <h3 style={{
+          margin: '0 0 12px 0',
+          color: '#c9d1d9',
+          fontSize: '16px',
+        }}>
+          {title}
+        </h3>
+      )}
       <div style={{ color: '#8b949e' }}>{children}</div>
     </div>
   );
@@ -354,16 +361,13 @@ export interface ButtonProps {
   disabled?: boolean;
 }
 
-/**
- * A styled button component
- */
 export function Button({
   children,
   onClick,
   variant = 'primary',
   disabled = false,
 }: ButtonProps) {
-  const baseStyles: React.CSSProperties = {
+  const base: React.CSSProperties = {
     padding: '8px 16px',
     borderRadius: '6px',
     border: 'none',
@@ -374,7 +378,7 @@ export function Button({
     opacity: disabled ? 0.5 : 1,
   };
 
-  const variantStyles: Record<string, React.CSSProperties> = {
+  const variants: Record<string, React.CSSProperties> = {
     primary: {
       backgroundColor: '#238636',
       color: '#ffffff',
@@ -390,7 +394,7 @@ export function Button({
     <button
       onClick={onClick}
       disabled={disabled}
-      style={{ ...baseStyles, ...variantStyles[variant] }}
+      style={{ ...base, ...variants[variant] }}
     >
       {children}
     </button>
@@ -402,18 +406,15 @@ export interface BadgeProps {
   color?: 'blue' | 'green' | 'yellow' | 'red';
 }
 
-/**
- * A small badge/tag component
- */
 export function Badge({ children, color = 'blue' }: BadgeProps) {
-  const colors = {
+  const palettes = {
     blue: { bg: '#388bfd26', text: '#58a6ff' },
     green: { bg: '#2ea04326', text: '#3fb950' },
     yellow: { bg: '#bb800926', text: '#d29922' },
     red: { bg: '#f8514926', text: '#f85149' },
   };
 
-  const { bg, text } = colors[color];
+  const { bg, text } = palettes[color];
 
   return (
     <span
@@ -465,7 +466,7 @@ export function Card({ title, children, variant = 'default' }) {
         marginBottom: '12px',
       },
     },
-    React.createElement(
+    title && React.createElement(
       'h3',
       { style: { margin: '0 0 12px 0', color: '#c9d1d9', fontSize: '16px' } },
       title
@@ -480,7 +481,7 @@ export function Button({
   variant = 'primary',
   disabled = false,
 }) {
-  const baseStyles = {
+  const base = {
     padding: '8px 16px',
     borderRadius: '6px',
     border: 'none',
@@ -491,7 +492,7 @@ export function Button({
     opacity: disabled ? 0.5 : 1,
   };
 
-  const variantStyles = {
+  const variants = {
     primary: {
       backgroundColor: '#238636',
       color: '#ffffff',
@@ -508,21 +509,21 @@ export function Button({
     {
       onClick,
       disabled,
-      style: { ...baseStyles, ...variantStyles[variant] },
+      style: { ...base, ...variants[variant] },
     },
     children
   );
 }
 
 export function Badge({ children, color = 'blue' }) {
-  const colors = {
+  const palettes = {
     blue: { bg: '#388bfd26', text: '#58a6ff' },
     green: { bg: '#2ea04326', text: '#3fb950' },
     yellow: { bg: '#bb800926', text: '#d29922' },
     red: { bg: '#f8514926', text: '#f85149' },
   };
 
-  const { bg, text } = colors[color];
+  const { bg, text } = palettes[color];
 
   return React.createElement(
     'span',
@@ -550,7 +551,7 @@ export const UI_VERSION = '1.0.0';
                   contents: `import React from 'react';
 
 export interface CardProps {
-  title: string;
+  title?: string;
   children: React.ReactNode;
   variant?: 'default' | 'success' | 'warning';
 }
@@ -608,7 +609,6 @@ export declare const UI_VERSION: string;
                 '@example/ui-kit': '*',
               },
               devDependencies: {
-                '@olegkuibar/plunk': plunkVersion,
                 '@types/react': '^18.3.0',
                 '@types/react-dom': '^18.3.0',
                 '@vitejs/plugin-react': '^4.3.0',
@@ -624,21 +624,45 @@ export declare const UI_VERSION: string;
         file: {
           contents: `import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import plunk from '@olegkuibar/plunk/vite';
+
+// Lightweight HMR plugin for plunk-linked packages.
+// Overrides Vite's default node_modules ignore so chokidar
+// watches linked package dirs and HMR picks up pushed changes.
+function plunkHMR() {
+  const PACKAGES = ['@example/api-client', '@example/ui-kit'];
+  return {
+    name: 'plunk-hmr',
+    apply: 'serve',
+    configureServer(server) {
+      const escaped = PACKAGES
+        .map(p => p.replace(/[/\\\\.*+?^\${}()|[\\]]/g, '\\\\$&'))
+        .join('|');
+      server.watcher.options = {
+        ...server.watcher.options,
+        ignored: [
+          new RegExp('node_modules\\\\/(?!(?:' + escaped + ')(?:\\\\/|$)).*'),
+          '**/.git/**',
+        ],
+      };
+      server.watcher._userIgnored = undefined;
+      for (const pkg of PACKAGES) {
+        server.watcher.add('node_modules/' + pkg);
+      }
+    },
+  };
+}
 
 export default defineConfig({
-  plugins: [react(), plunk()],
+  plugins: [react(), plunkHMR()],
   server: {
     port: 3000,
     host: true,
     watch: { usePolling: true, interval: 1000 },
   },
-  // Ensure @example packages are resolved from node_modules (linked by plunk)
   resolve: {
     preserveSymlinks: true,
   },
   optimizeDeps: {
-    // Don't pre-bundle linked packages - serve fresh from node_modules
     exclude: ['@example/api-client', '@example/ui-kit'],
   },
 });
@@ -652,16 +676,18 @@ export default defineConfig({
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Consumer App - Plunk Demo</title>
+    <title>Consumer App</title>
     <style>
-      * { box-sizing: border-box; margin: 0; padding: 0; }
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
       body {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         background: #0d1117;
         color: #c9d1d9;
         min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
       }
-      #root { padding: 24px; max-width: 800px; margin: 0 auto; }
+      #root { padding: 28px 24px; max-width: 600px; }
+      code, .mono { font-family: 'SF Mono', 'Cascadia Code', 'Fira Mono', 'Consolas', monospace; }
     </style>
   </head>
   <body>
@@ -690,154 +716,27 @@ createRoot(document.getElementById('root')).render(
           },
           'App.jsx': {
             file: {
-              contents: `import React, { useState, useEffect } from 'react';
-
-// These imports will work after running:
-// 1. cd packages/api-client && plunk publish
-// 2. cd consumer-app && plunk add @example/api-client
-// 3. Repeat for @example/ui-kit
-//
-// For now, we show a placeholder UI
+              contents: `import React from 'react';
+import { users, getGreeting, VERSION } from '@example/api-client';
+import { Card, Button, Badge, UI_VERSION } from '@example/ui-kit';
 
 function App() {
-  const [apiClient, setApiClient] = useState(null);
-  const [uiKit, setUiKit] = useState(null);
-  const [users, setUsers] = useState([]);
-  const [greeting, setGreeting] = useState('');
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Try to dynamically import the packages
-    // @vite-ignore tells Vite to skip import analysis (packages may not exist yet)
-    Promise.all([
-      import(/* @vite-ignore */ '@example/api-client').catch(() => null),
-      import(/* @vite-ignore */ '@example/ui-kit').catch(() => null),
-    ]).then(([api, ui]) => {
-      setApiClient(api);
-      setUiKit(ui);
-      setLoading(false);
-
-      if (api) {
-        api.getUsers().then(response => {
-          setUsers(response.data);
-          if (response.data.length > 0) {
-            setGreeting(api.getGreeting(response.data[0]));
-          }
-        });
-      }
-    });
-  }, []);
-
-  if (loading) {
-    return (
-      <div style={{ textAlign: 'center', padding: '48px' }}>
-        <div style={{ fontSize: '24px', marginBottom: '16px' }}>⏳</div>
-        <p>Loading packages...</p>
-      </div>
-    );
-  }
-
-  // If packages aren't installed yet, show instructions
-  if (!apiClient || !uiKit) {
-    return (
-      <div style={{ padding: '24px' }}>
-        <h1 style={{ marginBottom: '24px', color: '#58a6ff' }}>
-          🔧 Plunk Playground Setup
-        </h1>
-
-        <div style={{
-          background: '#161b22',
-          border: '1px solid #30363d',
-          borderRadius: '8px',
-          padding: '20px',
-          marginBottom: '20px'
-        }}>
-          <h2 style={{ fontSize: '18px', marginBottom: '16px' }}>
-            Run these commands in the terminal:
-          </h2>
-
-          <div style={{ fontFamily: 'monospace', fontSize: '14px' }}>
-            <p style={{ marginBottom: '12px', color: '#8b949e' }}>
-              # 1. Publish api-client to the plunk store
-            </p>
-            <code style={{
-              display: 'block',
-              background: '#0d1117',
-              padding: '8px 12px',
-              borderRadius: '4px',
-              marginBottom: '16px',
-              color: '#3fb950'
-            }}>
-              cd packages/api-client && plunk publish
-            </code>
-
-            <p style={{ marginBottom: '12px', color: '#8b949e' }}>
-              # 2. Publish ui-kit to the plunk store
-            </p>
-            <code style={{
-              display: 'block',
-              background: '#0d1117',
-              padding: '8px 12px',
-              borderRadius: '4px',
-              marginBottom: '16px',
-              color: '#3fb950'
-            }}>
-              cd ../ui-kit && plunk publish
-            </code>
-
-            <p style={{ marginBottom: '12px', color: '#8b949e' }}>
-              # 3. Add packages to consumer-app
-            </p>
-            <code style={{
-              display: 'block',
-              background: '#0d1117',
-              padding: '8px 12px',
-              borderRadius: '4px',
-              marginBottom: '16px',
-              color: '#3fb950'
-            }}>
-              cd ../../consumer-app && plunk add @example/api-client @example/ui-kit
-            </code>
-
-            <p style={{ marginBottom: '12px', color: '#8b949e' }}>
-              # 4. Start the dev server
-            </p>
-            <code style={{
-              display: 'block',
-              background: '#0d1117',
-              padding: '8px 12px',
-              borderRadius: '4px',
-              color: '#3fb950'
-            }}>
-              npm run dev
-            </code>
-          </div>
-        </div>
-
-        <p style={{ color: '#8b949e', fontSize: '14px' }}>
-          After running these commands, refresh this preview to see the app in action!
-        </p>
-      </div>
-    );
-  }
-
-  // Packages are installed - show the demo app
-  const { Card, Button, Badge } = uiKit;
+  const greeting = users.length > 0 ? getGreeting(users[0]) : '';
 
   return (
     <div>
       <h1 style={{ marginBottom: '8px', color: '#58a6ff' }}>
-        ✨ Plunk Demo App
+        Plunk Demo App
       </h1>
       <p style={{ color: '#8b949e', marginBottom: '24px' }}>
-        Using @example/api-client v{apiClient.VERSION} and @example/ui-kit v{uiKit.UI_VERSION}
+        Using @example/api-client v{VERSION} and @example/ui-kit v{UI_VERSION}
       </p>
 
       {greeting && (
         <Card title="Welcome Message" variant="success">
           <p style={{ fontSize: '16px' }}>{greeting}</p>
           <p style={{ marginTop: '8px', fontSize: '12px', color: '#8b949e' }}>
-            💡 Edit packages/api-client/src/index.ts and run <code>plunk push</code> to update this!
+            Edit packages/api-client/src/index.ts and run <code>plunk push</code> to update this!
           </p>
         </Card>
       )}
@@ -849,7 +748,7 @@ function App() {
             alignItems: 'center',
             gap: '12px',
             padding: '8px 0',
-            borderBottom: '1px solid #21262d'
+            borderBottom: '1px solid #21262d',
           }}>
             <Badge color={user.id === 1 ? 'green' : user.id === 2 ? 'blue' : 'yellow'}>
               #{user.id}

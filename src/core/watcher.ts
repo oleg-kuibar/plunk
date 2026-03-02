@@ -126,6 +126,10 @@ export async function startWatcher(
         pollInterval: 50,
       };
 
+  // WebContainers don't emit native filesystem events — enable polling
+  // so chokidar can detect changes (same approach as the Vite plugin).
+  const usePolling = !!process.versions?.webcontainer;
+
   const watcher = watch(watchPaths, {
     ignoreInitial: true,
     ignored: [
@@ -134,6 +138,8 @@ export async function startWatcher(
       "**/.plunk/**",
     ],
     awaitWriteFinish: awfOption,
+    usePolling,
+    ...(usePolling && { interval: 1000 }),
   });
 
   watcher.on("change", onFileEvent);
