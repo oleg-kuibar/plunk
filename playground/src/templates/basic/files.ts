@@ -631,7 +631,7 @@ import react from '@vitejs/plugin-react';
 function plunkHMR() {
   const PACKAGES = ['@example/api-client', '@example/ui-kit'];
   return {
-    name: 'plunk-hmr',
+    name: 'vite-plugin-plunk',
     apply: 'serve',
     configureServer(server) {
       const escaped = PACKAGES
