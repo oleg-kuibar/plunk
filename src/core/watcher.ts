@@ -1,5 +1,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { readdir, stat } from "node:fs/promises";
 import { platform } from "node:os";
+import { join } from "node:path";
 import { consola } from "../utils/console.js";
 import type { WatchOptions } from "../types.js";
 
@@ -13,6 +15,55 @@ export function killActiveBuild(): void {
     activeChild.kill("SIGTERM");
     activeChild = null;
   }
+}
+
+const IGNORED_DIRS = new Set(["node_modules", ".git", ".plunk"]);
+
+/** Recursively walk a directory, collecting file paths and their mtimeMs. */
+async function walkDir(
+  dir: string,
+  snapshot: Map<string, number>
+): Promise<void> {
+  let entries;
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch {
+    return; // directory may have been removed
+  }
+  for (const entry of entries) {
+    if (IGNORED_DIRS.has(entry.name)) continue;
+    const fullPath = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      await walkDir(fullPath, snapshot);
+    } else {
+      try {
+        const st = await stat(fullPath);
+        snapshot.set(fullPath, st.mtimeMs);
+      } catch {
+        // file may have been removed between readdir and stat
+      }
+    }
+  }
+}
+
+/** Build a snapshot of mtimeMs for all files under the given paths. */
+async function buildSnapshot(
+  watchPaths: string[]
+): Promise<Map<string, number>> {
+  const snapshot = new Map<string, number>();
+  for (const p of watchPaths) {
+    try {
+      const st = await stat(p);
+      if (st.isDirectory()) {
+        await walkDir(p, snapshot);
+      } else {
+        snapshot.set(p, st.mtimeMs);
+      }
+    } catch {
+      // path may not exist yet
+    }
+  }
+  return snapshot;
 }
 
 /**
@@ -133,9 +184,9 @@ export async function startWatcher(
   const watcher = watch(watchPaths, {
     ignoreInitial: true,
     ignored: [
-      "**/node_modules/**",
-      "**/.git/**",
-      "**/.plunk/**",
+      /[/\\]node_modules[/\\]/,
+      /[/\\]\.git[/\\]/,
+      /[/\\]\.plunk[/\\]/,
     ],
     awaitWriteFinish: awfOption,
     usePolling,
@@ -149,9 +200,47 @@ export async function startWatcher(
     consola.error(`Watcher error: ${err instanceof Error ? err.message : String(err)}`);
   });
 
+  // Manual stat-based polling fallback for WebContainers where chokidar's
+  // fs.watchFile() can silently fail (callbacks never fire, no errors thrown).
+  // Runs alongside chokidar — the debounce mechanism coalesces duplicate events.
+  let pollInterval: ReturnType<typeof setInterval> | null = null;
+  if (usePolling) {
+    let lastSnapshot = await buildSnapshot(watchPaths);
+    pollInterval = setInterval(async () => {
+      if (closed) return;
+      try {
+        const current = await buildSnapshot(watchPaths);
+
+        // Detect changed or added files
+        for (const [path, mtime] of current) {
+          const prev = lastSnapshot.get(path);
+          if (prev === undefined || prev !== mtime) {
+            onFileEvent(path);
+            break; // one trigger is enough — debounce handles the rest
+          }
+        }
+
+        // Detect removed files
+        if (!closed) {
+          for (const path of lastSnapshot.keys()) {
+            if (!current.has(path)) {
+              onFileEvent(path);
+              break;
+            }
+          }
+        }
+
+        lastSnapshot = current;
+      } catch {
+        // Ignore transient errors during polling
+      }
+    }, 1000);
+  }
+
   const watcherHandle = {
     close: async () => {
       closed = true;
+      if (pollInterval) clearInterval(pollInterval);
       if (debounceTimer) clearTimeout(debounceTimer);
       killActiveBuild();
       await watcher.close();

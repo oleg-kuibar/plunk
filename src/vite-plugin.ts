@@ -92,6 +92,7 @@ export default function plunkPlugin(): Plugin {
           // Override with a regex that allows our linked packages through.
           // This is the standard workaround from vitejs/vite#8619.
           const escaped = [...watchedPackages]
+            .sort((a, b) => b.length - a.length)
             .map(p => p.replace(/[/\\.*+?^${}()|[\]]/g, "\\$&"))
             .join("|");
 
@@ -99,8 +100,8 @@ export default function plunkPlugin(): Plugin {
             ...server.watcher.options,
             ignored: [
               new RegExp(`node_modules\\/(?!(?:${escaped})(?:\\/|$)).*`),
-              "**/.git/**",
-              "**/test-results/**",
+              /[/\\]\.git[/\\]/,
+              /[/\\]test-results[/\\]/,
             ],
           };
           // Force chokidar to recompute its ignored filter.
@@ -149,7 +150,7 @@ export default function plunkPlugin(): Plugin {
 
       /** Debounced restart for state.json changes (new packages linked) */
       function scheduleRestart(source: string) {
-        if (debounceTimer) clearTimeout(debounceTimer);
+        if (debounceTimer) return;  // already scheduled, don't reset
         debounceTimer = setTimeout(() => {
           debounceTimer = null;
           restartServer(source);
@@ -235,6 +236,11 @@ export default function plunkPlugin(): Plugin {
 
         console.log("[plunk] WebContainer polling fallback active (1s interval)");
       }
+
+      server.httpServer?.on('close', () => {
+        if (pollTimer) { clearInterval(pollTimer); pollTimer = undefined; }
+        if (debounceTimer) { clearTimeout(debounceTimer); debounceTimer = null; }
+      });
     },
   };
 }
