@@ -158,6 +158,16 @@ export default function plunkPlugin(): Plugin {
         }, 1500);
       }
 
+      /** Send a debounced full-reload to the browser */
+      function scheduleReload() {
+        if (reloadTimer) clearTimeout(reloadTimer);
+        reloadTimer = setTimeout(() => {
+          reloadTimer = null;
+          console.log("[plunk] Linked package updated, reloading");
+          server.hot.send({ type: "full-reload", path: "*" });
+        }, 200);
+      }
+
       /** Invalidate changed module and send debounced full-reload */
       function invalidateAndReload(changedPath: string) {
         const normalized = normalize(changedPath);
@@ -165,12 +175,20 @@ export default function plunkPlugin(): Plugin {
         if (mods) {
           mods.forEach((m) => server.moduleGraph.invalidateModule(m));
         }
-        if (reloadTimer) clearTimeout(reloadTimer);
-        reloadTimer = setTimeout(() => {
-          reloadTimer = null;
-          console.log("[plunk] Linked package updated, reloading");
-          server.hot.send({ type: "full-reload", path: "*" });
-        }, 200);
+        scheduleReload();
+      }
+
+      /** Invalidate all cached modules for linked packages (polling fallback) */
+      function invalidateLinkedModules() {
+        for (const [url, mod] of server.moduleGraph.urlToModuleMap) {
+          for (const pkg of watchedPackages) {
+            if (url.includes(pkg)) {
+              server.moduleGraph.invalidateModule(mod);
+              break;
+            }
+          }
+        }
+        scheduleReload();
       }
 
       server.watcher.add(plunkStateFile);
@@ -237,11 +255,11 @@ export default function plunkPlugin(): Plugin {
               const hasNew = currentPackages.some(
                 (pkg) => !watchedPackages.has(pkg)
               );
-              scheduleRestart(
-                hasNew
-                  ? "New package linked (polling fallback)"
-                  : "Package files updated (polling fallback)"
-              );
+              if (hasNew) {
+                scheduleRestart("New package linked (polling fallback)");
+              } else {
+                invalidateLinkedModules();
+              }
             }
             if (!lastStateContent) lastStateContent = content;
           } catch {

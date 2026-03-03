@@ -627,16 +627,14 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import react from '@vitejs/plugin-react';
 
-// Plunk Vite plugin — watches linked packages and restarts on changes.
+// Plunk Vite plugin — watches linked packages and reloads on changes.
 // Overrides Vite's default node_modules ignore so chokidar sees linked
-// package dirs, then triggers server.restart() when files change.
-// Also polls .plunk/state.json as a fallback for WebContainers where
-// native fs events are unreliable.
+// package dirs, invalidates Vite's module graph cache, then sends
+// full-reload over HMR. Polls .plunk/state.json as fallback for
+// WebContainers where native fs events are unreliable.
 function plunkHMR() {
   const PACKAGES = ['@example/api-client', '@example/ui-kit'];
-  var debounceTimer = null;
-  var isRestarting = false;
-  var pendingRestart = false;
+  var reloadTimer = null;
   var pollTimer = null;
   return {
     name: 'vite-plugin-plunk',
@@ -645,76 +643,77 @@ function plunkHMR() {
       var root = server.config.root || process.cwd();
       var stateFile = join(root, '.plunk', 'state.json');
 
-      function doRestart(source) {
-        if (isRestarting) {
-          pendingRestart = true;
-          console.log('[plunk] Restart already in progress, queued: ' + source);
-          return;
-        }
-        isRestarting = true;
-        console.log('[plunk] ' + source + ', restarting...');
-        server.restart().finally(function() {
-          isRestarting = false;
-          if (pendingRestart) {
-            pendingRestart = false;
-            doRestart('Queued change detected');
-          }
-        });
+      /** Send a debounced full-reload to the browser */
+      function scheduleReload() {
+        if (reloadTimer) clearTimeout(reloadTimer);
+        reloadTimer = setTimeout(function() {
+          reloadTimer = null;
+          console.log('[plunk] Linked package updated, reloading');
+          server.hot.send({ type: 'full-reload', path: '*' });
+        }, 200);
       }
 
-      function scheduleRestart(source) {
-        if (debounceTimer) clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(function() {
-          debounceTimer = null;
-          doRestart(source);
-        }, 1500);
+      /** Invalidate a single changed module and schedule reload */
+      function invalidateAndReload(path) {
+        var mods = server.moduleGraph.getModulesByFile(path);
+        if (mods) {
+          mods.forEach(function(m) { server.moduleGraph.invalidateModule(m); });
+        }
+        scheduleReload();
+      }
+
+      /** Invalidate all cached modules for linked packages (polling fallback) */
+      function invalidateAllLinked() {
+        for (var [url, mod] of server.moduleGraph.urlToModuleMap) {
+          for (var pkg of PACKAGES) {
+            if (url.includes(pkg)) {
+              server.moduleGraph.invalidateModule(mod);
+              break;
+            }
+          }
+        }
+        scheduleReload();
       }
 
       const escaped = PACKAGES
+        .sort((a, b) => b.length - a.length)
         .map(p => p.replace(/[/\\\\.*+?^\${}()|[\\]]/g, '\\\\$&'))
         .join('|');
       server.watcher.options = {
         ...server.watcher.options,
         ignored: [
           new RegExp('node_modules\\\\/(?!(?:' + escaped + ')(?:\\\\/|$)).*'),
-          '**/.git/**',
+          /[/\\\\]\\.git[/\\\\]/,
         ],
       };
-      // Force chokidar to recompute its ignored filter.
-      // Chokidar lazily caches the result of its _userIgnored function;
-      // clearing it forces re-evaluation with the updated ignored list.
-      // Workaround for vitejs/vite#8619. Fragile — breaks if chokidar
-      // renames this internal field.
       server.watcher._userIgnored = undefined;
       for (const pkg of PACKAGES) {
         server.watcher.add('node_modules/' + pkg);
       }
       server.watcher.add(stateFile);
 
-      // Restart when linked package files or state.json change.
-      // Vite's built-in HMR doesn't reliably pick up node_modules
-      // changes in WebContainers — server.restart() is needed.
+      // Linked package file changes: invalidate module graph + full-reload.
+      // server.restart() drops the HMR WebSocket and doesn't reliably
+      // trigger a browser reload — invalidate + full-reload is faster
+      // and more reliable.
       server.watcher.on('change', function(path) {
         if (path.includes('.plunk/state.json')) {
-          scheduleRestart('Package files updated');
-          return;
+          return; // file events handle the reload
         }
         var isLinked = PACKAGES.some(function(pkg) {
           return path.includes('node_modules/' + pkg);
         });
         if (isLinked) {
-          scheduleRestart('Linked package file changed');
+          invalidateAndReload(path);
         }
       });
 
-      // plunk push may copy new files that trigger chokidar add (not
-      // change) events. Handle them with the same restart logic.
       server.watcher.on('add', function(path) {
         var isLinked = PACKAGES.some(function(pkg) {
           return path.includes('node_modules/' + pkg);
         });
         if (isLinked) {
-          scheduleRestart('New file in linked package');
+          invalidateAndReload(path);
         }
       });
 
@@ -728,11 +727,17 @@ function plunkHMR() {
           var content = readFileSync(stateFile, 'utf-8');
           if (lastStateContent && content !== lastStateContent) {
             lastStateContent = content;
-            scheduleRestart('Package files updated (polling fallback)');
+            invalidateAllLinked();
           }
           if (!lastStateContent) lastStateContent = content;
         } catch {}
       }, 1000);
+
+      server.httpServer?.on('close', function() {
+        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+        if (reloadTimer) { clearTimeout(reloadTimer); reloadTimer = null; }
+      });
+
       console.log('[plunk] Watching linked packages + state.json (polling active)');
     },
   };
