@@ -76,6 +76,7 @@ export default function plunkPlugin(): Plugin {
       let isRestarting = false;
       let pendingRestart = false;
       let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+      let reloadTimer: ReturnType<typeof setTimeout> | null = null;
 
       /** Re-read state.json and add watchers for any new linked packages */
       function syncPackageWatchers() {
@@ -157,6 +158,21 @@ export default function plunkPlugin(): Plugin {
         }, 1500);
       }
 
+      /** Invalidate changed module and send debounced full-reload */
+      function invalidateAndReload(changedPath: string) {
+        const normalized = normalize(changedPath);
+        const mods = server.moduleGraph.getModulesByFile(normalized);
+        if (mods) {
+          mods.forEach((m) => server.moduleGraph.invalidateModule(m));
+        }
+        if (reloadTimer) clearTimeout(reloadTimer);
+        reloadTimer = setTimeout(() => {
+          reloadTimer = null;
+          console.log("[plunk] Linked package updated, reloading");
+          server.hot.send({ type: "full-reload", path: "*" });
+        }, 200);
+      }
+
       server.watcher.add(plunkStateFile);
       console.log(`[plunk] Added watcher for: ${plunkStateFile}`);
 
@@ -164,21 +180,20 @@ export default function plunkPlugin(): Plugin {
       syncPackageWatchers();
 
       // Watch for changes to state.json and linked package files.
-      // state.json changes on both `plunk add` (new package) and `plunk push`
-      // (updated linkedAt timestamp), so any change triggers a restart.
-      // Vite's built-in HMR doesn't reliably handle node_modules changes
-      // (especially in WebContainers), so server.restart() is needed.
+      // state.json with new package → server.restart() (config needs re-eval).
+      // Linked package file change → invalidate module graph + full-reload
+      // (server.restart() drops the HMR WebSocket and doesn't reliably
+      // trigger a browser reload).
       server.watcher.on("change", async (changedPath: string) => {
         const normalizedChanged = normalize(changedPath);
 
         if (normalizedChanged === plunkStateFile) {
           const currentPackages = readLinkedPackagesSync(plunkStateFile);
           const hasNew = currentPackages.some((pkg) => !watchedPackages.has(pkg));
-          scheduleRestart(
-            hasNew
-              ? "New package linked"
-              : "Package files updated"
-          );
+          if (hasNew) {
+            scheduleRestart("New package linked");
+          }
+          // Regular pushes: file events in node_modules handle the reload
           return;
         }
 
@@ -186,19 +201,19 @@ export default function plunkPlugin(): Plugin {
           normalizedChanged.includes(normalize(join(nodeModulesDir, pkg)))
         );
         if (isLinkedPackage) {
-          scheduleRestart("Linked package file changed");
+          invalidateAndReload(changedPath);
         }
       });
 
       // `plunk push` may copy new files that trigger chokidar `add` (not
-      // `change`) events. Handle them with the same restart logic.
+      // `change`) events. Handle them with the same invalidate+reload logic.
       server.watcher.on("add", (addedPath: string) => {
         const normalizedAdded = normalize(addedPath);
         const isLinkedPackage = [...watchedPackages].some((pkg) =>
           normalizedAdded.includes(normalize(join(nodeModulesDir, pkg)))
         );
         if (isLinkedPackage) {
-          scheduleRestart("New file in linked package");
+          invalidateAndReload(addedPath);
         }
       });
 
@@ -240,6 +255,7 @@ export default function plunkPlugin(): Plugin {
       server.httpServer?.on('close', () => {
         if (pollTimer) { clearInterval(pollTimer); pollTimer = undefined; }
         if (debounceTimer) { clearTimeout(debounceTimer); debounceTimer = null; }
+        if (reloadTimer) { clearTimeout(reloadTimer); reloadTimer = null; }
       });
     },
   };
