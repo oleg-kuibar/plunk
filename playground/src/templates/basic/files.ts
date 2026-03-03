@@ -623,19 +623,53 @@ export declare const UI_VERSION: string;
       'vite.config.js': {
         file: {
           contents: `import { defineConfig } from 'vite';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import react from '@vitejs/plugin-react';
 
 // Plunk Vite plugin — watches linked packages and restarts on changes.
 // Overrides Vite's default node_modules ignore so chokidar sees linked
 // package dirs, then triggers server.restart() when files change.
+// Also polls .plunk/state.json as a fallback for WebContainers where
+// native fs events are unreliable.
 function plunkHMR() {
   const PACKAGES = ['@example/api-client', '@example/ui-kit'];
-  var restartTimer = null;
+  var debounceTimer = null;
   var isRestarting = false;
+  var pendingRestart = false;
+  var pollTimer = null;
   return {
     name: 'vite-plugin-plunk',
     apply: 'serve',
     configureServer(server) {
+      var root = server.config.root || process.cwd();
+      var stateFile = join(root, '.plunk', 'state.json');
+
+      function doRestart(source) {
+        if (isRestarting) {
+          pendingRestart = true;
+          console.log('[plunk] Restart already in progress, queued: ' + source);
+          return;
+        }
+        isRestarting = true;
+        console.log('[plunk] ' + source + ', restarting...');
+        server.restart().finally(function() {
+          isRestarting = false;
+          if (pendingRestart) {
+            pendingRestart = false;
+            doRestart('Queued change detected');
+          }
+        });
+      }
+
+      function scheduleRestart(source) {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(function() {
+          debounceTimer = null;
+          doRestart(source);
+        }, 1500);
+      }
+
       const escaped = PACKAGES
         .map(p => p.replace(/[/\\\\.*+?^\${}()|[\\]]/g, '\\\\$&'))
         .join('|');
@@ -646,26 +680,60 @@ function plunkHMR() {
           '**/.git/**',
         ],
       };
+      // Force chokidar to recompute its ignored filter.
+      // Chokidar lazily caches the result of its _userIgnored function;
+      // clearing it forces re-evaluation with the updated ignored list.
+      // Workaround for vitejs/vite#8619. Fragile — breaks if chokidar
+      // renames this internal field.
       server.watcher._userIgnored = undefined;
       for (const pkg of PACKAGES) {
         server.watcher.add('node_modules/' + pkg);
       }
-      // Restart when linked package files change.
+      server.watcher.add(stateFile);
+
+      // Restart when linked package files or state.json change.
       // Vite's built-in HMR doesn't reliably pick up node_modules
       // changes in WebContainers — server.restart() is needed.
       server.watcher.on('change', function(path) {
+        if (path.includes('.plunk/state.json')) {
+          scheduleRestart('Package files updated');
+          return;
+        }
         var isLinked = PACKAGES.some(function(pkg) {
           return path.includes('node_modules/' + pkg);
         });
-        if (!isLinked || isRestarting) return;
-        if (restartTimer) clearTimeout(restartTimer);
-        restartTimer = setTimeout(function() {
-          restartTimer = null;
-          isRestarting = true;
-          console.log('[plunk] Package change detected, restarting...');
-          server.restart().finally(function() { isRestarting = false; });
-        }, 200);
+        if (isLinked) {
+          scheduleRestart('Linked package file changed');
+        }
       });
+
+      // plunk push may copy new files that trigger chokidar add (not
+      // change) events. Handle them with the same restart logic.
+      server.watcher.on('add', function(path) {
+        var isLinked = PACKAGES.some(function(pkg) {
+          return path.includes('node_modules/' + pkg);
+        });
+        if (isLinked) {
+          scheduleRestart('New file in linked package');
+        }
+      });
+
+      // Fallback: poll state.json for WebContainers where native
+      // fs events are unreliable.
+      if (pollTimer) clearInterval(pollTimer);
+      var lastStateContent = '';
+      try { lastStateContent = readFileSync(stateFile, 'utf-8'); } catch {}
+      pollTimer = setInterval(function() {
+        try {
+          var content = readFileSync(stateFile, 'utf-8');
+          if (lastStateContent && content !== lastStateContent) {
+            lastStateContent = content;
+            scheduleRestart('Package files updated (polling fallback)');
+          }
+          if (!lastStateContent) lastStateContent = content;
+        } catch {}
+      }, 1000);
+      console.log('[plunk] Watching linked packages + state.json (polling active)');
     },
   };
 }

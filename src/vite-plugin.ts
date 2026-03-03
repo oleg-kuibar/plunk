@@ -103,7 +103,11 @@ export default function plunkPlugin(): Plugin {
               "**/test-results/**",
             ],
           };
-          // Force chokidar to recompute its ignored filter (lazy cache)
+          // Force chokidar to recompute its ignored filter.
+          // Chokidar lazily caches the result of its `_userIgnored` function;
+          // clearing it forces re-evaluation with the updated `ignored` list.
+          // Workaround for vitejs/vite#8619. Fragile — breaks if chokidar
+          // renames this internal field.
           (server.watcher as any)._userIgnored = undefined;
 
           // Now add() calls actually register with chokidar
@@ -149,7 +153,7 @@ export default function plunkPlugin(): Plugin {
         debounceTimer = setTimeout(() => {
           debounceTimer = null;
           restartServer(source);
-        }, 100);
+        }, 1500);
       }
 
       server.watcher.add(plunkStateFile);
@@ -159,8 +163,8 @@ export default function plunkPlugin(): Plugin {
       syncPackageWatchers();
 
       // Watch for changes to state.json and linked package files.
-      // state.json: only restart when new packages appear (plunk add/remove).
-      // Linked package files: always restart to pick up pushed changes.
+      // state.json changes on both `plunk add` (new package) and `plunk push`
+      // (updated linkedAt timestamp), so any change triggers a restart.
       // Vite's built-in HMR doesn't reliably handle node_modules changes
       // (especially in WebContainers), so server.restart() is needed.
       server.watcher.on("change", async (changedPath: string) => {
@@ -169,11 +173,11 @@ export default function plunkPlugin(): Plugin {
         if (normalizedChanged === plunkStateFile) {
           const currentPackages = readLinkedPackagesSync(plunkStateFile);
           const hasNew = currentPackages.some((pkg) => !watchedPackages.has(pkg));
-          if (!hasNew) {
-            console.log("[plunk] state.json changed but no new packages, skipping restart");
-            return;
-          }
-          scheduleRestart("New package linked");
+          scheduleRestart(
+            hasNew
+              ? "New package linked"
+              : "Package files updated"
+          );
           return;
         }
 
@@ -182,6 +186,18 @@ export default function plunkPlugin(): Plugin {
         );
         if (isLinkedPackage) {
           scheduleRestart("Linked package file changed");
+        }
+      });
+
+      // `plunk push` may copy new files that trigger chokidar `add` (not
+      // `change`) events. Handle them with the same restart logic.
+      server.watcher.on("add", (addedPath: string) => {
+        const normalizedAdded = normalize(addedPath);
+        const isLinkedPackage = [...watchedPackages].some((pkg) =>
+          normalizedAdded.includes(normalize(join(nodeModulesDir, pkg)))
+        );
+        if (isLinkedPackage) {
+          scheduleRestart("New file in linked package");
         }
       });
 
@@ -205,9 +221,11 @@ export default function plunkPlugin(): Plugin {
               const hasNew = currentPackages.some(
                 (pkg) => !watchedPackages.has(pkg)
               );
-              if (hasNew) {
-                scheduleRestart("New package linked (polling fallback)");
-              }
+              scheduleRestart(
+                hasNew
+                  ? "New package linked (polling fallback)"
+                  : "Package files updated (polling fallback)"
+              );
             }
             if (!lastStateContent) lastStateContent = content;
           } catch {
