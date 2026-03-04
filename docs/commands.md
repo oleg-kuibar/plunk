@@ -166,6 +166,7 @@ Flags:
 | `--debounce <ms>` | Coalesce delay in milliseconds (default: `500`) |
 | `--cooldown <ms>` | Minimum time between builds in milliseconds (default: `500`) |
 | `--no-scripts` | Skip `prepack`/`postpack` lifecycle hooks |
+| `-f, --force` | Force copy all files, bypassing hash comparison |
 
 On startup, `plunk dev`:
 
@@ -205,6 +206,7 @@ Flags:
 |---|---|
 | `--all` | Remove all linked packages at once |
 | `--force` | Skip error checking (e.g., if the package isn't linked) |
+| `-y, --yes` | Skip confirmation prompts |
 
 Removes injected files from `node_modules/` and cleans up `.bin/` entries. Restores the backup (original npm-installed version) if one exists. Also removes the package from `transpilePackages` in next.config and cleans up tracking state. If this was the last plunk-linked package, removes the plunk Vite plugin from your Vite config.
 
@@ -284,12 +286,18 @@ plunk clean
 plunk gc          # alias for plunk clean
 ```
 
+Flags:
+
+| Flag | Description |
+|---|---|
+| `-y, --yes` | Skip confirmation prompts |
+
 Performs two cleanup passes:
 
 1. **Stale consumers** — removes entries in `~/.plunk/consumers.json` that point to directories that no longer exist on disk.
 2. **Unreferenced store entries** — removes packages from `~/.plunk/store/` that are not linked by any active consumer.
 
-Safe to run at any time. Does not affect packages that are actively linked.
+Safe to run at any time. Does not affect packages that are actively linked. Reports reclaimed disk space after cleanup.
 
 ---
 
@@ -327,6 +335,12 @@ Migrate from yalc to plunk.
 plunk migrate
 ```
 
+Flags:
+
+| Flag | Description |
+|---|---|
+| `-y, --yes` | Skip confirmation prompts |
+
 Detects yalc usage in the current project and cleans it up:
 
 1. Reads `yalc.lock` to identify previously linked packages
@@ -336,6 +350,29 @@ Detects yalc usage in the current project and cleans it up:
 5. Prints next steps (`plunk init`, `plunk add`)
 
 If no yalc usage is detected, it exits without changes. See [Migrating from yalc](migrating-from-yalc.md) for a full guide.
+
+---
+
+## `plunk reset`
+
+Remove all plunk links and tear down plunk from the current project. This is the inverse of `plunk init` — it restores everything to a clean state.
+
+```bash
+plunk reset
+plunk reset --yes        # skip confirmation
+```
+
+Flags:
+
+| Flag | Description |
+|---|---|
+| `-y, --yes` | Skip confirmation prompts |
+
+What it does:
+
+1. Removes all linked packages (restores backups if available)
+2. Deletes the `.plunk/` directory
+3. Removes the `postinstall` hook from `package.json`
 
 ---
 

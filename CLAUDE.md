@@ -47,7 +47,7 @@ Tests redirect the store via `process.env.PLUNK_HOME` to temp dirs. Coverage thr
 
 ```
 src/cli.ts           → citty entry point, global flags (--verbose, --dry-run, --json)
-src/commands/*.ts    → one file per CLI command (13 commands)
+src/commands/*.ts    → one file per CLI command (15 commands, including reset)
 src/core/
   publisher.ts       → file resolution, hashing, atomic store write, lifecycle hooks
   injector.ts        → incremental copy from store to node_modules, backup/restore
@@ -59,10 +59,10 @@ src/utils/           → shared helpers
   fs.ts              → copyWithCoW, incrementalCopy, ensureDir
   hash.ts            → xxHash64 per-file, SHA-256 aggregate (computeContentHash)
   pack-list.ts       → resolvePackFiles (npm-pack-compatible file resolution)
-  pm-detect.ts       → lockfile-based package manager detection
+  pm-detect.ts       → packageManager field + lockfile-based PM detection
   workspace.ts       → workspace root detection, catalog: parsing
   lockfile.ts        → withFileLock (mkdir-based atomic lock)
-  concurrency.ts     → minimal pLimit reimplementation (no external dep)
+  concurrency.ts     → minimal pLimit reimplementation (two-pointer O(1) dequeue)
   bin-linker.ts      → create/remove node_modules/.bin entries
   bundler-detect.ts  → detect Vite, Webpack, etc.
   bundler-cache.ts   → invalidate bundler caches after injection
