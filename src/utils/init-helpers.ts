@@ -67,6 +67,30 @@ export async function addPostinstall(pkgPath: string): Promise<boolean> {
 }
 
 /**
+ * Remove the plunk postinstall script from package.json.
+ * Returns true if it was removed.
+ */
+export async function removePostinstall(pkgPath: string): Promise<boolean> {
+  let content: string;
+  try {
+    content = await readFile(pkgPath, "utf-8");
+  } catch {
+    return false;
+  }
+  const pkg = JSON.parse(content);
+  if (!pkg.scripts?.postinstall?.includes("plunk")) return false;
+
+  delete pkg.scripts.postinstall;
+  // Clean up empty scripts object
+  if (Object.keys(pkg.scripts).length === 0) {
+    delete pkg.scripts;
+  }
+  const indent = content.match(/^(\s+)"/m)?.[1] || "  ";
+  await writeFile(pkgPath, JSON.stringify(pkg, null, indent) + "\n");
+  return true;
+}
+
+/**
  * Auto-initialize a consumer project: create .plunk/state.json,
  * add .plunk/ to .gitignore, add postinstall script.
  */

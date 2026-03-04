@@ -20,7 +20,7 @@ const hasSubcommand = args.some(
     [
       "init", "publish", "add", "remove", "push", "dev",
       "restore", "list", "status", "update", "clean", "gc",
-      "doctor", "migrate",
+      "doctor", "migrate", "reset",
     ].includes(arg)
 );
 if (!hasSubcommand) {
@@ -66,6 +66,7 @@ const main = defineCommand({
     gc: () => import("./commands/clean.js").then((m) => m.default),
     doctor: () => import("./commands/doctor.js").then((m) => m.default),
     migrate: () => import("./commands/migrate.js").then((m) => m.default),
+    reset: () => import("./commands/reset.js").then((m) => m.default),
   },
 });
 

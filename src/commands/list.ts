@@ -5,6 +5,8 @@ import pc from "picocolors";
 import { readConsumerState, readConsumersRegistry } from "../core/tracker.js";
 import { listStoreEntries, getStoreEntry } from "../core/store.js";
 import pLimit from "../utils/concurrency.js";
+import { dirSize } from "../utils/fs.js";
+import { formatBytes } from "../utils/format.js";
 import { suppressHumanOutput, output } from "../utils/output.js";
 
 export default defineCommand({
@@ -71,13 +73,22 @@ async function listStore() {
 
   if (entries.length === 0) {
     consola.info("Plunk store is empty");
-    output({ entries: [] });
+    output({ entries: [], totalSize: 0 });
     return;
   }
 
-  consola.info(`Store entries (${entries.length}):\n`);
+  // Measure sizes in parallel
+  const sizeLimit = pLimit(8);
+  const sizes = await Promise.all(
+    entries.map((entry) => sizeLimit(() => dirSize(entry.packageDir)))
+  );
+  const totalSize = sizes.reduce((sum, s) => sum + s, 0);
+
+  consola.info(`Store entries (${entries.length}, ${formatBytes(totalSize)} total):\n`);
   const storeEntries = [];
-  for (const entry of entries) {
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    const size = sizes[i];
     const age = getRelativeTime(new Date(entry.meta.publishedAt));
     const buildTag = entry.meta.buildId ? `[${entry.meta.buildId}]` : "[--------]";
     const consumers = registry[entry.name]?.length ?? 0;
@@ -85,7 +96,7 @@ async function listStore() {
       ? pc.green(`${consumers} consumer${consumers > 1 ? "s" : ""}`)
       : pc.dim("no consumers");
     consola.log(
-      `  ${pc.cyan(entry.name)} ${pc.dim("@" + entry.version)} ${pc.dim(buildTag)}  ${pc.dim(`published ${age}`)}  ${consumersTag}`
+      `  ${pc.cyan(entry.name)} ${pc.dim("@" + entry.version)} ${pc.dim(buildTag)}  ${pc.dim(formatBytes(size))}  ${pc.dim(`published ${age}`)}  ${consumersTag}`
     );
     consola.log(`    ${pc.dim(`from: ${entry.meta.sourcePath}`)}`);
     storeEntries.push({
@@ -95,9 +106,10 @@ async function listStore() {
       publishedAt: entry.meta.publishedAt,
       sourcePath: entry.meta.sourcePath,
       consumers,
+      size,
     });
   }
-  output({ entries: storeEntries });
+  output({ entries: storeEntries, totalSize });
 }
 
 function getRelativeTime(date: Date): string {
