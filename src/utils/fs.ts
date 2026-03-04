@@ -115,7 +115,14 @@ export async function incrementalCopy(
   destDir: string,
   options: IncrementalCopyOptions = {}
 ): Promise<{ copied: number; removed: number; skipped: number }> {
-  const srcFiles = await collectFiles(srcDir);
+  // Kick off both directory walks in parallel (dest walk used for orphan detection)
+  const srcFilesPromise = collectFiles(srcDir);
+  const destFilesPromise = collectFiles(destDir).catch((err) => {
+    if (isNodeError(err) && err.code === "ENOENT") return [] as string[];
+    throw err;
+  });
+
+  const [srcFiles, destFiles] = await Promise.all([srcFilesPromise, destFilesPromise]);
   let copied = 0;
   let removed = 0;
   let skipped = 0;
@@ -190,28 +197,19 @@ export async function incrementalCopy(
   }
 
   // Remove files in dest that don't exist in src (in parallel)
-  try {
-    const destFiles = await collectFiles(destDir);
-    const srcRelPaths = new Set(srcFiles.map((f) => relative(srcDir, f)));
-    const filesToRemove = destFiles.filter(
-      (f) => !srcRelPaths.has(relative(destDir, f))
-    );
-    await Promise.all(
-      filesToRemove.map((destFile) =>
-        ioLimit(async () => {
-          verbose(`[remove] ${relative(destDir, destFile)} (no longer in source)`);
-          if (!isDryRun()) await rm(destFile);
-        })
-      )
-    );
-    removed = filesToRemove.length;
-  } catch (err) {
-    if (isNodeError(err) && err.code === "ENOENT") {
-      // dest dir might not exist yet, that's fine
-    } else {
-      throw err;
-    }
-  }
+  const srcRelPaths = new Set(srcFiles.map((f) => relative(srcDir, f)));
+  const filesToRemove = destFiles.filter(
+    (f) => !srcRelPaths.has(relative(destDir, f))
+  );
+  await Promise.all(
+    filesToRemove.map((destFile) =>
+      ioLimit(async () => {
+        verbose(`[remove] ${relative(destDir, destFile)} (no longer in source)`);
+        if (!isDryRun()) await rm(destFile);
+      })
+    )
+  );
+  removed = filesToRemove.length;
 
   return { copied, removed, skipped };
 }
@@ -221,6 +219,10 @@ export async function incrementalCopy(
  * Tries rename first (fast, atomic on same FS), falls back to cp+rm.
  */
 export async function moveDir(src: string, dest: string): Promise<void> {
+  if (isDryRun()) {
+    verbose(`[dry-run] would move ${src} → ${dest}`);
+    return;
+  }
   try {
     await rename(src, dest);
   } catch (err) {
@@ -244,11 +246,19 @@ export async function removeDir(dir: string): Promise<void> {
 
 /** Ensure a directory exists */
 export async function ensureDir(dir: string): Promise<void> {
+  if (isDryRun()) {
+    verbose(`[dry-run] would ensure dir ${dir}`);
+    return;
+  }
   await mkdir(dir, { recursive: true });
 }
 
 /** Ensure a directory exists with private permissions (0o700). */
 export async function ensurePrivateDir(dir: string): Promise<void> {
+  if (isDryRun()) {
+    verbose(`[dry-run] would ensure private dir ${dir}`);
+    return;
+  }
   await mkdir(dir, { recursive: true, mode: 0o700 });
 }
 
@@ -277,6 +287,19 @@ export async function atomicWriteFile(
   const tmpPath = filePath + `.tmp-${process.pid}-${Date.now()}`;
   await writeFile(tmpPath, data);
   await rename(tmpPath, filePath);
+}
+
+/** Calculate the total size of all files in a directory (recursive). */
+export async function dirSize(dir: string): Promise<number> {
+  try {
+    const files = await collectFiles(dir);
+    const stats = await Promise.all(
+      files.map((f) => stat(f).then((s) => s.size).catch(() => 0))
+    );
+    return stats.reduce((sum, s) => sum + s, 0);
+  } catch {
+    return 0;
+  }
 }
 
 /** Copy an entire directory recursively using native fs.cp */

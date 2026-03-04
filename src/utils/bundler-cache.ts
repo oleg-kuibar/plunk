@@ -2,7 +2,7 @@ import { join } from "node:path";
 import { removeDir, exists } from "./fs.js";
 import { detectAllBundlers } from "./bundler-detect.js";
 import type { BundlerInfo, BundlerType } from "./bundler-detect.js";
-import { verbose } from "./logger.js";
+import { isDryRun, verbose } from "./logger.js";
 
 /** Cache directories to clear for each bundler type.
  *  Vite is intentionally excluded — linked packages are served directly
@@ -26,6 +26,11 @@ export function resetBundlerDetectionCache(): void {
 export async function invalidateBundlerCache(
   consumerPath: string
 ): Promise<void> {
+  if (isDryRun()) {
+    verbose(`[dry-run] would invalidate bundler caches for ${consumerPath}`);
+    return;
+  }
+
   let bundlers = bundlerCache.get(consumerPath);
   if (!bundlers) {
     bundlers = await detectAllBundlers(consumerPath);

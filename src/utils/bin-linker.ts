@@ -4,7 +4,8 @@ import { platform } from "node:os";
 import { consola } from "./console.js";
 import type { PackageJson } from "../types.js";
 import { exists, isNodeError } from "./fs.js";
-import { verbose } from "./logger.js";
+import { isDryRun, verbose } from "./logger.js";
+import { normalizePath } from "./paths.js";
 
 /**
  * Resolve the bin entries from a package.json.
@@ -39,6 +40,11 @@ export async function createBinLinks(
   const entries = resolveBinEntries(pkg);
   if (Object.keys(entries).length === 0) return 0;
 
+  if (isDryRun()) {
+    verbose(`[dry-run] would create ${Object.keys(entries).length} bin link(s) for ${packageName}`);
+    return Object.keys(entries).length;
+  }
+
   const binDir = join(consumerPath, "node_modules", ".bin");
   await mkdir(binDir, { recursive: true });
 
@@ -53,10 +59,7 @@ export async function createBinLinks(
       consola.warn(`bin "${binName}" points outside package directory, skipping`);
       continue;
     }
-    const targetRelative = relative(binDir, targetAbsolute).replace(
-      /\\/g,
-      "/"
-    );
+    const targetRelative = normalizePath(relative(binDir, targetAbsolute));
 
     if (isWindows) {
       // Create .cmd wrapper
@@ -64,6 +67,11 @@ export async function createBinLinks(
       const targetWindows = targetRelative.replace(/\//g, "\\");
       const cmdContent = `@ECHO off\r\nGOTO start\r\n:find_dp0\r\nSET dp0=%~dp0\r\nEXIT /b\r\n:start\r\nCALL :find_dp0\r\n"%dp0%\\${targetWindows}" %*\r\n`;
       await writeFile(cmdPath, cmdContent);
+
+      // Create .ps1 wrapper for PowerShell
+      const ps1Path = join(binDir, `${binName}.ps1`);
+      const ps1Content = `#!/usr/bin/env pwsh\n$basedir=Split-Path $MyInvocation.MyCommand.Definition -Parent\n& node "$basedir/${targetRelative}" $args\nexit $LASTEXITCODE\n`;
+      await writeFile(ps1Path, ps1Content);
 
       // Also create a shell script for Git Bash/WSL
       const shPath = join(binDir, binName);
@@ -108,6 +116,10 @@ export async function removeBinLinks(
   pkg: PackageJson
 ): Promise<void> {
   const entries = resolveBinEntries(pkg);
+  if (isDryRun()) {
+    verbose(`[dry-run] would remove ${Object.keys(entries).length} bin link(s)`);
+    return;
+  }
   const binDir = join(consumerPath, "node_modules", ".bin");
   const isWindows = platform() === "win32";
 
@@ -116,6 +128,7 @@ export async function removeBinLinks(
       await rm(join(binDir, binName), { force: true });
       if (isWindows) {
         await rm(join(binDir, `${binName}.cmd`), { force: true });
+        await rm(join(binDir, `${binName}.ps1`), { force: true });
       }
     } catch {
       // ignore

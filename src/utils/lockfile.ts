@@ -8,7 +8,7 @@ const DEFAULTS = {
   minTimeout: 100,
   maxTimeout: 1000,
   factor: 2,
-  stale: 10000,
+  stale: 30000,
 };
 
 /**
