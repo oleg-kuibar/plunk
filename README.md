@@ -121,6 +121,28 @@ Experience plunk directly in your browser with our interactive playground:
 | [Playground](playground/)                          | Interactive browser-based playground         |
 | [Contributing](CONTRIBUTING.md)                    | Dev setup and guidelines                     |
 
+## Acknowledgments
+
+plunk and its playground are built on top of excellent open-source projects:
+
+- [chokidar](https://github.com/paulmillr/chokidar) — file watching
+- [xxhash-wasm](https://github.com/nicolo-ribaudo/xxhash-wasm-legacy) — fast file hashing for incremental sync
+- [citty](https://github.com/unjs/citty) — CLI framework
+- [tsup](https://github.com/egoist/tsup) — TypeScript bundler
+- [vitest](https://github.com/vitest-dev/vitest) — test runner
+- [WebContainers](https://webcontainers.io) — in-browser Node.js runtime (playground)
+- [Vite](https://vite.dev) — frontend tooling
+- [React](https://react.dev) — UI framework
+- [Monaco Editor](https://microsoft.github.io/monaco-editor/) — code editor (playground)
+- [xterm.js](https://xtermjs.org) — terminal emulator (playground)
+- [Tailwind CSS](https://tailwindcss.com) — styling
+
+Thank you to the maintainers and contributors of these projects.
+
+<p>
+  <a href="https://tailwindcss.com"><img src="https://img.shields.io/badge/Support-Tailwind_CSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="Support Tailwind CSS" /></a>
+</p>
+
 ## License
 
 [MIT](LICENSE)
