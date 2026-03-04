@@ -4,6 +4,7 @@ import { relative } from "node:path";
 import { availableParallelism } from "node:os";
 import pLimit from "./concurrency.js";
 import { verbose } from "./logger.js";
+import { normalizePath } from "./paths.js";
 
 import type xxhashInit from "xxhash-wasm";
 type XXHashAPI = Awaited<ReturnType<typeof xxhashInit>>;
@@ -52,8 +53,8 @@ export async function computeContentHash(
 ): Promise<string> {
   // Sort by relative path for determinism (normalize separators for cross-platform consistency)
   const sorted = [...files].sort((a, b) => {
-    const relA = relative(baseDir, a).replace(/\\/g, "/");
-    const relB = relative(baseDir, b).replace(/\\/g, "/");
+    const relA = normalizePath(relative(baseDir, a));
+    const relB = normalizePath(relative(baseDir, b));
     return relA.localeCompare(relB);
   });
 
@@ -64,7 +65,7 @@ export async function computeContentHash(
   const contents = await Promise.all(
     sorted.map((file) =>
       limit(async () => {
-        const rel = relative(baseDir, file).replace(/\\/g, "/");
+        const rel = normalizePath(relative(baseDir, file));
         const s = await stat(file);
         const cached = _contentCache.get(file);
 

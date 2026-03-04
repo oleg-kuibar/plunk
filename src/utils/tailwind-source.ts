@@ -1,6 +1,7 @@
 import { readFile, readdir } from "node:fs/promises";
 import { atomicWriteFile } from "./fs.js";
 import { join, dirname, relative } from "node:path";
+import { normalizePath } from "./paths.js";
 
 const IGNORED_DIRS = new Set(["node_modules", ".plunk", "dist", ".git"]);
 
@@ -22,7 +23,7 @@ export async function findTailwindCss(
     .filter((entry) => {
       if (!entry.endsWith(".css")) return false;
       // Skip ignored directories
-      const parts = entry.replace(/\\/g, "/").split("/");
+      const parts = normalizePath(entry).split("/");
       return !parts.some((p) => IGNORED_DIRS.has(p));
     })
     .map((entry) => join(projectRoot, entry));
@@ -132,5 +133,5 @@ function computeSourcePath(
 ): string {
   const cssDir = dirname(cssPath);
   const targetPath = join(projectRoot, "node_modules", packageName);
-  return relative(cssDir, targetPath).replace(/\\/g, "/");
+  return normalizePath(relative(cssDir, targetPath));
 }

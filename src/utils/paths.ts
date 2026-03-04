@@ -77,6 +77,11 @@ export function getConsumerBackupPath(
   return join(consumerPath, ".plunk", "backups", encodePackageName(packageName));
 }
 
+/** Normalize a file path to use forward slashes (for cross-platform consistency). */
+export function normalizePath(p: string): string {
+  return p.replace(/\\/g, "/");
+}
+
 /** Get node_modules/<pkg> path for a package in a consumer */
 export function getNodeModulesPackagePath(
   consumerPath: string,

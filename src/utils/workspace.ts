@@ -2,6 +2,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { join, dirname, resolve, relative } from "node:path";
 import picomatch from "picomatch";
 import { exists } from "./fs.js";
+import { normalizePath } from "./paths.js";
 
 export interface Catalogs {
   default: Record<string, string>;
@@ -257,7 +258,7 @@ async function resolveWorkspaceGlobs(rootDir: string, patterns: string[], negati
         const isMatch = picomatch(pattern);
         const candidates = await collectDirs(rootDir, 8);
         for (const candidate of candidates) {
-          const rel = relative(rootDir, candidate).replace(/\\/g, "/");
+          const rel = normalizePath(relative(rootDir, candidate));
           if (isMatch(rel) && await exists(join(candidate, "package.json"))) {
             results.push(candidate);
           }
@@ -278,7 +279,7 @@ async function resolveWorkspaceGlobs(rootDir: string, patterns: string[], negati
   // Apply negation patterns to filter out excluded directories
   const isExcluded = picomatch(negations);
   return unique.filter((dir) => {
-    const rel = relative(rootDir, dir).replace(/\\/g, "/");
+    const rel = normalizePath(relative(rootDir, dir));
     return !isExcluded(rel);
   });
 }

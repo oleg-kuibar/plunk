@@ -11,6 +11,7 @@ import {
   getConsumersPath,
   getConsumerStatePath,
   getConsumerPlunkDir,
+  normalizePath,
 } from "../utils/paths.js";
 import { ensureDir, ensurePrivateDir, exists, atomicWriteFile, isNodeError } from "../utils/fs.js";
 import { withFileLock } from "../utils/lockfile.js";
@@ -153,7 +154,7 @@ export async function registerConsumer(
     if (!registry[packageName]) {
       registry[packageName] = [];
     }
-    const normalized = consumerPath.replace(/\\/g, "/");
+    const normalized = normalizePath(consumerPath);
     if (!registry[packageName].includes(normalized)) {
       registry[packageName].push(normalized);
     }
@@ -170,7 +171,7 @@ export async function unregisterConsumer(
   await withFileLock(regPath, async () => {
     const registry = await readConsumersRegistry();
     if (!registry[packageName]) return;
-    const normalized = consumerPath.replace(/\\/g, "/");
+    const normalized = normalizePath(consumerPath);
     registry[packageName] = registry[packageName].filter(
       (p) => p !== normalized
     );

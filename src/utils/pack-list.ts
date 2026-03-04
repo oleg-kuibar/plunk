@@ -4,6 +4,7 @@ import picomatch from "picomatch";
 import { consola } from "./console.js";
 import type { PackageJson } from "../types.js";
 import { isNodeError } from "./fs.js";
+import { normalizePath } from "./paths.js";
 
 /**
  * Resolve the list of publishable files for a package.
@@ -26,7 +27,7 @@ export async function resolvePackFiles(
 
   // Walk directory tree once, cache result
   const allFiles = await collectAllFiles(absDir, absDir);
-  const allRelPaths = allFiles.map((f) => relative(absDir, f).replace(/\\/g, "/"));
+  const allRelPaths = allFiles.map((f) => normalizePath(relative(absDir, f)));
 
   if (pkg.files && pkg.files.length > 0) {
     // Use the `files` field — each entry can be a literal path, directory, or glob
@@ -43,7 +44,7 @@ export async function resolvePackFiles(
         const s = await stat(target);
         if (s.isDirectory()) {
           // Filter cached array by prefix instead of re-walking
-          const prefix = relative(absDir, target).replace(/\\/g, "/") + "/";
+          const prefix = normalizePath(relative(absDir, target)) + "/";
           for (let i = 0; i < allRelPaths.length; i++) {
             if (allRelPaths[i].startsWith(prefix)) {
               files.push(allFiles[i]);
