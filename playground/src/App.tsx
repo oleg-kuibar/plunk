@@ -3,7 +3,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import type { ImperativePanelHandle } from 'react-resizable-panels';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { useWebContainer } from './hooks/useWebContainer';
-import { FileTree, Editor, Terminal, Preview, Tutorial, Scripts, LoadingScreen, Header } from './components';
+import { FileTree, Editor, Terminal, Preview, Tutorial, Scripts, LoadingScreen, Header, Footer } from './components';
 
 const BROWSER_OPTIONS = [
   { icon: '\uD83C\uDF10', name: 'Chrome' },
@@ -405,6 +405,9 @@ export default function App() {
           </Panel>
         </PanelGroup>
       </div>
+
+      {/* Footer */}
+      <Footer />
 
       {/* Tutorial overlay */}
       <Tutorial
