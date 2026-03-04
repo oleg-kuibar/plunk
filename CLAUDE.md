@@ -26,10 +26,11 @@ plunk — Local npm package development without symlinks. Copies built files int
 ## Commands
 
 ```
-pnpm build       # tsup build
+pnpm build       # tsup build (three entries: CLI, API, Vite plugin)
 pnpm test        # vitest run (requires example packages to be built)
 pnpm lint        # tsc --noEmit
-pnpm dev         # tsup --watch
+pnpm dev         # tsup --watch (builds plunk itself, NOT the plunk dev CLI command)
+pnpm bench       # vitest bench
 ```
 
 ## Testing
@@ -40,15 +41,44 @@ cd examples/packages/api-client && pnpm install && pnpm tsup
 cd ../ui-kit && pnpm install && pnpm tsup
 ```
 
-Tests redirect the store via `process.env.PLUNK_HOME` to temp dirs.
+Tests redirect the store via `process.env.PLUNK_HOME` to temp dirs. Coverage threshold: 70% lines (`vitest.config.ts`).
 
 ## Architecture
 
 ```
-src/cli.ts           → citty entry point
-src/commands/*.ts    → one file per CLI command
-src/core/*.ts        → publisher, injector, store, tracker, watcher
-src/utils/*.ts       → shared helpers (fs, hash, pm-detect, bundler-detect, config rewriters, etc.)
+src/cli.ts           → citty entry point, global flags (--verbose, --dry-run, --json)
+src/commands/*.ts    → one file per CLI command (13 commands)
+src/core/
+  publisher.ts       → file resolution, hashing, atomic store write, lifecycle hooks
+  injector.ts        → incremental copy from store to node_modules, backup/restore
+  store.ts           → store CRUD, meta read/write
+  tracker.ts         → consumer state (state.json) + global registry (consumers.json)
+  push-engine.ts     → doPush() orchestrator, watch config resolution
+  watcher.ts         → chokidar watcher with debounce + cooldown, build subprocess
+src/utils/           → shared helpers
+  fs.ts              → copyWithCoW, incrementalCopy, ensureDir
+  hash.ts            → xxHash64 per-file, SHA-256 aggregate (computeContentHash)
+  pack-list.ts       → resolvePackFiles (npm-pack-compatible file resolution)
+  pm-detect.ts       → lockfile-based package manager detection
+  workspace.ts       → workspace root detection, catalog: parsing
+  lockfile.ts        → withFileLock (mkdir-based atomic lock)
+  concurrency.ts     → minimal pLimit reimplementation (no external dep)
+  bin-linker.ts      → create/remove node_modules/.bin entries
+  bundler-detect.ts  → detect Vite, Webpack, etc.
+  bundler-cache.ts   → invalidate bundler caches after injection
+  vite-config.ts     → auto-inject/remove plunk Vite plugin in user config
+  nextjs-config.ts   → auto-add transpilePackages for Next.js
+  tailwind-source.ts → auto-inject @source directive for Tailwind v4
+  init-helpers.ts    → ensureGitignore, addPostinstall
+  build-detect.ts    → auto-detect build command from package.json scripts
+  output.ts          → structured JSON output (--json mode)
+  logger.ts          → verbose() debug logging, flag init
+  console.ts         → custom consola instance
+  errors.ts          → errorWithSuggestion helper
+  validators.ts      → input validation
+  banner.ts          → CLI banner display
+  paths.ts           → store/consumer path helpers
+  timer.ts           → elapsed time tracker
 src/vite-plugin.ts   → Vite plugin entry (exported as @olegkuibar/plunk/vite)
 src/index.ts         → programmatic API entry (exported as @olegkuibar/plunk)
 src/types.ts         → shared interfaces
@@ -66,5 +96,9 @@ src/types.ts         → shared interfaces
 
 - `pnpm dev` (in the Commands section above) is `tsup --watch` for building plunk itself — not the same as the `plunk dev` CLI command
 - pnpm injects into `.pnpm/` virtual store by following symlinks — see `src/core/injector.ts`
-- `workspace:*` protocol versions are rewritten to real versions in the store copy (source untouched)
-- Vite plugin watches `.plunk/state.json` and triggers full reload — not HMR
+- `workspace:*` and `catalog:` protocol versions are rewritten to real versions in the store copy (source untouched) — see `src/core/publisher.ts` and `src/utils/workspace.ts`
+- Vite plugin watches `.plunk/state.json` and triggers server restart (new package) or full reload (existing package update) — not HMR
+- Lifecycle hooks run in order: `preplunk` → `prepack` → [publish] → `postpack` → `postplunk`. Default timeout 30s (`PLUNK_HOOK_TIMEOUT` env var)
+- tsup has three build entries: CLI (bundled+minified, `noExternal: [/.*/]`), API lib (with .d.ts), Vite plugin (with .d.ts, vite external)
+- Watch mode defaults: 500ms debounce, 500ms cooldown between builds
+- `plunk clean` / `plunk gc` are aliases (same command registered twice in `src/cli.ts`)

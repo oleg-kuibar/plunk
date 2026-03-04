@@ -105,7 +105,7 @@ plunk push --watch --build "pnpm build"
 
 ```mermaid
 graph LR
-    A[File change] --> B[Coalesce 100ms]
+    A[File change] --> B[Coalesce 500ms]
     B --> C[Run build cmd]
     C -->|Success| D[Publish to store]
     C -->|Failure| E[Log error, keep watching]
@@ -122,7 +122,7 @@ graph LR
     style G fill:#00838f,stroke:#4dd0e1,color:#e0f2f1
 ```
 
-Changes are detected immediately but coalesced — rapid saves within 100ms collapse into a single push. If new changes arrive while a push is running, plunk automatically re-pushes after it finishes. Build failures are logged but the watcher keeps running.
+Changes are detected immediately but coalesced — rapid saves within 500ms collapse into a single push. If new changes arrive while a push is running, plunk automatically re-pushes after it finishes. Build failures are logged but the watcher keeps running.
 
 ## 6. After `npm install`
 

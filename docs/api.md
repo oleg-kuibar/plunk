@@ -66,8 +66,8 @@ async function inject(
   storeEntry: StoreEntry,
   consumerPath: string,
   pm: PackageManager,
-  options?: { force?: boolean }
-): Promise<{ filesCopied: number; filesRemoved: number; skipped: boolean }>
+  options?: InjectOptions
+): Promise<InjectResult>
 ```
 
 Handles pnpm's `.pnpm/` virtual store by following symlinks. Performs incremental copy — only changed files are written.
@@ -115,6 +115,25 @@ async function removeInjected(
 ): Promise<void>
 ```
 
+### `InjectOptions`
+
+```typescript
+interface InjectOptions {
+  force?: boolean;       // force copy all files, bypassing hash comparison
+}
+```
+
+### `InjectResult`
+
+```typescript
+interface InjectResult {
+  copied: number;        // files that were copied
+  removed: number;       // files that were removed
+  skipped: number;       // files that were unchanged
+  binLinks: number;      // bin links created
+}
+```
+
 ### `checkMissingDeps(storeEntry, consumerPath)`
 
 Check whether the consumer is missing any transitive dependencies.
@@ -124,6 +143,28 @@ async function checkMissingDeps(
   storeEntry: StoreEntry,
   consumerPath: string
 ): Promise<string[]>  // array of missing package names
+```
+
+## Push
+
+### `doPush(packageDir, options?)`
+
+Publish a package to the store, then inject into all registered consumers. Used internally by both `push` and `dev` commands.
+
+```typescript
+async function doPush(
+  packageDir: string,
+  options?: PushOptions
+): Promise<void>
+```
+
+### `PushOptions`
+
+```typescript
+interface PushOptions {
+  runScripts?: boolean;  // run prepack/postpack hooks (default: true)
+  force?: boolean;       // force copy all files, bypassing hash comparison
+}
 ```
 
 ## Store
@@ -175,6 +216,27 @@ Read the consumer state file (`.plunk/state.json`). Returns empty state if the f
 async function readConsumerState(
   consumerPath: string
 ): Promise<ConsumerState>
+```
+
+### `readConsumerStateSafe(consumerPath)`
+
+Like `readConsumerState`, but returns `null` instead of empty state if the file doesn't exist.
+
+```typescript
+async function readConsumerStateSafe(
+  consumerPath: string
+): Promise<ConsumerState | null>
+```
+
+### `getLink(consumerPath, packageName)`
+
+Get a single link entry from the consumer state. Returns `null` if the package is not linked.
+
+```typescript
+async function getLink(
+  consumerPath: string,
+  packageName: string
+): Promise<LinkEntry | null>
 ```
 
 ### `addLink(consumerPath, packageName, entry)`
@@ -310,7 +372,7 @@ interface PlunkMeta {
   contentHash: string;
   publishedAt: string;
   sourcePath: string;
-  buildId: string;
+  buildId?: string;          // 8-char hex ID; missing in pre-buildId store entries
 }
 
 interface StoreEntry {
@@ -327,7 +389,7 @@ interface LinkEntry {
   sourcePath: string;
   backupExists: boolean;
   packageManager: PackageManager;
-  buildId: string;
+  buildId?: string;          // 8-char hex ID; missing in pre-buildId state files
 }
 
 interface ConsumerState {
@@ -342,8 +404,14 @@ type PackageManager = "npm" | "pnpm" | "yarn" | "bun";
 interface WatchOptions {
   patterns?: string[];
   buildCmd?: string;
-  debounce?: number;
+  debounce?: number;         // debounce delay in ms (default: 500)
+  cooldown?: number;         // minimum time between builds in ms (default: 500)
   awaitWriteFinish?: boolean | { stabilityThreshold: number; pollInterval: number };
+}
+
+interface ConsumersRegistry {
+  /** Maps package name to array of consumer project paths */
+  [packageName: string]: string[];
 }
 
 interface PackageJson {
@@ -356,8 +424,15 @@ interface PackageJson {
   peerDependencies?: Record<string, string>;
   optionalDependencies?: Record<string, string>;
   peerDependenciesMeta?: Record<string, { optional?: boolean }>;
+  main?: string;
+  module?: string;
+  exports?: unknown;
+  type?: string;
   private?: boolean;
   scripts?: Record<string, string>;
+  types?: string;
+  typings?: string;
+  browser?: string | Record<string, string>;
   publishConfig?: {
     main?: string;
     module?: string;
@@ -368,6 +443,5 @@ interface PackageJson {
     bin?: string | Record<string, string>;
     directory?: string;
   };
-  // ... and other standard fields
 }
 ```

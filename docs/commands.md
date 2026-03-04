@@ -105,7 +105,8 @@ Flags:
 | `--watch` | Watch for file changes and auto-push |
 | `--build <cmd>` | Build command to run before publishing (watch mode) |
 | `--skip-build` | Watch output dirs directly, skip build command detection |
-| `--debounce <ms>` | Coalesce delay in milliseconds (default: `100`) |
+| `--debounce <ms>` | Coalesce delay in milliseconds (default: `500`) |
+| `--cooldown <ms>` | Minimum time between builds in milliseconds (default: `500`) |
 | `--no-scripts` | Skip `prepack`/`postpack` lifecycle hooks |
 | `-f, --force` | Force copy all files, bypassing hash comparison |
 
@@ -162,7 +163,8 @@ Flags:
 |---|---|
 | `--build <cmd>` | Override build command (default: auto-detect from package.json) |
 | `--skip-build` | Watch output dirs directly, skip build command detection |
-| `--debounce <ms>` | Coalesce delay in milliseconds (default: `100`) |
+| `--debounce <ms>` | Coalesce delay in milliseconds (default: `500`) |
+| `--cooldown <ms>` | Minimum time between builds in milliseconds (default: `500`) |
 | `--no-scripts` | Skip `prepack`/`postpack` lifecycle hooks |
 
 On startup, `plunk dev`:

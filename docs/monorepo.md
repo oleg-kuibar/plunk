@@ -103,7 +103,7 @@ plunk dev
 The flow is:
 
 1. Source file changes detected immediately
-2. Coalesce window (default 100ms, configurable via `--debounce`)
+2. Coalesce window (default 500ms, configurable via `--debounce`)
 3. Build command runs (`pnpm build`)
 4. Publish to store (skipped if content hash unchanged)
 5. Copy changed files to all registered consumers

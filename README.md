@@ -22,7 +22,7 @@ Local npm package development without symlinks. Copies built files directly into
 ```bash
 npx plunk init       # set up your app
 plunk add my-lib     # link a package
-plunk push --watch   # continuous dev mode
+plunk dev            # watch → build → push (continuous)
 ```
 
 ## Why plunk?
@@ -48,7 +48,7 @@ graph LR
 1. `publish` copies built files to a local store at `~/.plunk/store/`
 2. `add` copies from store into your app's `node_modules/`
 3. `push` = publish + copy to all consumers
-4. `--watch` = file change → build → push loop
+4. `dev` = watch → build → push loop (or `push --watch`)
 
 > Uses CoW reflinks for instant copy-on-write on APFS/btrfs/ReFS, with automatic fallback. Reflink support is probed once per volume and cached — no wasted syscalls. Only changed files are re-copied (xxhash-based diffing).
 
@@ -68,9 +68,9 @@ plunk publish
 cd my-app
 plunk add my-lib
 
-# Continuous dev: watch → build → push
+# Continuous dev: watch → build → push (auto-detects build command)
 cd my-lib
-plunk push --watch --build "pnpm build"
+plunk dev
 ```
 
 ## At a glance
@@ -97,9 +97,7 @@ npx @olegkuibar/plunk init          # set up a consumer project
 
 ## Try it online
 
-Experience plunk directly in your browser with our interactive playground:
-
-**[Open Playground](https://plunk-playground.vercel.app)** — Run real `plunk publish`, `plunk add`, and `plunk push` commands with live HMR preview.
+**[Open Playground](https://plunk.olegkuibar.dev)** — run `plunk publish`, `plunk add`, and `plunk push` in the browser with live HMR preview.
 
 ## Documentation
 
