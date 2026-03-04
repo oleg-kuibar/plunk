@@ -1,6 +1,7 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTerminalContext } from '../contexts/TerminalContext';
+import { SENTINEL } from '../contexts/TerminalContext';
 
 // --- Types ---
 
@@ -15,6 +16,13 @@ type StepAction =
   | { type: 'fileEdit'; edits: FileEdit[]; label: string }
   | { type: 'passive'; label: string };
 
+/** How to detect that a step's command has finished */
+type CompletionCondition =
+  | { type: 'immediate' }
+  | { type: 'preview-ready' }
+  | { type: 'sentinel' }
+  | { type: 'output-pattern'; pattern: string };
+
 interface Step {
   id: string;
   title: string;
@@ -22,6 +30,7 @@ interface Step {
   detail: string;
   feedbackMessage: string;
   action: StepAction;
+  completionCondition: CompletionCondition;
 }
 
 // --- Steps ---
@@ -38,6 +47,7 @@ const STEPS: Step[] = [
       command: 'npm run publish:all && npm run link:all && npm run start',
       label: 'Set up & start',
     },
+    completionCondition: { type: 'preview-ready' },
   },
   {
     id: 'see-running',
@@ -46,6 +56,7 @@ const STEPS: Step[] = [
     detail: 'Wait for the dev server to start. The consumer app will appear in the preview with user cards and a greeting.',
     feedbackMessage: 'App is running!',
     action: { type: 'passive', label: 'I see it!' },
+    completionCondition: { type: 'immediate' },
   },
   {
     id: 'apply-changes',
@@ -77,6 +88,7 @@ const STEPS: Step[] = [
         },
       ],
     },
+    completionCondition: { type: 'immediate' },
   },
   {
     id: 'push-changes',
@@ -85,6 +97,7 @@ const STEPS: Step[] = [
     detail: 'Rebuilds the edited packages and pushes updated files. The preview will update with new names and a blue card border.',
     feedbackMessage: 'Changes pushed — check the preview!',
     action: { type: 'command-new-terminal', command: 'npm run push:api && npm run push:ui', label: 'Build & Push' },
+    completionCondition: { type: 'sentinel' },
   },
   {
     id: 'watch-mode',
@@ -93,6 +106,7 @@ const STEPS: Step[] = [
     detail: 'Runs push with --watch. Now try editing a file in the editor — changes appear in the preview automatically.',
     feedbackMessage: 'Watch mode active — try editing!',
     action: { type: 'command-new-terminal', command: 'cd packages/api-client && npx -y @olegkuibar/plunk push --watch --build "npm run build"', label: 'Start watch' },
+    completionCondition: { type: 'output-pattern', pattern: 'Watching for changes' },
   },
 ];
 
@@ -113,6 +127,7 @@ const MANUAL_FILES = [
 // --- Component ---
 
 const FEEDBACK_DURATION_MS = 4000;
+const TIMEOUT_MS = 30_000;
 
 type TutorialMode = 'guided' | 'manual';
 
@@ -122,15 +137,23 @@ interface TutorialProps {
   readFile: (path: string) => Promise<string | null>;
   writeFile: (path: string, content: string) => Promise<void>;
   onOpenFile: (path: string) => Promise<void>;
+  previewUrl: string | null;
 }
 
-export function Tutorial({ isCollapsed = false, onToggle, readFile, writeFile, onOpenFile }: TutorialProps) {
+export function Tutorial({ isCollapsed = false, onToggle, readFile, writeFile, onOpenFile, previewUrl }: TutorialProps) {
   const [mode, setMode] = useState<TutorialMode>('guided');
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
   const [isRunning, setIsRunning] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const { executeCommand, executeInNewTerminal, isShellConnected } = useTerminalContext();
+  const [timedOut, setTimedOut] = useState(false);
+  const { executeCommand, executeInNewTerminal, isShellConnected, addOutputListener, removeOutputListener } = useTerminalContext();
+
+  // Refs for cleanup
+  const listenerIdRef = useRef<string | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track which step is waiting for preview-ready so the effect can fire completion
+  const pendingPreviewStepRef = useRef<Step | null>(null);
 
   // Auto-dismiss feedback
   useEffect(() => {
@@ -139,16 +162,56 @@ export function Tutorial({ isCollapsed = false, onToggle, readFile, writeFile, o
     return () => clearTimeout(timer);
   }, [feedback]);
 
+  const cleanupWait = useCallback(() => {
+    if (listenerIdRef.current) {
+      removeOutputListener(listenerIdRef.current);
+      listenerIdRef.current = null;
+    }
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    pendingPreviewStepRef.current = null;
+    setTimedOut(false);
+  }, [removeOutputListener]);
+
   const advanceStep = useCallback(() => {
     setCurrentStep(prev => prev < STEPS.length - 1 ? prev + 1 : prev);
     setIsRunning(false);
   }, []);
 
   const completeStep = useCallback((step: Step) => {
+    cleanupWait();
     setCompletedSteps(prev => new Set([...prev, step.id]));
     setFeedback(step.feedbackMessage);
     setTimeout(advanceStep, 500);
-  }, [advanceStep]);
+  }, [advanceStep, cleanupWait]);
+
+  const startTimeout = useCallback(() => {
+    timeoutRef.current = setTimeout(() => {
+      setTimedOut(true);
+    }, TIMEOUT_MS);
+  }, []);
+
+  /** Wait for a pattern (or sentinel) in terminal output, then complete the step */
+  const waitForOutput = useCallback((step: Step, pattern: string) => {
+    const id = `tutorial-${step.id}-${Date.now()}`;
+    listenerIdRef.current = id;
+    addOutputListener(id, (data: string) => {
+      if (data.includes(pattern)) {
+        completeStep(step);
+      }
+    });
+    startTimeout();
+  }, [addOutputListener, completeStep, startTimeout]);
+
+  // preview-ready: complete step when previewUrl becomes non-null
+  useEffect(() => {
+    const step = pendingPreviewStepRef.current;
+    if (step && previewUrl) {
+      completeStep(step);
+    }
+  }, [previewUrl, completeStep]);
 
   const handleFileEdits = useCallback(async (edits: FileEdit[]) => {
     for (let i = 0; i < edits.length; i++) {
@@ -175,14 +238,15 @@ export function Tutorial({ isCollapsed = false, onToggle, readFile, writeFile, o
     if (completedSteps.has(step.id) || isRunning) return;
 
     const action = step.action;
+    const condition = step.completionCondition;
 
-    // Passive steps don't need shell
+    // Passive steps complete immediately
     if (action.type === 'passive') {
       completeStep(step);
       return;
     }
 
-    // File edits don't need shell either, but the environment must be ready
+    // File edits complete immediately after writes
     if (action.type === 'fileEdit') {
       setIsRunning(true);
       await handleFileEdits(action.edits);
@@ -193,15 +257,38 @@ export function Tutorial({ isCollapsed = false, onToggle, readFile, writeFile, o
     if (!isShellConnected) return;
 
     setIsRunning(true);
+    setTimedOut(false);
 
+    // Fire the command
+    const useSentinel = condition.type === 'sentinel';
     if (action.type === 'command') {
-      executeCommand(action.command);
+      executeCommand(action.command, { sentinel: useSentinel });
     } else if (action.type === 'command-new-terminal') {
-      executeInNewTerminal(action.command);
+      executeInNewTerminal(action.command, { sentinel: useSentinel });
     }
 
-    completeStep(step);
-  }, [executeCommand, executeInNewTerminal, isShellConnected, completeStep, handleFileEdits, completedSteps, isRunning]);
+    // Set up completion detection based on condition
+    switch (condition.type) {
+      case 'immediate':
+        completeStep(step);
+        break;
+      case 'sentinel':
+        waitForOutput(step, SENTINEL);
+        break;
+      case 'output-pattern':
+        waitForOutput(step, condition.pattern);
+        break;
+      case 'preview-ready':
+        if (previewUrl) {
+          // Already have a preview URL — complete now
+          completeStep(step);
+        } else {
+          pendingPreviewStepRef.current = step;
+          startTimeout();
+        }
+        break;
+    }
+  }, [executeCommand, executeInNewTerminal, isShellConnected, completeStep, handleFileEdits, completedSteps, isRunning, waitForOutput, previewUrl, startTimeout]);
 
   const progress = (completedSteps.size / STEPS.length) * 100;
   const isComplete = completedSteps.size === STEPS.length;
@@ -284,15 +371,15 @@ export function Tutorial({ isCollapsed = false, onToggle, readFile, writeFile, o
         <>
           {/* Horizontal stepper — compact for 7 steps */}
           <div className="px-4 py-3 border-b border-border">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center gap-0">
               {STEPS.map((step, idx) => {
                 const isDone = completedSteps.has(step.id);
                 const isCurrent = idx === currentStep;
                 return (
-                  <div key={step.id} className="flex items-center">
+                  <div key={step.id} className={`flex items-center ${idx < STEPS.length - 1 ? 'flex-1' : ''}`}>
                     <motion.div
                       className={`
-                        w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold relative
+                        w-5 h-5 shrink-0 rounded-full flex items-center justify-center text-[9px] font-bold relative
                         ${isDone
                           ? 'bg-success text-white'
                           : isCurrent
@@ -314,7 +401,7 @@ export function Tutorial({ isCollapsed = false, onToggle, readFile, writeFile, o
                       )}
                     </motion.div>
                     {idx < STEPS.length - 1 && (
-                      <div className={`w-3 h-0.5 ${isDone ? 'bg-success' : 'bg-bg-muted'}`} />
+                      <div className={`flex-1 h-0.5 mx-1 ${isDone ? 'bg-success' : 'bg-bg-muted'}`} />
                     )}
                   </div>
                 );
@@ -360,10 +447,17 @@ export function Tutorial({ isCollapsed = false, onToggle, readFile, writeFile, o
                 </p>
 
                 <button
-                  onClick={() => handleRunAction(STEPS[currentStep])}
+                  onClick={() => {
+                    if (isRunning && timedOut) {
+                      // Manual advance when timed out
+                      completeStep(STEPS[currentStep]);
+                    } else {
+                      handleRunAction(STEPS[currentStep]);
+                    }
+                  }}
                   disabled={
                     completedSteps.has(STEPS[currentStep].id) ||
-                    isRunning ||
+                    (isRunning && !timedOut) ||
                     (STEPS[currentStep].action.type !== 'passive' &&
                      STEPS[currentStep].action.type !== 'fileEdit' &&
                      !isShellConnected)
@@ -372,17 +466,21 @@ export function Tutorial({ isCollapsed = false, onToggle, readFile, writeFile, o
                     w-full py-2.5 px-3 rounded-lg text-xs font-medium transition-all
                     ${completedSteps.has(STEPS[currentStep].id)
                       ? 'bg-success/20 text-success cursor-default'
-                      : isRunning
-                        ? 'bg-bg-muted text-text-muted cursor-not-allowed'
-                        : 'bg-accent text-black hover:bg-accent/90'
+                      : isRunning && timedOut
+                        ? 'bg-warning/20 text-warning hover:bg-warning/30 cursor-pointer'
+                        : isRunning
+                          ? 'bg-bg-muted text-text-muted cursor-not-allowed'
+                          : 'bg-accent text-black hover:bg-accent/90'
                     }
                   `}
                 >
                   {completedSteps.has(STEPS[currentStep].id)
                     ? '\u2713 Done'
-                    : isRunning
-                      ? 'Running...'
-                      : STEPS[currentStep].action.label
+                    : isRunning && timedOut
+                      ? 'Taking longer than expected... Skip?'
+                      : isRunning
+                        ? 'Running...'
+                        : STEPS[currentStep].action.label
                   }
                 </button>
               </motion.div>

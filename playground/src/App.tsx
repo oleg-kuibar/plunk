@@ -3,9 +3,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import type { ImperativePanelHandle } from 'react-resizable-panels';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { useWebContainer } from './hooks/useWebContainer';
-import { FileTree, Editor, Terminal, Preview, Tutorial, Scripts } from './components';
-import { LoadingScreen } from './components/LoadingScreen';
-import { Header } from './components/Header';
+import { FileTree, Editor, Terminal, Preview, Tutorial, Scripts, LoadingScreen, Header } from './components';
 
 const BROWSER_OPTIONS = [
   { icon: '\uD83C\uDF10', name: 'Chrome' },
@@ -415,6 +413,7 @@ export default function App() {
         readFile={readFile}
         writeFile={writeFile}
         onOpenFile={handleTutorialOpenFile}
+        previewUrl={previewUrl}
       />
     </div>
   );

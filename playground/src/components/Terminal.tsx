@@ -144,6 +144,7 @@ export function Terminal({ status, spawnShell }: TerminalProps) {
           onClick={addTab}
           className="px-3 py-2 text-text-muted hover:text-text hover:bg-bg-subtle transition-colors"
           title="New Terminal"
+          aria-label="New terminal"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <line x1="12" y1="5" x2="12" y2="19" />
@@ -191,7 +192,7 @@ function TerminalInstance({ tabId, status, spawnShell, isActive, isFirst, onShel
   const shellRef = useRef<{ write: (data: string) => void; kill: () => void } | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const hasConnectedRef = useRef(false);
-  const { setShellConnected } = useTerminalContext();
+  const { setShellConnected, notifyOutput } = useTerminalContext();
 
   const handleUserInput = useCallback((data: string) => {
     if (shellRef.current) {
@@ -215,6 +216,7 @@ function TerminalInstance({ tabId, status, spawnShell, isActive, isFirst, onShel
         (data) => {
           if (mounted) {
             write(data);
+            notifyOutput(data);
           }
         },
         () => {
@@ -264,7 +266,7 @@ function TerminalInstance({ tabId, status, spawnShell, isActive, isFirst, onShel
     return () => {
       mounted = false;
     };
-  }, [status, spawnShell, write, setShellConnected, isFirst, tabId, onShellReady, onShellExit]);
+  }, [status, spawnShell, write, setShellConnected, notifyOutput, isFirst, tabId, onShellReady, onShellExit]);
 
   // Cleanup shell on unmount
   useEffect(() => {
