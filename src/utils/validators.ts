@@ -1,3 +1,6 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { consola } from "./console.js";
 import type {
   ConsumerState,
   PlunkMeta,
@@ -45,6 +48,44 @@ export function isConsumerState(value: unknown): value is ConsumerState {
     if (!isLinkEntry(entry)) return false;
   }
   return true;
+}
+
+/**
+ * Warn if the store version doesn't match the consumer's declared dependency range.
+ * Uses a lightweight major-version check to avoid adding a semver dependency.
+ */
+export async function warnVersionMismatch(
+  consumerPath: string,
+  packageName: string,
+  storeVersion: string,
+): Promise<void> {
+  try {
+    const raw = await readFile(join(consumerPath, "package.json"), "utf-8");
+    const pkg = JSON.parse(raw) as Record<string, Record<string, string> | undefined>;
+    const declared =
+      pkg.dependencies?.[packageName] ??
+      pkg.devDependencies?.[packageName] ??
+      pkg.peerDependencies?.[packageName];
+    if (!declared) return;
+
+    // Skip workspace/catalog protocols and wildcards
+    if (/^(workspace:|catalog:|\*)/.test(declared)) return;
+
+    // Extract the version part from the range (strip ^, ~, >=, etc.)
+    const match = declared.match(/(\d+)\.\d+\.\d+/);
+    if (!match) return;
+
+    const declaredMajor = parseInt(match[1], 10);
+    const storeMajor = parseInt(storeVersion.split(".")[0], 10);
+
+    if (declaredMajor !== storeMajor) {
+      consola.warn(
+        `Version mismatch: store has ${packageName}@${storeVersion} but your package.json declares "${declared}". Consider updating your dependency range.`
+      );
+    }
+  } catch {
+    // Non-critical — silently skip if package.json can't be read
+  }
 }
 
 /** Check if a value is a valid ConsumersRegistry */

@@ -9,6 +9,7 @@ import { Timer } from "../utils/timer.js";
 import { suppressHumanOutput, output } from "../utils/output.js";
 import { errorWithSuggestion } from "../utils/errors.js";
 import { verbose } from "../utils/logger.js";
+import { warnVersionMismatch } from "../utils/validators.js";
 import type { LinkEntry } from "../types.js";
 
 const updateLimit = pLimit(4);
@@ -82,6 +83,8 @@ export default defineCommand({
               linkedAt: new Date().toISOString(),
             };
             await addLink(consumerPath, packageName, updatedLink);
+
+            await warnVersionMismatch(consumerPath, packageName, entry.version);
 
             consola.success(
               `Updated ${packageName}@${entry.version} (${result.copied} files changed)`

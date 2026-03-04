@@ -18,6 +18,7 @@ import { Timer } from "../utils/timer.js";
 import { suppressHumanOutput, output } from "../utils/output.js";
 import { errorWithSuggestion } from "../utils/errors.js";
 import { verbose, isJsonOutput } from "../utils/logger.js";
+import { warnVersionMismatch } from "../utils/validators.js";
 import type { LinkEntry, PackageManager } from "../types.js";
 
 export default defineCommand({
@@ -287,10 +288,6 @@ function runInstallCommand(cmd: string, cwd: string): Promise<boolean> {
 }
 
 /**
- * Warn if the store version doesn't match the consumer's declared dependency range.
- * Uses a lightweight major-version check to avoid adding a semver dependency.
- */
-/**
  * Parse a package argument like "my-lib" or "my-lib@1.0.0" or "@scope/my-lib@1.0.0".
  * Returns the package name and optional pinned version.
  */
@@ -313,38 +310,4 @@ function parsePackageArg(arg: string): { name: string; version: string | null } 
     return { name: arg.slice(0, atIdx), version: arg.slice(atIdx + 1) };
   }
   return { name: arg, version: null };
-}
-
-async function warnVersionMismatch(
-  consumerPath: string,
-  packageName: string,
-  storeVersion: string,
-): Promise<void> {
-  try {
-    const raw = await readFile(join(consumerPath, "package.json"), "utf-8");
-    const pkg = JSON.parse(raw) as Record<string, Record<string, string> | undefined>;
-    const declared =
-      pkg.dependencies?.[packageName] ??
-      pkg.devDependencies?.[packageName] ??
-      pkg.peerDependencies?.[packageName];
-    if (!declared) return;
-
-    // Skip workspace/catalog protocols and wildcards
-    if (/^(workspace:|catalog:|\*)/.test(declared)) return;
-
-    // Extract the version part from the range (strip ^, ~, >=, etc.)
-    const match = declared.match(/(\d+)\.\d+\.\d+/);
-    if (!match) return;
-
-    const declaredMajor = parseInt(match[1], 10);
-    const storeMajor = parseInt(storeVersion.split(".")[0], 10);
-
-    if (declaredMajor !== storeMajor) {
-      consola.warn(
-        `Version mismatch: store has ${packageName}@${storeVersion} but your package.json declares "${declared}". Consider updating your dependency range.`
-      );
-    }
-  } catch {
-    // Non-critical — silently skip if package.json can't be read
-  }
 }

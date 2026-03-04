@@ -32,6 +32,12 @@ export default defineCommand({
       description: "Skip error checking",
       default: false,
     },
+    yes: {
+      type: "boolean",
+      alias: "y",
+      description: "Skip confirmation prompts",
+      default: false,
+    },
   },
   async run({ args }) {
     suppressHumanOutput();
@@ -47,6 +53,18 @@ export default defineCommand({
         consola.info("No linked packages to remove");
         output({ removed: 0 });
         return;
+      }
+
+      if (!args.yes) {
+        const names = links.map(([name]) => name).join(", ");
+        const confirmed = await consola.prompt(
+          `Remove ${links.length} linked package(s)? (${names})`,
+          { type: "confirm" }
+        );
+        if (!confirmed || typeof confirmed === "symbol") {
+          consola.info("Cancelled");
+          return;
+        }
       }
 
       let removed = 0;
@@ -93,7 +111,7 @@ export default defineCommand({
   },
 });
 
-async function removeSinglePackage(
+export async function removeSinglePackage(
   consumerPath: string,
   packageName: string,
   link: { backupExists: boolean; packageManager: "npm" | "pnpm" | "yarn" | "bun" }

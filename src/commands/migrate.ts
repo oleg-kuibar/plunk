@@ -25,7 +25,15 @@ export default defineCommand({
     name: "migrate",
     description: "Migrate from yalc to plunk",
   },
-  async run() {
+  args: {
+    yes: {
+      type: "boolean",
+      alias: "y",
+      description: "Skip confirmation prompts",
+      default: false,
+    },
+  },
+  async run({ args }) {
     suppressHumanOutput();
     const timer = new Timer();
     const projectDir = resolve(".");
@@ -43,6 +51,17 @@ export default defineCommand({
       consola.info("No yalc usage detected in this project.");
       output({ migrated: false, packages: [] });
       return;
+    }
+
+    if (!args.yes) {
+      const confirmed = await consola.prompt(
+        "Migrate from yalc to plunk? This will modify package.json and remove .yalc/ and yalc.lock.",
+        { type: "confirm" }
+      );
+      if (!confirmed || typeof confirmed === "symbol") {
+        consola.info("Cancelled");
+        return;
+      }
     }
 
     const packages: string[] = [];
