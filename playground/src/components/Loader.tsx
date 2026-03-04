@@ -7,27 +7,41 @@ interface LoaderProps {
   size?: 'sm' | 'md' | 'lg';
 }
 
+const PARTICLE_COLORS = [
+  'var(--color-accent)',
+  'var(--color-success)',
+  'var(--color-warning)',
+  'var(--color-accent)',
+  'var(--color-success)',
+  'var(--color-warning)',
+];
+
 /**
- * Plunk Loader - Clean ring spinner with centered logo
+ * Plunk Loader - Ring spinner with orbiting particles and centered logo
  */
 export function Loader({ message, size = 'md' }: LoaderProps) {
   const sizes = {
-    sm: { logo: 32, ring: 48, text: 'text-xs' },
-    md: { logo: 48, ring: 72, text: 'text-sm' },
-    lg: { logo: 64, ring: 96, text: 'text-base' },
+    sm: { logo: 32, ring: 48, orbit: 60, text: 'text-xs' },
+    md: { logo: 48, ring: 72, orbit: 88, text: 'text-sm' },
+    lg: { logo: 64, ring: 96, orbit: 116, text: 'text-base' },
   };
 
   const s = sizes[size];
 
   return (
     <div className="flex flex-col items-center justify-center gap-4">
-      <div className="relative" style={{ width: s.ring, height: s.ring }}>
+      <div className="relative" style={{ width: s.orbit, height: s.orbit }}>
         {/* Spinning ring */}
         <svg
-          className="absolute inset-0"
+          className="absolute"
           width={s.ring}
           height={s.ring}
           viewBox="0 0 100 100"
+          style={{
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
+          }}
         >
           <circle
             cx="50"
@@ -54,6 +68,46 @@ export function Loader({ message, size = 'md' }: LoaderProps) {
             style={{ transformOrigin: 'center' }}
           />
         </svg>
+
+        {/* Orbiting particles */}
+        {PARTICLE_COLORS.map((color, i) => {
+          const angle = (i * 360) / PARTICLE_COLORS.length;
+          const radius = s.orbit / 2 - 4;
+          const dotSize = size === 'lg' ? 5 : size === 'md' ? 4 : 3;
+          return (
+            <motion.div
+              key={i}
+              className="absolute rounded-full"
+              style={{
+                width: dotSize,
+                height: dotSize,
+                backgroundColor: color,
+                left: '50%',
+                top: '50%',
+                marginLeft: -dotSize / 2,
+                marginTop: -dotSize / 2,
+              }}
+              animate={{
+                x: [
+                  Math.cos(((angle) * Math.PI) / 180) * radius,
+                  Math.cos(((angle + 360) * Math.PI) / 180) * radius,
+                ],
+                y: [
+                  Math.sin(((angle) * Math.PI) / 180) * radius,
+                  Math.sin(((angle + 360) * Math.PI) / 180) * radius,
+                ],
+                opacity: [0.4, 1, 0.4],
+                scale: [0.8, 1.2, 0.8],
+              }}
+              transition={{
+                x: { duration: 4, repeat: Infinity, ease: 'linear' },
+                y: { duration: 4, repeat: Infinity, ease: 'linear' },
+                opacity: { duration: 2, repeat: Infinity, delay: i * 0.3 },
+                scale: { duration: 2, repeat: Infinity, delay: i * 0.3 },
+              }}
+            />
+          );
+        })}
 
         {/* Center logo */}
         <div
