@@ -7,6 +7,8 @@ import { inject } from "./injector.js";
 import { addLink, getConsumers, getLink } from "./tracker.js";
 import { detectBuildCommand } from "../utils/build-detect.js";
 import { detectPackageManager } from "../utils/pm-detect.js";
+import { loadPlunkConfig } from "../utils/config.js";
+import type { PlunkConfig } from "../utils/config.js";
 import { Timer } from "../utils/timer.js";
 import { output } from "../utils/output.js";
 import { errorWithSuggestion } from "../utils/errors.js";
@@ -168,6 +170,7 @@ function parseMs(value: string | undefined): number | undefined {
 /**
  * Start watch mode: resolve config, start watcher, wait for signal.
  * Shared by both `push --watch` and `dev` commands.
+ * Merge priority: CLI args > package.json#plunk > auto-detection.
  */
 export async function startWatchMode(
   packageDir: string,
@@ -175,15 +178,16 @@ export async function startWatchMode(
   push: () => Promise<void>
 ): Promise<void> {
   const { startWatcher } = await import("./watcher.js");
-  const { buildCmd, patterns } = await resolveWatchConfig(packageDir, args);
+  const config = await loadPlunkConfig(packageDir);
+  const { buildCmd, patterns } = await resolveWatchConfig(packageDir, args, config);
 
   const watcher = await startWatcher(
     packageDir,
     {
       patterns,
       buildCmd,
-      debounce: parseMs(args.debounce),
-      cooldown: parseMs(args.cooldown),
+      debounce: parseMs(args.debounce) ?? config.debounce,
+      cooldown: parseMs(args.cooldown) ?? config.cooldown,
     },
     push
   );
@@ -200,19 +204,25 @@ export async function startWatchMode(
 }
 
 /**
- * Resolve build command and watch patterns from CLI args and auto-detection.
+ * Resolve build command and watch patterns from CLI args, config, and auto-detection.
+ * Merge priority: CLI args > package.json#plunk > auto-detection.
  */
 export async function resolveWatchConfig(
   packageDir: string,
-  args: { build?: string; "skip-build"?: boolean }
+  args: { build?: string; "skip-build"?: boolean },
+  config?: PlunkConfig
 ): Promise<WatchConfig> {
   let buildCmd: string | undefined = args.build;
-  let patterns: string[] | undefined;
+  let patterns: string[] | undefined = config?.watchPatterns;
 
   if (args.build) {
-    // Explicit: use as-is
+    // Explicit CLI: use as-is
   } else if (args["skip-build"]) {
     // Explicitly no build
+  } else if (config?.buildCmd) {
+    // From package.json#plunk
+    buildCmd = config.buildCmd;
+    consola.info(`Using build command from config: ${buildCmd}`);
   } else {
     // Auto-detect from package.json scripts
     const pm = await detectPackageManager(packageDir);

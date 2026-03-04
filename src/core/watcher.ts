@@ -99,9 +99,15 @@ export async function startWatcher(
   const doBuild = async () => {
     if (closed || running) return;
 
-    // Check cooldown
+    // Check cooldown — reschedule instead of silently dropping
     const timeSinceLastBuild = Date.now() - lastBuildEndTime;
     if (lastBuildEndTime > 0 && timeSinceLastBuild < cooldownMs) {
+      const remaining = cooldownMs - timeSinceLastBuild;
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        doBuild();
+      }, remaining);
       return;
     }
 
