@@ -2,6 +2,9 @@ import { readFile, stat } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import type { PackageManager } from "../types.js";
 
+/** Valid package manager names */
+const VALID_PMS: ReadonlySet<string> = new Set(["npm", "pnpm", "yarn", "bun"]);
+
 /** Lockfile → package manager mapping (checked in order) */
 const LOCKFILES: [string, PackageManager][] = [
   ["pnpm-lock.yaml", "pnpm"],
@@ -12,16 +15,41 @@ const LOCKFILES: [string, PackageManager][] = [
 ];
 
 /**
- * Detect the package manager used in a project directory
- * by checking for lockfile presence, walking up to the filesystem root.
- * Closest lockfile wins. Within the same directory, priority order is maintained.
- * Falls back to "npm" if no lockfile is found.
+ * Read the `packageManager` field from package.json (Corepack convention).
+ * Parses values like "pnpm@9.0.0" or "bun@1.0.0+sha256.abc" → PackageManager.
+ * Returns null if the field is missing, empty, or not a recognized PM.
+ */
+async function readPackageManagerField(
+  dir: string
+): Promise<PackageManager | null> {
+  try {
+    const raw = await readFile(join(dir, "package.json"), "utf-8");
+    const pkg = JSON.parse(raw);
+    if (typeof pkg.packageManager !== "string") return null;
+    const name = pkg.packageManager.split("@")[0];
+    return VALID_PMS.has(name) ? (name as PackageManager) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Detect the package manager used in a project directory.
+ * Checks `packageManager` field in package.json first (Corepack convention),
+ * then falls back to lockfile presence, walking up to the filesystem root.
+ * Closest match wins. Within the same directory, priority order is maintained.
+ * Falls back to "npm" if nothing is found.
  */
 export async function detectPackageManager(
   projectDir: string
 ): Promise<PackageManager> {
   let dir = projectDir;
   for (;;) {
+    // Check packageManager field first (Corepack convention)
+    const fromField = await readPackageManagerField(dir);
+    if (fromField) return fromField;
+
+    // Check lockfiles
     const results = await Promise.all(
       LOCKFILES.map(async ([lockfile, pm]) => {
         try {

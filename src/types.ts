@@ -80,6 +80,8 @@ export interface PackageJson {
   types?: string;
   typings?: string;
   browser?: string | Record<string, string>;
+  /** Corepack packageManager field, e.g. "pnpm@9.0.0" */
+  packageManager?: string;
   publishConfig?: {
     main?: string;
     module?: string;
