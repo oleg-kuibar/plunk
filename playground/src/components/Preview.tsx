@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
 import { useTerminalContext } from '../contexts/TerminalContext';
-import { CodeLoader } from './Loader';
+import { Spinner } from './Loader';
 
 interface PreviewProps {
   url: string | null;
@@ -17,15 +16,9 @@ const VIEWPORTS: { id: Viewport; label: string; width: number | null; icon: stri
   { id: 'tablet', label: 'Tablet', width: 768, icon: '\u2B1C' },
 ];
 
-function RichIdleState() {
+function IdleState() {
   const { executeCommand, isShellConnected } = useTerminalContext();
   const [isAutoStarting, setIsAutoStarting] = useState(false);
-
-  const steps = [
-    { num: 1, label: 'Publish packages', done: false },
-    { num: 2, label: 'Link to consumer', done: false },
-    { num: 3, label: 'Start dev server', done: false },
-  ];
 
   const handleAutoStart = useCallback(() => {
     if (!isShellConnected || isAutoStarting) return;
@@ -34,36 +27,10 @@ function RichIdleState() {
   }, [executeCommand, isShellConnected, isAutoStarting]);
 
   return (
-    <div className="flex flex-col items-center justify-center h-full text-text-muted text-sm text-center p-6 bg-bg">
-      <div className="max-w-[300px] w-full space-y-5">
-        <div>
-          <div className="text-3xl mb-3 opacity-40" aria-hidden="true">{'\u25B6\uFE0F'}</div>
-          <h3 className="text-text font-medium text-sm mb-1">No preview running</h3>
-          <p className="text-xs text-text-subtle">Follow these steps to see your app:</p>
-        </div>
+    <div className="flex flex-col items-center justify-center h-full text-center p-6 bg-bg">
+      <div className="max-w-[260px] w-full space-y-4">
+        <p className="text-sm text-text-subtle">No preview running</p>
 
-        {/* Step guide */}
-        <div className="space-y-2 text-left">
-          {steps.map((step, idx) => (
-            <motion.div
-              key={step.num}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: idx * 0.1 }}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg bg-bg-elevated border border-border"
-            >
-              <span className="w-6 h-6 rounded-full bg-bg-muted flex items-center justify-center text-xs font-bold text-text-subtle">
-                {step.num}
-              </span>
-              <span className="text-xs text-text-muted">{step.label}</span>
-              {idx < steps.length - 1 && (
-                <span className="ml-auto text-text-subtle text-[10px]">{'\u2192'}</span>
-              )}
-            </motion.div>
-          ))}
-        </div>
-
-        {/* Auto-start button */}
         <button
           onClick={handleAutoStart}
           disabled={!isShellConnected || isAutoStarting}
@@ -75,14 +42,12 @@ function RichIdleState() {
             }
           `}
         >
-          {isAutoStarting ? 'Starting...' : 'Auto-start (publish, link & dev)'}
+          {isAutoStarting ? 'Starting...' : 'Auto-start demo'}
         </button>
 
-        <div className="border-t border-border pt-3">
-          <p className="text-[10px] text-text-subtle">
-            Or run manually: <code className="text-success">cd consumer-app && npm run dev</code>
-          </p>
-        </div>
+        <p className="text-[11px] text-text-subtle">
+          Or use the <span className="text-accent">Tutorial</span> panel to go step by step
+        </p>
       </div>
     </div>
   );
@@ -131,7 +96,7 @@ export function Preview({ url }: PreviewProps) {
   }, []);
 
   if (!url) {
-    return <RichIdleState />;
+    return <IdleState />;
   }
 
   const activeViewport = VIEWPORTS.find(v => v.id === viewport);
@@ -196,23 +161,10 @@ export function Preview({ url }: PreviewProps) {
       {/* Preview iframe */}
       <div className="flex-1 relative bg-white flex justify-center">
         {loadState === 'loading' && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="absolute inset-0 flex flex-col items-center justify-center bg-bg z-10 gap-4"
-          >
-            <CodeLoader size="md" />
-            <div className="w-32 h-1 bg-border rounded-full overflow-hidden">
-              <motion.div
-                className="h-full bg-accent rounded-full"
-                initial={{ x: '-100%' }}
-                animate={{ x: '100%' }}
-                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                style={{ width: '50%' }}
-              />
-            </div>
-            <p className="text-text-muted text-sm">Starting Vite dev server...</p>
-          </motion.div>
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-bg z-10 gap-3">
+            <Spinner size={24} />
+            <p className="text-text-muted text-sm">Starting dev server...</p>
+          </div>
         )}
 
         {loadState === 'error' && (

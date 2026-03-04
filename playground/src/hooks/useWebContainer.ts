@@ -150,6 +150,20 @@ export function useWebContainer(): UseWebContainerResult {
         await seed.exit;
         if (cancelled) return;
 
+        // Overwrite npm-installed plunk with the locally-built dist so the
+        // playground always runs the latest code (including unreleased fixes).
+        const { default: localPlunkTree } = await import('virtual:local-plunk');
+        if (localPlunkTree) {
+          await container.mount({
+            node_modules: { directory: {
+              '@olegkuibar': { directory: {
+                plunk: { directory: localPlunkTree },
+              } },
+            } },
+          } as FileSystemTree);
+          console.log('[plunk playground] Mounted local plunk build');
+        }
+
         setStatus('ready');
       } catch (err) {
         if (cancelled) return;

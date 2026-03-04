@@ -241,9 +241,9 @@ export default function App() {
           {/* Left sidebar - File tree & Scripts */}
           <Panel
             ref={sidebarRef}
-            defaultSize={15}
+            defaultSize={13}
             minSize={10}
-            maxSize={25}
+            maxSize={22}
             collapsible
             collapsedSize={0}
             onCollapse={() => setIsSidebarCollapsed(true)}
@@ -274,7 +274,7 @@ export default function App() {
                       </div>
                     </Panel>
 
-                    <PanelResizeHandle className="h-1 bg-border hover:bg-accent/50 transition-colors" />
+                    <PanelResizeHandle />
 
                     {/* Scripts */}
                     <Panel defaultSize={35} minSize={20}>
@@ -293,9 +293,9 @@ export default function App() {
           <PanelResizeHandle />
 
           {/* Center - Editor and Terminal */}
-          <Panel defaultSize={45} minSize={30}>
+          <Panel defaultSize={47} minSize={30}>
             <PanelGroup direction="vertical">
-              <Panel defaultSize={60} minSize={20}>
+              <Panel defaultSize={50} minSize={20}>
                 <div className="h-full bg-bg flex flex-col">
                   {/* File tabs with layout animations */}
                   {openFiles.length > 0 && (
@@ -371,7 +371,7 @@ export default function App() {
 
               <PanelResizeHandle />
 
-              <Panel defaultSize={40} minSize={15}>
+              <Panel defaultSize={50} minSize={15}>
                 <div className="h-full bg-bg border-t border-border">
                   <Terminal status={status} spawnShell={spawnShell} />
                 </div>

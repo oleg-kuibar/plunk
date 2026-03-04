@@ -1,7 +1,6 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import MonacoEditor, { OnMount, OnChange } from '@monaco-editor/react';
 import type { editor } from 'monaco-editor';
-import { motion } from 'framer-motion';
 
 interface EditorProps {
   path: string | null;
@@ -54,72 +53,6 @@ const plunkTheme: editor.IStandaloneThemeData = {
     'scrollbarSlider.activeBackground': '#6e7681',
   },
 };
-
-function CommandPill({ name, desc, delay }: { name: string; desc: string; delay: number }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleClick = useCallback(() => {
-    navigator.clipboard.writeText(`plunk ${name}`).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
-  }, [name]);
-
-  return (
-    <motion.button
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.3 }}
-      onClick={handleClick}
-      className="bg-bg-subtle/50 rounded px-3 py-2 text-[11px] text-left hover:bg-bg-subtle transition-colors group cursor-pointer relative"
-      title={`Click to copy "plunk ${name}"`}
-    >
-      <code className="text-success group-hover:text-accent transition-colors">{name}</code>
-      <span className="text-text-subtle ml-1.5">{'\u2192'} {desc}</span>
-      {copied && (
-        <motion.span
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0 }}
-          className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] bg-success text-white px-2 py-0.5 rounded"
-        >
-          Copied!
-        </motion.span>
-      )}
-    </motion.button>
-  );
-}
-
-function FlowVisualization() {
-  const nodes = ['Source', 'Store', 'node_modules'];
-
-  return (
-    <div className="flex items-center justify-center gap-2 my-3">
-      {nodes.map((label, idx) => (
-        <div key={label} className="flex items-center gap-2">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: idx * 0.2, duration: 0.3 }}
-            className="px-3 py-1.5 rounded bg-bg-elevated border border-border text-[11px] font-medium text-text"
-          >
-            {label}
-          </motion.div>
-          {idx < nodes.length - 1 && (
-            <motion.span
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: idx * 0.2 + 0.15, duration: 0.2 }}
-              className="text-accent text-xs"
-            >
-              {'\u2192'}
-            </motion.span>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function Breadcrumb({ path }: { path: string }) {
   const segments = path.replace(/^\//, '').split('/');
@@ -208,52 +141,8 @@ export function Editor({
 
   if (!path) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-text-muted p-8 overflow-auto">
-        <div className="max-w-sm w-full space-y-6">
-          {/* Header */}
-          <div className="text-center">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-bg-elevated border border-border mb-4">
-              <span className="text-2xl opacity-60">{'\uD83D\uDCC4'}</span>
-            </div>
-            <h2 className="text-text font-medium text-base mb-1">No file selected</h2>
-            <p className="text-xs text-text-subtle">
-              Select a file from the explorer
-            </p>
-          </div>
-
-          {/* Divider */}
-          <div className="border-t border-border" />
-
-          {/* Flow visualization */}
-          <div className="text-center">
-            <p className="text-[10px] text-text-subtle uppercase tracking-wider mb-1">How plunk works</p>
-            <FlowVisualization />
-          </div>
-
-          {/* Hero Command */}
-          <div className="text-center">
-            <p className="text-[10px] text-text-subtle uppercase tracking-wider mb-2">Dev Mode</p>
-            <div className="bg-bg-elevated border border-border rounded-lg px-4 py-3">
-              <code className="text-accent font-mono text-sm">plunk push --watch</code>
-            </div>
-            <p className="text-[11px] text-text-subtle mt-2">
-              Auto-rebuild & hot-inject on save
-            </p>
-          </div>
-
-          {/* Commands Grid - clickable */}
-          <div className="grid grid-cols-2 gap-2">
-            <CommandPill name="publish" desc="store" delay={0} />
-            <CommandPill name="add" desc="link pkg" delay={0.05} />
-            <CommandPill name="push" desc="inject" delay={0.1} />
-            <CommandPill name="list" desc="show all" delay={0.15} />
-          </div>
-
-          {/* Footer hint */}
-          <p className="text-[10px] text-text-subtle text-center">
-            Run via <code className="text-secondary">npx @olegkuibar/plunk</code>
-          </p>
-        </div>
+      <div className="flex flex-col items-center justify-center h-full text-text-muted">
+        <p className="text-sm text-text-subtle">Select a file from the explorer</p>
       </div>
     );
   }
