@@ -133,10 +133,6 @@ export default function plunkPlugin(): Plugin {
         syncPackageWatchers();
 
         console.log(`[plunk] ${source}, restarting server...`);
-        server.config.logger.info(
-          `[plunk] ${source}, restarting server...`,
-          { timestamp: true }
-        );
 
         try {
           await server.restart();
@@ -210,8 +206,9 @@ export default function plunkPlugin(): Plugin {
           const hasNew = currentPackages.some((pkg) => !watchedPackages.has(pkg));
           if (hasNew) {
             scheduleRestart("New package linked");
+          } else {
+            invalidateLinkedModules();
           }
-          // Regular pushes: file events in node_modules handle the reload
           return;
         }
 

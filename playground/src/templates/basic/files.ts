@@ -609,6 +609,7 @@ export declare const UI_VERSION: string;
                 '@example/ui-kit': '*',
               },
               devDependencies: {
+                '@olegkuibar/plunk': '*',
                 '@types/react': '^18.3.0',
                 '@types/react-dom': '^18.3.0',
                 '@vitejs/plugin-react': '^4.3.0',
@@ -623,138 +624,17 @@ export declare const UI_VERSION: string;
       'vite.config.js': {
         file: {
           contents: `import { defineConfig } from 'vite';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import react from '@vitejs/plugin-react';
-
-// Plunk Vite plugin — watches linked packages and reloads on changes.
-// Overrides Vite's default node_modules ignore so chokidar sees linked
-// package dirs, invalidates Vite's module graph cache, then sends
-// full-reload over HMR. Polls .plunk/state.json as fallback for
-// WebContainers where native fs events are unreliable.
-function plunkHMR() {
-  const PACKAGES = ['@example/api-client', '@example/ui-kit'];
-  var reloadTimer = null;
-  var pollTimer = null;
-  return {
-    name: 'vite-plugin-plunk',
-    apply: 'serve',
-    configureServer(server) {
-      var root = server.config.root || process.cwd();
-      var stateFile = join(root, '.plunk', 'state.json');
-
-      /** Send a debounced full-reload to the browser */
-      function scheduleReload() {
-        if (reloadTimer) clearTimeout(reloadTimer);
-        reloadTimer = setTimeout(function() {
-          reloadTimer = null;
-          console.log('[plunk] Linked package updated, reloading');
-          server.hot.send({ type: 'full-reload', path: '*' });
-        }, 200);
-      }
-
-      /** Invalidate a single changed module and schedule reload */
-      function invalidateAndReload(path) {
-        var mods = server.moduleGraph.getModulesByFile(path);
-        if (mods) {
-          mods.forEach(function(m) { server.moduleGraph.invalidateModule(m); });
-        }
-        scheduleReload();
-      }
-
-      /** Invalidate all cached modules for linked packages (polling fallback) */
-      function invalidateAllLinked() {
-        for (var [url, mod] of server.moduleGraph.urlToModuleMap) {
-          for (var pkg of PACKAGES) {
-            if (url.includes(pkg)) {
-              server.moduleGraph.invalidateModule(mod);
-              break;
-            }
-          }
-        }
-        scheduleReload();
-      }
-
-      const escaped = PACKAGES
-        .sort((a, b) => b.length - a.length)
-        .map(p => p.replace(/[/\\\\.*+?^\${}()|[\\]]/g, '\\\\$&'))
-        .join('|');
-      server.watcher.options = {
-        ...server.watcher.options,
-        ignored: [
-          new RegExp('node_modules\\\\/(?!(?:' + escaped + ')(?:\\\\/|$)).*'),
-          /[/\\\\]\\.git[/\\\\]/,
-        ],
-      };
-      server.watcher._userIgnored = undefined;
-      for (const pkg of PACKAGES) {
-        server.watcher.add('node_modules/' + pkg);
-      }
-      server.watcher.add(stateFile);
-
-      // Linked package file changes: invalidate module graph + full-reload.
-      // server.restart() drops the HMR WebSocket and doesn't reliably
-      // trigger a browser reload — invalidate + full-reload is faster
-      // and more reliable.
-      server.watcher.on('change', function(path) {
-        if (path.includes('.plunk/state.json')) {
-          return; // file events handle the reload
-        }
-        var isLinked = PACKAGES.some(function(pkg) {
-          return path.includes('node_modules/' + pkg);
-        });
-        if (isLinked) {
-          invalidateAndReload(path);
-        }
-      });
-
-      server.watcher.on('add', function(path) {
-        var isLinked = PACKAGES.some(function(pkg) {
-          return path.includes('node_modules/' + pkg);
-        });
-        if (isLinked) {
-          invalidateAndReload(path);
-        }
-      });
-
-      // Fallback: poll state.json for WebContainers where native
-      // fs events are unreliable.
-      if (pollTimer) clearInterval(pollTimer);
-      var lastStateContent = '';
-      try { lastStateContent = readFileSync(stateFile, 'utf-8'); } catch {}
-      pollTimer = setInterval(function() {
-        try {
-          var content = readFileSync(stateFile, 'utf-8');
-          if (lastStateContent && content !== lastStateContent) {
-            lastStateContent = content;
-            invalidateAllLinked();
-          }
-          if (!lastStateContent) lastStateContent = content;
-        } catch {}
-      }, 1000);
-
-      server.httpServer?.on('close', function() {
-        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-        if (reloadTimer) { clearTimeout(reloadTimer); reloadTimer = null; }
-      });
-
-      console.log('[plunk] Watching linked packages + state.json (polling active)');
-    },
-  };
-}
+import plunkPlugin from '@olegkuibar/plunk/vite';
 
 export default defineConfig({
-  plugins: [react(), plunkHMR()],
+  plugins: [react(), plunkPlugin()],
   server: {
     port: 3000,
     host: true,
-    watch: { usePolling: true, interval: 1000 },
   },
   resolve: {
     preserveSymlinks: true,
-  },
-  optimizeDeps: {
-    exclude: ['@example/api-client', '@example/ui-kit'],
   },
 });
 `,
