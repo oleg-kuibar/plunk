@@ -267,6 +267,27 @@ preplunk → prepack → [publish files] → postpack → postplunk
   ```
 - Hooks run in the package directory with `stdio: inherit`, so their output is visible
 
+## Dry-run mode
+
+When you pass `--dry-run` to any command, plunk skips all filesystem mutations (copies, removes, directory creation, bin links, lock acquisition, lifecycle hooks) but still runs the full logic to determine what _would_ happen. Each skipped mutation is recorded centrally, and at exit plunk prints a grouped summary:
+
+```
+[dry-run] 14 mutation(s) would be performed:
+
+  Copy (8):
+    /path/to/store/dist/index.js → /path/to/app/node_modules/my-lib/dist/index.js
+    ...
+  Create directory (2):
+    /path/to/store/my-lib@1.0.0/package
+    ...
+  Skip lock (1):
+    /path/to/store/my-lib@1.0.0
+  Skip lifecycle hook (1):
+    /path/to/my-lib (prepack: npm run build)
+```
+
+With `--json`, the summary is output as structured JSON with all mutation details.
+
 ## Atomic publish
 
 Publishing uses a two-phase write to prevent partial state:

@@ -112,9 +112,41 @@ module.exports = {
 
 ## Webpack
 
-No config needed. Webpack's `watchpack` detects mtime changes on every file it resolves. When plunk updates a file in `node_modules/`, the mtime change triggers a recompilation.
+Webpack's `watchpack` detects mtime changes on every file it resolves, so basic rebuilds work automatically. For the best experience, use the plunk webpack plugin:
 
-If you use `cache: { type: 'filesystem' }`, the cache invalidates correctly because plunk only overwrites files whose content actually changed.
+### Webpack plugin (optional)
+
+plunk provides a webpack plugin that handles cache invalidation and rebuild triggering for webpack 5 and rspack:
+
+```js
+// webpack.config.js
+const { PlunkWebpackPlugin } = require('@olegkuibar/plunk/webpack')
+
+module.exports = {
+  plugins: [new PlunkWebpackPlugin()],
+}
+```
+
+```ts
+// rspack.config.ts
+import { PlunkWebpackPlugin } from '@olegkuibar/plunk/webpack'
+
+export default {
+  plugins: [new PlunkWebpackPlugin()],
+}
+```
+
+The plugin:
+
+- Excludes linked package paths from webpack's `snapshot.managedPaths` so webpack doesn't cache them as "immutable node_modules"
+- Watches `.plunk/state.json` and linked package directories for changes
+- Calls `compiler.watching.invalidate()` on change (200ms debounce)
+- Adds linked package directories as `contextDependencies` so webpack tracks them
+- Falls back to polling in WebContainer environments (StackBlitz, etc.)
+
+### Without the plugin
+
+Without the plugin, webpack still detects mtime changes and rebuilds. However, if you use `cache: { type: 'filesystem' }`, webpack may cache linked packages as stable `node_modules` dependencies and miss updates. The plugin solves this by excluding linked packages from `snapshot.managedPaths`.
 
 ## esbuild
 
@@ -143,7 +175,7 @@ graph LR
     P[plunk push] --> FS[fs.copyFile]
     FS --> E1[mtime changes at<br/>node_modules/ path]
     E1 --> V[Vite*]
-    E1 --> W[Webpack]
+    E1 --> W[Webpack**]
     E1 --> ES[esbuild]
     E1 --> T[Turbopack]
     E1 --> R[Rollup]
@@ -158,12 +190,13 @@ graph LR
     style R fill:#2e7d32,stroke:#66bb6a,color:#e8f5e9
 ```
 
-*Vite requires the plunk plugin (auto-injected by `plunk add`/`plunk init`). Everything else works without changes.*
+*Vite requires the plunk plugin (auto-injected by `plunk add`/`plunk init`). Webpack has an optional plugin for reliable cache invalidation. Everything else works without changes.*
 
 | Bundler | Config needed | Why it works |
 |---|---|---|
 | Vite | plunk plugin (auto-injected) | Plugin triggers reload on push |
-| Webpack | None | watchpack detects mtime changes |
+| Webpack | plunk plugin (optional) | Plugin handles cache invalidation; without it, watchpack detects mtime changes |
+| rspack | plunk plugin (optional) | Same plugin works with rspack |
 | esbuild | None | Poll-based watch sees mtime changes |
 | Turbopack | None | Files are inside project root |
 | Rollup | None | Watch mode tracks resolved files |

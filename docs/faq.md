@@ -152,6 +152,17 @@ plunk publish --private
 
 Typical for internal monorepo packages that aren't published to npm.
 
+## Can I preview changes before running a command?
+
+Yes. Pass `--dry-run` to any command to see what would happen without writing files:
+
+```bash
+plunk publish --dry-run
+plunk push --dry-run
+```
+
+plunk prints a grouped summary of all mutations it would perform: file copies, removals, directory creation, bin links, lock acquisitions, and lifecycle hooks. With `--json`, the summary is output as structured JSON.
+
 ## What happens when I run npm install / pnpm install?
 
 Running `npm install` or `pnpm install` replaces files in `node_modules/`, which overwrites plunk's injected files. To get them back:

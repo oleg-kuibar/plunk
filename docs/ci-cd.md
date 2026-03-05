@@ -41,6 +41,8 @@ plunk publish --dry-run
 plunk push --dry-run
 ```
 
+When `--dry-run` completes, plunk prints a grouped summary of all mutations that would have been performed (file copies, removals, directory creation, bin links, lock acquisitions, lifecycle hooks). With `--json`, the summary is output as structured JSON.
+
 Good for validation steps where you want to confirm the operation succeeds without writing files.
 
 ### --verbose

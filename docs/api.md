@@ -321,12 +321,252 @@ async function startWatcher(
 
 Uses chokidar. Implements debounce-effects strategy: changes are detected immediately but coalesced before triggering the callback. If new changes arrive during callback execution, re-triggers after it finishes.
 
+### `runBuildCommand(buildCmd, cwd)`
+
+Run a build command as a subprocess and wait for it to complete.
+
+```typescript
+async function runBuildCommand(
+  buildCmd: string,
+  cwd: string
+): Promise<boolean>  // true if exit code 0
+```
+
 ### `killActiveBuild()`
 
 Kill the active build subprocess if one is running.
 
 ```typescript
 function killActiveBuild(): void
+```
+
+## Batch Push
+
+### `doPushAll(startDir, options?)`
+
+Push all workspace packages in topological (dependency-first) order. Discovers workspace packages, sorts by dependency graph, and pushes sequentially.
+
+```typescript
+async function doPushAll(
+  startDir: string,
+  options?: PushOptions
+): Promise<void>
+```
+
+```typescript
+await doPushAll("/path/to/monorepo");
+```
+
+## Watch Orchestrator
+
+### `WatchOrchestrator`
+
+Orchestrates watch mode for all workspace packages with cascading rebuilds. When a package is pushed, its dependents in the workspace are automatically rebuilt and pushed.
+
+```typescript
+class WatchOrchestrator {
+  constructor(cascade: boolean)
+  start(startDir: string, args: WatchArgs, pushOptions: PushOptions): Promise<void>
+  close(): Promise<void>
+}
+```
+
+The orchestrator uses a state machine per package (idle/building/queued) to prevent infinite rebuild loops.
+
+```typescript
+const orchestrator = new WatchOrchestrator(true); // cascade enabled
+await orchestrator.start("/path/to/monorepo", watchArgs, pushOptions);
+```
+
+## Build History
+
+### `captureHistory(name, version, oldEntryDir, historyLimit?)`
+
+Capture the current store entry as a history entry before it gets replaced.
+
+```typescript
+async function captureHistory(
+  name: string,
+  version: string,
+  oldEntryDir: string,
+  historyLimit?: number
+): Promise<void>
+```
+
+### `listHistory(name, version)`
+
+List all history entries for a package, sorted by publishedAt (newest first).
+
+```typescript
+async function listHistory(
+  name: string,
+  version: string
+): Promise<HistoryEntry[]>
+```
+
+### `getHistoryEntry(name, version, buildId)`
+
+Get a specific history entry by buildId.
+
+```typescript
+async function getHistoryEntry(
+  name: string,
+  version: string,
+  buildId: string
+): Promise<HistoryEntry | null>
+```
+
+### `restoreHistoryEntry(name, version, buildId, historyLimit?)`
+
+Restore a history entry as the current store entry.
+
+```typescript
+async function restoreHistoryEntry(
+  name: string,
+  version: string,
+  buildId: string,
+  historyLimit?: number
+): Promise<HistoryEntry | null>
+```
+
+### `pruneHistory(name, version, limit)`
+
+Prune history entries to keep only the most recent `limit` entries.
+
+```typescript
+async function pruneHistory(
+  name: string,
+  version: string,
+  limit: number
+): Promise<number>  // number of entries removed
+```
+
+### `clearHistory(name, version)`
+
+Remove all history for a package.
+
+```typescript
+async function clearHistory(
+  name: string,
+  version: string
+): Promise<void>
+```
+
+### `resolveHistoryLimit(configValue?)`
+
+Resolve the effective history limit from config or default (3).
+
+```typescript
+function resolveHistoryLimit(configValue?: number): number
+```
+
+## Pre-flight Checks
+
+### `runPreflightChecks(packageDir)`
+
+Run pre-flight validation checks on a package before publishing. Checks entry points, exports, types, and bin paths exist on disk.
+
+```typescript
+async function runPreflightChecks(
+  packageDir: string
+): Promise<PreflightIssue[]>
+```
+
+```typescript
+const issues = await runPreflightChecks("/path/to/my-lib");
+for (const issue of issues) {
+  console.log(`[${issue.severity}] ${issue.code}: ${issue.message}`);
+}
+```
+
+## Dry-Run
+
+### `recordMutation(mutation)`
+
+Record a mutation that was skipped due to `--dry-run`.
+
+```typescript
+function recordMutation(mutation: DryRunMutation): void
+```
+
+### `printDryRunReport()`
+
+Print a grouped summary of all recorded dry-run mutations. Outputs JSON when `--json` is active.
+
+```typescript
+function printDryRunReport(): void
+```
+
+### `resetMutations()`
+
+Reset recorded mutations (for testing).
+
+```typescript
+function resetMutations(): void
+```
+
+## Workspace
+
+### `buildWorkspaceGraph(startDir)`
+
+Discover workspace packages and build a dependency graph.
+
+```typescript
+async function buildWorkspaceGraph(
+  startDir: string
+): Promise<WorkspaceGraph>
+```
+
+### `buildReverseAdjacency(adjacency)`
+
+Build a reverse adjacency map from a dependency graph. Maps each package to the set of packages that depend on it.
+
+```typescript
+function buildReverseAdjacency(
+  adjacency: Map<string, Set<string>>
+): Map<string, Set<string>>
+```
+
+### `topoSort(graph)`
+
+Topological sort using Kahn's algorithm. Returns nodes in dependency-first order.
+
+```typescript
+function topoSort(
+  graph: Map<string, Set<string>>
+): string[]  // throws CycleError if cycle detected
+```
+
+### `CycleError`
+
+Error thrown when a dependency cycle is detected during topological sort.
+
+```typescript
+class CycleError extends Error {
+  readonly cycle: string[];
+}
+```
+
+## Config
+
+### `loadPlunkConfig(projectDir)`
+
+Load plunk configuration from `package.json#plunk`.
+
+```typescript
+async function loadPlunkConfig(
+  projectDir: string
+): Promise<PlunkConfig>
+```
+
+### `isComplexConfig(content)`
+
+Heuristic to detect configs that are too complex for automatic rewriting. Used by Vite and Next.js config rewriters.
+
+```typescript
+function isComplexConfig(
+  content: string
+): { complex: boolean; reason?: string }
 ```
 
 ## Utilities
@@ -407,6 +647,51 @@ interface WatchOptions {
   debounce?: number;         // debounce delay in ms (default: 500)
   cooldown?: number;         // minimum time between builds in ms (default: 500)
   awaitWriteFinish?: boolean | { stabilityThreshold: number; pollInterval: number };
+}
+
+interface HistoryEntry {
+  buildId: string;
+  contentHash: string;
+  publishedAt: string;
+  sourcePath: string;
+  packageDir: string;         // path to package/ dir in history
+}
+
+interface PreflightIssue {
+  code: string;
+  severity: "warn" | "error";
+  message: string;
+}
+
+type MutationType = "copy" | "remove" | "move" | "mkdir" | "write"
+  | "bin-link" | "bin-unlink" | "cache-invalidate" | "lock-skip" | "lifecycle-skip";
+
+interface DryRunMutation {
+  type: MutationType;
+  path: string;
+  dest?: string;
+  detail?: string;
+}
+
+interface PlunkConfig {
+  buildCmd?: string;
+  watchPatterns?: string[];
+  debounce?: number;
+  cooldown?: number;
+  historyLimit?: number;      // max historical builds (default: 3)
+  notify?: boolean;           // terminal bell on push
+}
+
+interface WorkspacePackage {
+  name: string;
+  version: string;
+  dir: string;
+  pkg: PackageJson;
+}
+
+interface WorkspaceGraph {
+  packages: WorkspacePackage[];
+  adjacency: Map<string, Set<string>>;  // package name → dependency names
 }
 
 interface ConsumersRegistry {

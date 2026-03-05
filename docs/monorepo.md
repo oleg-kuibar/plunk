@@ -129,7 +129,43 @@ plunk dev --debounce 500
 
 ## Multiple libraries
 
-If you are developing multiple libraries simultaneously, run `plunk push --watch` for each one in its own terminal:
+### Workspace-wide watch (`--all`)
+
+When developing multiple libraries at once, use `plunk dev --all` to watch the entire workspace from any package directory:
+
+```bash
+# Terminal 1: watch all workspace packages
+cd packages/my-lib    # or any workspace package
+plunk dev --all
+
+# Terminal 2: run your app
+cd apps/web-app
+pnpm dev
+```
+
+`plunk dev --all` discovers all workspace packages, sorts them by dependency order, and starts a watcher for each. When a package changes, it rebuilds and pushes to all consumers.
+
+### Cascading rebuilds
+
+With `--all`, cascading rebuilds are enabled by default. When package A is pushed, any workspace packages that depend on A are automatically rebuilt and pushed too.
+
+```
+shared-utils changes → build + push shared-utils
+  → my-lib depends on shared-utils → rebuild + push my-lib
+  → ui-kit depends on my-lib → rebuild + push ui-kit
+```
+
+A state machine per package (idle/building/queued) prevents infinite rebuild loops. If new changes arrive while a package is building, they are coalesced into a single rebuild after the current one finishes.
+
+To disable cascading and watch packages independently:
+
+```bash
+plunk dev --all --no-cascade
+```
+
+### Separate terminals
+
+Alternatively, you can run `plunk dev` for each library in its own terminal:
 
 ```bash
 # Terminal 1
@@ -145,7 +181,7 @@ cd apps/web-app
 pnpm dev
 ```
 
-Each library tracks its own consumers independently.
+Each library tracks its own consumers independently. This approach gives you more control but doesn't automatically cascade rebuilds across workspace packages.
 
 ## Tips for monorepo setups
 

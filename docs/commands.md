@@ -114,6 +114,7 @@ Flags:
 | `--no-scripts` | Skip `prepack`/`postpack` lifecycle hooks |
 | `-f, --force` | Force copy all files, bypassing hash comparison |
 | `--notify` | Ring terminal bell on push completion (watch mode) |
+| `--no-cascade` | Disable cascading rebuilds in `--all` mode (default: cascade enabled) |
 
 Without `--watch`, it runs once: publish, then copy changed files to all consumers.
 
@@ -175,6 +176,9 @@ Flags:
 | `--no-scripts` | Skip `prepack`/`postpack` lifecycle hooks |
 | `-f, --force` | Force copy all files, bypassing hash comparison |
 | `--notify` | Ring terminal bell on push completion |
+| `--no-cascade` | Disable cascading rebuilds in `--all` mode (default: cascade enabled) |
+
+**Cascading rebuilds:** When using `--all` in a workspace, cascading rebuilds are enabled by default. When package A changes and is pushed, any workspace packages that depend on A are automatically rebuilt and pushed too. A state machine (idle/building/queued) per package prevents infinite loops. Use `--no-cascade` to disable this and watch packages independently.
 
 On startup, `plunk dev`:
 
@@ -437,14 +441,14 @@ These flags can be passed to any plunk command:
 | Flag | Alias | Description |
 |---|---|---|
 | `--verbose` | `-v` | Enable verbose debug logging. Logs file hashes, symlink resolution, store operations, and timing. |
-| `--dry-run` | | Preview changes without writing files. |
+| `--dry-run` | | Preview changes without writing files. Prints a grouped summary of all mutations that would have been performed (copies, removes, mkdir, bin links, lock acquisitions, lifecycle hooks). |
 | `--json` | | Output machine-readable JSON to stdout. Suppresses human-readable log output. |
 
 Examples:
 
 ```bash
 plunk push --verbose              # detailed debug output
-plunk publish --dry-run           # preview without writing
+plunk publish --dry-run           # preview without writing (prints mutation summary)
 plunk status --json               # structured output for scripts
 plunk push --json --verbose 2>debug.log   # JSON to stdout, debug logs to stderr
 ```

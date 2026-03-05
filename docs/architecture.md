@@ -16,6 +16,9 @@ graph TD
     VitePlugin["vite-plugin.ts"] --> Core
     VitePlugin --> Utils
 
+    WebpackPlugin["webpack-plugin.ts"] --> Core
+    WebpackPlugin --> Utils
+
     IndexAPI["index.ts<br/>(public API)"] --> Core
     IndexAPI --> Utils
 
@@ -24,6 +27,7 @@ graph TD
     style Core fill:#e65100,stroke:#ffb74d,color:#fff3e0
     style Utils fill:#2e7d32,stroke:#66bb6a,color:#e8f5e9
     style VitePlugin fill:#00838f,stroke:#4dd0e1,color:#e0f2f1
+    style WebpackPlugin fill:#00838f,stroke:#4dd0e1,color:#e0f2f1
     style IndexAPI fill:#00838f,stroke:#4dd0e1,color:#e0f2f1
 ```
 
@@ -65,6 +69,18 @@ chokidar watches src/lib/dist → debounce → run build cmd (if set)
 
 The watcher uses a "debounce effects, not detection" strategy: changes are detected immediately but coalesced. If new changes arrive during a push, it automatically re-pushes after the current one finishes.
 
+### Cascading rebuilds (`dev --all`)
+
+```
+WatchOrchestrator starts per-package watchers in topo order
+  → package A changes → build + push A
+  → lookup reverse adjacency → packages B, C depend on A
+  → requestRebuild(B), requestRebuild(C) (pLimit(2))
+  → build + push B → cascade to B's dependents → ...
+```
+
+State machine per package prevents infinite loops: `idle → building → idle` (normal), `building + trigger → queued → building` (coalesced), `queued + trigger → queued` (no-op). Disable with `--no-cascade`.
+
 ## Concurrency and locking
 
 | Mechanism | Where | What it protects |
@@ -72,6 +88,7 @@ The watcher uses a "debounce effects, not detection" strategy: changes are detec
 | `withFileLock()` | `publisher.ts` | Prevents concurrent publishes of the same package from corrupting the store. Uses `mkdir` as an atomic lock primitive with exponential backoff and 60s stale detection. |
 | `pLimit(cpuCount)` | `publisher.ts`, `hash.ts` | Limits parallel file copies and hash computations to CPU core count. |
 | `pLimit(4)` | `push-engine.ts` | Limits parallel consumer injections to 4 to avoid saturating I/O. |
+| `pLimit(2)` | `watch-orchestrator.ts` | Limits concurrent cascade rebuilds to 2. |
 
 `pLimit` is a minimal reimplementation in `utils/concurrency.ts` (no external dependency).
 
@@ -98,13 +115,23 @@ The `buildId` is `contentHash.slice(9, 17)` — the first 8 hex characters after
 | `src/core/tracker.ts` | Consumer state (`state.json`) and global registry (`consumers.json`) management |
 | `src/core/watcher.ts` | chokidar watcher with debounce, build subprocess management |
 | `src/core/push-engine.ts` | `doPush()` — publish + inject to all consumers. `resolveWatchConfig()` for build/watch setup. |
+| `src/core/batch-push.ts` | `doPushAll()` — workspace batch push in topological order |
+| `src/core/watch-orchestrator.ts` | `WatchOrchestrator` — cascading rebuild orchestrator for `dev --all` |
+| `src/core/history.ts` | Build history capture, list, restore, prune for `plunk rollback` |
 | `src/utils/hash.ts` | `computeContentHash()` (SHA-256 aggregate), `hashFile()` (xxHash64 per-file) |
 | `src/utils/fs.ts` | `copyWithCoW()`, `incrementalCopy()`, `ensureDir()`, `isNodeError()` |
 | `src/utils/pack-list.ts` | `resolvePackFiles()` — npm-pack-compatible file resolution from `files` field |
 | `src/utils/pm-detect.ts` | `detectPackageManager()` — lockfile-based PM detection |
 | `src/utils/lockfile.ts` | `withFileLock()` — directory-based lock with retry and stale detection |
-| `src/utils/workspace.ts` | Workspace root detection, package enumeration, catalog parsing |
+| `src/utils/workspace.ts` | Workspace root detection, package enumeration, catalog parsing, reverse adjacency |
 | `src/utils/concurrency.ts` | Minimal `pLimit()` reimplementation |
+| `src/utils/dry-run.ts` | Mutation recorder and summary reporter for `--dry-run` mode |
+| `src/utils/preflight.ts` | Pre-flight validation (exports, types, entry points, bin paths) |
+| `src/utils/config.ts` | `loadPlunkConfig()` — reads `package.json#plunk` config |
+| `src/utils/topo-sort.ts` | `topoSort()` — Kahn's algorithm for workspace dependency ordering |
+| `src/utils/vite-config.ts` | Auto-inject/remove plunk Vite plugin (balanced bracket parser, complexity detector) |
+| `src/utils/nextjs-config.ts` | Auto-add transpilePackages for Next.js (wrapper function detection) |
 | `src/vite-plugin.ts` | Vite plugin that watches `.plunk/state.json` and triggers full reload |
+| `src/webpack-plugin.ts` | Webpack/rspack plugin — excludes linked packages from snapshot cache, watches state.json |
 | `src/index.ts` | Public API re-exports for programmatic usage |
 | `src/types.ts` | Shared TypeScript interfaces (`PlunkMeta`, `StoreEntry`, `LinkEntry`, `ConsumerState`, etc.) |

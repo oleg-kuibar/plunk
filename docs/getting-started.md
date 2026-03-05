@@ -9,6 +9,8 @@ pnpm add -g @olegkuibar/plunk
 npx @olegkuibar/plunk init
 ```
 
+> **Tip:** Running `plunk` with no arguments in a terminal shows an interactive menu where you can select the command you want to run.
+
 ## The workflow
 
 ```mermaid

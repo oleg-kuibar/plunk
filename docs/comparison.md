@@ -123,8 +123,9 @@ plunk detects pnpm, follows the symlink chain into `.pnpm/`, and replaces files 
 
 | Scenario | npm link | yalc | plunk |
 |---|---|---|---|
-| Vite detects changes | No (symlink outside project) | Fragile (.yalc not watched) | Yes (files in node_modules) |
-| Webpack re-builds | Sometimes | Sometimes | Yes |
+| Vite detects changes | No (symlink outside project) | Fragile (.yalc not watched) | Yes (plugin auto-injected) |
+| Webpack re-builds | Sometimes | Sometimes | Yes (optional plugin for cache invalidation) |
+| rspack re-builds | Sometimes | Sometimes | Yes (same plugin as webpack) |
 | Turbopack | No (outside root) | Unknown | Yes |
 
 plunk writes real files at `node_modules/` paths, which generates filesystem events bundlers can see. See [Bundler Guide](bundlers.md) for Vite config.

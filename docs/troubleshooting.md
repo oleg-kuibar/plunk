@@ -28,7 +28,15 @@ rm -rf node_modules/.vite
 pnpm dev
 ```
 
-3. For Webpack with `cache: { type: 'filesystem' }`, delete `.cache/` or `node_modules/.cache/` and restart.
+3. For Webpack with `cache: { type: 'filesystem' }`, use the plunk webpack plugin to automatically handle cache invalidation:
+
+```js
+// webpack.config.js
+const { PlunkWebpackPlugin } = require('@olegkuibar/plunk/webpack')
+module.exports = { plugins: [new PlunkWebpackPlugin()] }
+```
+
+If not using the plugin, delete `.cache/` or `node_modules/.cache/` and restart.
 
 4. If filesystem events are not being detected at all (rare), enable polling in Vite:
 
