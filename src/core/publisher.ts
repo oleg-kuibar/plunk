@@ -21,6 +21,8 @@ export interface PublishOptions {
   runScripts?: boolean;
   /** Force publish, bypassing hash comparison */
   force?: boolean;
+  /** Max historical builds to keep (default: 3). Set to 0 to disable. */
+  historyLimit?: number;
 }
 
 export interface PublishResult {
@@ -209,12 +211,23 @@ export async function publish(
           JSON.stringify(meta, null, 2)
         );
 
-        // Atomic swap: rename old aside, move temp to final, then clean up old
+        // Atomic swap: rename old aside, move temp to final, then capture history
         const hadOld = await exists(storeEntryDir);
         const oldDir = storeEntryDir + ".old-" + Date.now();
         if (hadOld) await rename(storeEntryDir, oldDir);
         await moveDir(tmpDir, storeEntryDir);
-        if (hadOld) await removeDir(oldDir);
+
+        // Capture old build to history AFTER the new entry is safely in place.
+        // We read from `oldDir` (the renamed aside) so the live entry is never mutated.
+        if (hadOld) {
+          try {
+            const { captureHistory } = await import("./history.js");
+            await captureHistory(pkg.name, pkg.version, oldDir, options.historyLimit);
+          } catch (err) {
+            verbose(`[publish] History capture failed: ${err instanceof Error ? err.message : String(err)}`);
+          }
+          await removeDir(oldDir);
+        }
 
         verbose(`[publish] Stored at ${storeEntryDir}`);
       } catch (err) {

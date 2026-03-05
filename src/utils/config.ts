@@ -15,6 +15,10 @@ export interface PlunkConfig {
   debounce?: number;
   /** Minimum time between builds in ms */
   cooldown?: number;
+  /** Max number of historical builds to keep per package (default: 3) */
+  historyLimit?: number;
+  /** Ring terminal bell on push success/failure in watch mode */
+  notify?: boolean;
 }
 
 /**
@@ -43,6 +47,12 @@ export async function loadPlunkConfig(
     }
     if (typeof p.cooldown === "number" && Number.isFinite(p.cooldown)) {
       config.cooldown = p.cooldown;
+    }
+    if (typeof p.historyLimit === "number" && Number.isFinite(p.historyLimit)) {
+      config.historyLimit = Math.max(0, Math.floor(p.historyLimit));
+    }
+    if (typeof p.notify === "boolean") {
+      config.notify = p.notify;
     }
 
     verbose(`[config] Loaded plunk config from package.json: ${JSON.stringify(config)}`);

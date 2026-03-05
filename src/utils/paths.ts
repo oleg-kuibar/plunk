@@ -59,6 +59,20 @@ export function getStoreMetaPath(name: string, version: string): string {
   return join(getStoreEntryPath(name, version), ".plunk-meta.json");
 }
 
+/** Get the history directory for a store entry: ~/.plunk/store/<pkg>@<ver>/history/ */
+export function getStoreHistoryPath(name: string, version: string): string {
+  return join(getStoreEntryPath(name, version), "history");
+}
+
+/** Get a specific history entry directory: ~/.plunk/store/<pkg>@<ver>/history/<buildId>/ */
+export function getHistoryEntryPath(
+  name: string,
+  version: string,
+  buildId: string
+): string {
+  return join(getStoreHistoryPath(name, version), buildId);
+}
+
 /** Get the .plunk/ directory in a consumer project */
 export function getConsumerPlunkDir(consumerPath: string): string {
   return join(consumerPath, ".plunk");

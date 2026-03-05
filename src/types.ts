@@ -44,6 +44,16 @@ export interface ConsumersRegistry {
 
 export type PackageManager = "npm" | "pnpm" | "yarn" | "bun";
 
+/** A historical build stored in the store's history directory */
+export interface HistoryEntry {
+  buildId: string;
+  contentHash: string;
+  publishedAt: string;
+  sourcePath: string;
+  /** Path to the history entry's package directory */
+  packageDir: string;
+}
+
 /** Options for the watch mode */
 export interface WatchOptions {
   /** Glob patterns to watch (default: src, lib, dist) */
@@ -54,6 +64,8 @@ export interface WatchOptions {
   debounce?: number;
   /** Minimum time between builds in ms (default: 500) */
   cooldown?: number;
+  /** Ring terminal bell on push success/failure */
+  notify?: boolean;
   /** Enable awaitWriteFinish for large/slow writes (auto-enabled when no buildCmd) */
   awaitWriteFinish?:
     | boolean

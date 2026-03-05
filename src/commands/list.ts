@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { consola } from "../utils/console.js";
 import pc from "picocolors";
 import { readConsumerState, readConsumersRegistry } from "../core/tracker.js";
+import { listHistory as listBuildHistory } from "../core/history.js";
 import { listStoreEntries, getStoreEntry } from "../core/store.js";
 import pLimit from "../utils/concurrency.js";
 import { dirSize } from "../utils/fs.js";
@@ -20,11 +21,18 @@ export default defineCommand({
       description: "List all packages in the global plunk store",
       default: false,
     },
+    history: {
+      type: "boolean",
+      description: "Show build history for linked packages",
+      default: false,
+    },
   },
   async run({ args }) {
     suppressHumanOutput();
     if (args.store) {
       await listStore();
+    } else if (args.history) {
+      await listHistory();
     } else {
       await listProject();
     }
@@ -110,6 +118,37 @@ async function listStore() {
     });
   }
   output({ entries: storeEntries, totalSize });
+}
+
+async function listHistory() {
+  const state = await readConsumerState(resolve("."));
+  const links = Object.entries(state.links);
+
+  if (links.length === 0) {
+    consola.info("No linked packages in this project");
+    output({ packages: [] });
+    return;
+  }
+
+  const allHistory: Record<string, unknown[]> = {};
+
+  for (const [name, link] of links) {
+    const entries = await listBuildHistory(name, link.version);
+    consola.info(`${pc.cyan(name)} ${pc.dim("@" + link.version)} — ${entries.length} historical build(s)`);
+    for (const entry of entries) {
+      const age = getRelativeTime(new Date(entry.publishedAt));
+      consola.log(
+        `  ${pc.dim(entry.buildId)}  ${pc.dim(`published ${age}`)}`
+      );
+    }
+    allHistory[name] = entries.map((e) => ({
+      buildId: e.buildId,
+      publishedAt: e.publishedAt,
+      contentHash: e.contentHash,
+    }));
+  }
+
+  output({ history: allHistory });
 }
 
 function getRelativeTime(date: Date): string {
