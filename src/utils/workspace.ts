@@ -3,6 +3,20 @@ import { join, dirname, resolve, relative } from "node:path";
 import picomatch from "picomatch";
 import { exists } from "./fs.js";
 import { normalizePath } from "./paths.js";
+import type { PackageJson } from "../types.js";
+
+export interface WorkspacePackage {
+  name: string;
+  version: string;
+  dir: string;
+  pkg: PackageJson;
+}
+
+export interface WorkspaceGraph {
+  packages: WorkspacePackage[];
+  /** Map of package name → Set of in-workspace dependency names */
+  adjacency: Map<string, Set<string>>;
+}
 
 export interface Catalogs {
   default: Record<string, string>;
@@ -300,6 +314,52 @@ async function collectDirs(dir: string, maxDepth: number): Promise<string[]> {
     // directory doesn't exist or can't be read
   }
   return results;
+}
+
+/**
+ * Build a workspace dependency graph for topological sorting.
+ * Reads all workspace packages and builds an adjacency map of
+ * in-workspace dependencies (both dependencies and devDependencies).
+ */
+export async function buildWorkspaceGraph(
+  startDir: string
+): Promise<WorkspaceGraph> {
+  const dirs = await findWorkspacePackages(startDir);
+  const packages: WorkspacePackage[] = [];
+
+  for (const dir of dirs) {
+    try {
+      const pkg = JSON.parse(
+        await readFile(join(dir, "package.json"), "utf-8")
+      ) as PackageJson;
+      if (pkg.name && pkg.version) {
+        packages.push({ name: pkg.name, version: pkg.version, dir, pkg });
+      }
+    } catch {
+      // skip unreadable packages
+    }
+  }
+
+  // Set of all workspace package names for filtering
+  const wsNames = new Set(packages.map((p) => p.name));
+
+  // Build adjacency: for each package, collect its in-workspace deps
+  const adjacency = new Map<string, Set<string>>();
+  for (const wp of packages) {
+    const deps = new Set<string>();
+    for (const field of ["dependencies", "devDependencies"] as const) {
+      const depMap = wp.pkg[field];
+      if (!depMap) continue;
+      for (const depName of Object.keys(depMap)) {
+        if (wsNames.has(depName)) {
+          deps.add(depName);
+        }
+      }
+    }
+    adjacency.set(wp.name, deps);
+  }
+
+  return { packages, adjacency };
 }
 
 /** Parse a YAML key-value line like `  react: ^18.0.0` */
