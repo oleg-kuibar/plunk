@@ -37,6 +37,11 @@ export default defineCommand({
       description: "Publish all packages in the workspace",
       default: false,
     },
+    "no-check": {
+      type: "boolean",
+      description: "Skip pre-flight validation checks",
+      default: false,
+    },
   },
   async run({ args }) {
     suppressHumanOutput();
@@ -47,6 +52,19 @@ export default defineCommand({
       allowPrivate: args.private,
       runScripts: !args["no-scripts"],
     };
+
+    // Run pre-flight checks unless --no-check
+    if (!args["no-check"] && !args.recursive) {
+      const { runPreflightChecks } = await import("../utils/preflight.js");
+      const issues = await runPreflightChecks(dir);
+      for (const issue of issues) {
+        if (issue.severity === "error") {
+          consola.error(`[${issue.code}] ${issue.message}`);
+        } else {
+          consola.warn(`[${issue.code}] ${issue.message}`);
+        }
+      }
+    }
 
     if (args.recursive) {
       verbose(`[publish] Discovering workspace packages from ${dir}`);

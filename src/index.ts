@@ -7,10 +7,18 @@ export { getStoreEntry, findStoreEntry, listStoreEntries } from "./core/store.js
 export { readConsumerState, readConsumerStateSafe, addLink, removeLink, getLink, getConsumers, registerConsumer, unregisterConsumer, cleanStaleConsumers } from "./core/tracker.js";
 export { doPush } from "./core/push-engine.js";
 export type { PushOptions } from "./core/push-engine.js";
+export { doPushAll } from "./core/batch-push.js";
+export { captureHistory, listHistory, getHistoryEntry, restoreHistoryEntry, pruneHistory, clearHistory, resolveHistoryLimit } from "./core/history.js";
 export { startWatcher, killActiveBuild } from "./core/watcher.js";
 export { detectPackageManager } from "./utils/pm-detect.js";
 export { loadPlunkConfig } from "./utils/config.js";
 export type { PlunkConfig } from "./utils/config.js";
+export { topoSort, CycleError } from "./utils/topo-sort.js";
+export { buildWorkspaceGraph } from "./utils/workspace.js";
+export type { WorkspacePackage, WorkspaceGraph } from "./utils/workspace.js";
+export { runPreflightChecks } from "./utils/preflight.js";
+export type { PreflightIssue, PreflightSeverity } from "./utils/preflight.js";
+export { ringBell } from "./utils/bell.js";
 export { Timer } from "./utils/timer.js";
 export { isNodeError } from "./utils/fs.js";
 export { normalizePath } from "./utils/paths.js";
