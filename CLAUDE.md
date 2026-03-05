@@ -46,7 +46,7 @@ Tests redirect the store via `process.env.PLUNK_HOME` to temp dirs. Coverage thr
 ## Architecture
 
 ```
-src/cli.ts           → citty entry point, global flags (--verbose, --dry-run, --json)
+src/cli.ts           → citty entry point, global flags (--verbose, --dry-run, --json), interactive menu
 src/commands/*.ts    → one file per CLI command (17 commands)
 src/core/
   publisher.ts       → file resolution, hashing, atomic store write, lifecycle hooks, history capture
@@ -55,6 +55,7 @@ src/core/
   tracker.ts         → consumer state (state.json) + global registry (consumers.json)
   push-engine.ts     → doPush() orchestrator, watch config resolution, multi-watch mode
   watcher.ts         → chokidar watcher with debounce + cooldown, build subprocess, bell notify
+  watch-orchestrator.ts → cascading rebuild orchestrator for dev --all (reverse adjacency + state machine)
   batch-push.ts      → workspace batch push in topological order (push --all / dev --all)
   history.ts         → build history capture, list, restore, prune (plunk rollback)
 src/utils/           → shared helpers
@@ -62,17 +63,18 @@ src/utils/           → shared helpers
   hash.ts            → xxHash64 per-file, SHA-256 aggregate (computeContentHash)
   pack-list.ts       → resolvePackFiles (npm-pack-compatible file resolution)
   pm-detect.ts       → packageManager field + lockfile-based PM detection
-  workspace.ts       → workspace root detection, catalog: parsing, workspace graph building
+  workspace.ts       → workspace root detection, catalog: parsing, workspace graph building, reverse adjacency
   topo-sort.ts       → Kahn's algorithm topological sort for workspace dependency ordering
   preflight.ts       → pre-flight validation (exports, types, entry points, bin paths)
+  dry-run.ts         → mutation recorder and summary reporter for --dry-run mode
   bell.ts            → terminal bell notification (\x07 to stderr)
-  lockfile.ts        → withFileLock (mkdir-based atomic lock)
+  lockfile.ts        → withFileLock (mkdir-based atomic lock, skipped in dry-run)
   concurrency.ts     → minimal pLimit reimplementation (two-pointer O(1) dequeue)
   bin-linker.ts      → create/remove node_modules/.bin entries
   bundler-detect.ts  → detect Vite, Webpack, etc.
   bundler-cache.ts   → invalidate bundler caches after injection
-  vite-config.ts     → auto-inject/remove plunk Vite plugin in user config
-  nextjs-config.ts   → auto-add transpilePackages for Next.js
+  vite-config.ts     → auto-inject/remove plunk Vite plugin (balanced bracket parser, complexity detector)
+  nextjs-config.ts   → auto-add transpilePackages for Next.js (wrapper function detection)
   tailwind-source.ts → auto-inject @source directive for Tailwind v4
   init-helpers.ts    → ensureGitignore, addPostinstall
   build-detect.ts    → auto-detect build command from package.json scripts
@@ -85,6 +87,7 @@ src/utils/           → shared helpers
   paths.ts           → store/consumer path helpers
   timer.ts           → elapsed time tracker
 src/vite-plugin.ts   → Vite plugin entry (exported as @olegkuibar/plunk/vite)
+src/webpack-plugin.ts → Webpack/rspack plugin entry (exported as @olegkuibar/plunk/webpack)
 src/index.ts         → programmatic API entry (exported as @olegkuibar/plunk)
 src/types.ts         → shared interfaces
 ```
@@ -104,9 +107,14 @@ src/types.ts         → shared interfaces
 - `workspace:*` and `catalog:` protocol versions are rewritten to real versions in the store copy (source untouched) — see `src/core/publisher.ts` and `src/utils/workspace.ts`
 - Vite plugin watches `.plunk/state.json` and triggers server restart (new package) or full reload (existing package update) — not HMR
 - Lifecycle hooks run in order: `preplunk` → `prepack` → [publish] → `postpack` → `postplunk`. Default timeout 30s (`PLUNK_HOOK_TIMEOUT` env var)
-- tsup has three build entries: CLI (bundled+minified, `noExternal: [/.*/]`), API lib (with .d.ts), Vite plugin (with .d.ts, vite external)
+- tsup has four build entries: CLI (bundled+minified, `noExternal: [/.*/]`), API lib (with .d.ts), Vite plugin (with .d.ts, vite external), Webpack plugin (with .d.ts, webpack external)
 - Watch mode defaults: 500ms debounce, 500ms cooldown between builds
 - `plunk clean` / `plunk gc` are aliases (same command registered twice in `src/cli.ts`)
 - Build history: publisher captures old builds to `store/<pkg>/history/<buildId>/` before atomic swap; default limit 3, configurable via `package.json#plunk.historyLimit`
 - `plunk push --all` / `plunk dev --all`: discovers workspace packages, topologically sorts by deps+devDeps, pushes/watches in dependency-first order
+- `plunk dev --all` supports cascading rebuilds (default ON): when package A rebuilds, packages depending on A also rebuild. `--no-cascade` disables this. State machine (idle/building/queued) prevents infinite loops.
 - Pre-flight checks run automatically on `plunk publish` (suppress with `--no-check`), also available standalone via `plunk check`
+- `--dry-run` records all skipped mutations via `recordMutation()` in `src/utils/dry-run.ts`; commands print a grouped summary at exit
+- Interactive CLI: running `plunk` with no subcommand in a TTY shows a select menu; non-TTY/CI shows banner only
+- Webpack plugin (`@olegkuibar/plunk/webpack`): mirrors Vite plugin pattern — excludes linked packages from snapshot cache, watches state.json, invalidates compiler on changes
+- Config rewriting uses balanced bracket scanner (handles nested `[]`, `()`, `{}`, strings, comments) and complexity detector (`isComplexConfig`) that gracefully falls back to manual instructions

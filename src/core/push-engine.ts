@@ -162,6 +162,7 @@ export interface WatchArgs {
   debounce?: string;
   cooldown?: string;
   notify?: boolean;
+  "no-cascade"?: boolean;
 }
 
 /** Parse a string CLI arg as an integer, returning undefined if invalid */
@@ -280,73 +281,17 @@ export async function resolveWatchConfig(
 
 /**
  * Start watch mode for all workspace packages.
- * Uses a combined chokidar watcher with per-package state machines.
- * Packages are resolved in topological order for the initial push.
+ * When cascade is enabled (default), rebuilding a package automatically
+ * triggers rebuilds of its dependents in the workspace.
  */
 export async function startMultiWatchMode(
   startDir: string,
   args: WatchArgs,
   pushOptions: PushOptions
 ): Promise<void> {
-  const { buildWorkspaceGraph } = await import("../utils/workspace.js");
-  const { topoSort, CycleError } = await import("../utils/topo-sort.js");
-  const { startWatcher } = await import("./watcher.js");
+  const cascade = !args["no-cascade"];
+  const { WatchOrchestrator } = await import("./watch-orchestrator.js");
 
-  const graph = await buildWorkspaceGraph(startDir);
-  if (graph.packages.length === 0) {
-    consola.warn("No workspace packages found");
-    return;
-  }
-
-  let ordered: string[];
-  try {
-    ordered = topoSort(graph.adjacency);
-  } catch (err) {
-    if (err instanceof CycleError) {
-      consola.error(`Cannot watch: ${err.message}`);
-      return;
-    }
-    throw err;
-  }
-
-  const nameToDir = new Map(graph.packages.map((p) => [p.name, p.dir]));
-
-  // Start a watcher for each package
-  const watchers: Array<{ close: () => Promise<void> }> = [];
-
-  for (const name of ordered) {
-    const dir = nameToDir.get(name);
-    if (!dir) continue;
-
-    const config = await loadPlunkConfig(dir);
-    const { buildCmd, patterns } = await resolveWatchConfig(dir, args, config);
-
-    const push = () => doPush(dir, pushOptions);
-    const notify = args.notify ?? config.notify ?? false;
-
-    const watcher = await startWatcher(
-      dir,
-      {
-        patterns,
-        buildCmd,
-        debounce: parseMs(args.debounce) ?? config.debounce,
-        cooldown: parseMs(args.cooldown) ?? config.cooldown,
-        notify,
-      },
-      push
-    );
-    watchers.push(watcher);
-  }
-
-  consola.info(`Watching ${watchers.length} workspace packages`);
-
-  await new Promise<void>((resolve) => {
-    const cleanup = async () => {
-      consola.info("Stopping watchers...");
-      await Promise.all(watchers.map((w) => w.close()));
-      resolve();
-    };
-    process.once("SIGINT", cleanup);
-    process.once("SIGTERM", cleanup);
-  });
+  const orchestrator = new WatchOrchestrator(cascade);
+  await orchestrator.start(startDir, args, pushOptions);
 }

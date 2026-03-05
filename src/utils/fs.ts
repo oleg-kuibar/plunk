@@ -16,6 +16,7 @@ import { availableParallelism } from "node:os";
 import { hashFile } from "./hash.js";
 import { isDryRun } from "./logger.js";
 import { verbose } from "./logger.js";
+import { recordMutation } from "./dry-run.js";
 
 /** Concurrency limit for parallel file I/O, auto-tuned to available CPUs */
 const ioLimit = pLimit(Math.max(availableParallelism(), 8));
@@ -56,6 +57,7 @@ export async function copyWithCoW(
 ): Promise<void> {
   if (isDryRun()) {
     verbose(`[dry-run] would copy ${src} → ${dest}`);
+    recordMutation({ type: "copy", path: src, dest });
     return;
   }
   if (options?.ensureParent !== false) {
@@ -205,7 +207,11 @@ export async function incrementalCopy(
     filesToRemove.map((destFile) =>
       ioLimit(async () => {
         verbose(`[remove] ${relative(destDir, destFile)} (no longer in source)`);
-        if (!isDryRun()) await rm(destFile);
+        if (isDryRun()) {
+          recordMutation({ type: "remove", path: destFile });
+        } else {
+          await rm(destFile);
+        }
       })
     )
   );
@@ -221,6 +227,7 @@ export async function incrementalCopy(
 export async function moveDir(src: string, dest: string): Promise<void> {
   if (isDryRun()) {
     verbose(`[dry-run] would move ${src} → ${dest}`);
+    recordMutation({ type: "move", path: src, dest });
     return;
   }
   try {
@@ -239,6 +246,7 @@ export async function moveDir(src: string, dest: string): Promise<void> {
 export async function removeDir(dir: string): Promise<void> {
   if (isDryRun()) {
     verbose(`[dry-run] would remove ${dir}`);
+    recordMutation({ type: "remove", path: dir });
     return;
   }
   await rm(dir, { recursive: true, force: true });
@@ -248,6 +256,7 @@ export async function removeDir(dir: string): Promise<void> {
 export async function ensureDir(dir: string): Promise<void> {
   if (isDryRun()) {
     verbose(`[dry-run] would ensure dir ${dir}`);
+    recordMutation({ type: "mkdir", path: dir });
     return;
   }
   await mkdir(dir, { recursive: true });
@@ -257,6 +266,7 @@ export async function ensureDir(dir: string): Promise<void> {
 export async function ensurePrivateDir(dir: string): Promise<void> {
   if (isDryRun()) {
     verbose(`[dry-run] would ensure private dir ${dir}`);
+    recordMutation({ type: "mkdir", path: dir });
     return;
   }
   await mkdir(dir, { recursive: true, mode: 0o700 });
@@ -282,6 +292,7 @@ export async function atomicWriteFile(
 ): Promise<void> {
   if (isDryRun()) {
     verbose(`[dry-run] would write ${filePath}`);
+    recordMutation({ type: "write", path: filePath });
     return;
   }
   const tmpPath = filePath + `.tmp-${process.pid}-${Date.now()}`;

@@ -6,7 +6,8 @@ import { publish } from "../core/publisher.js";
 import { Timer } from "../utils/timer.js";
 import { suppressHumanOutput, output } from "../utils/output.js";
 import { errorWithSuggestion } from "../utils/errors.js";
-import { verbose } from "../utils/logger.js";
+import { isDryRun, verbose } from "../utils/logger.js";
+import { printDryRunReport } from "../utils/dry-run.js";
 
 const publishLimit = pLimit(4);
 
@@ -124,5 +125,7 @@ export default defineCommand({
         process.exit(1);
       }
     }
+
+    if (isDryRun()) printDryRunReport();
   },
 });

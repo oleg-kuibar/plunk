@@ -6,6 +6,7 @@ import type { PackageJson } from "../types.js";
 import { exists, isNodeError } from "./fs.js";
 import { isDryRun, verbose } from "./logger.js";
 import { normalizePath } from "./paths.js";
+import { recordMutation } from "./dry-run.js";
 
 /**
  * Resolve the bin entries from a package.json.
@@ -41,6 +42,9 @@ export async function createBinLinks(
   if (Object.keys(entries).length === 0) return 0;
 
   if (isDryRun()) {
+    for (const binName of Object.keys(entries)) {
+      recordMutation({ type: "bin-link", path: join(consumerPath, "node_modules", ".bin", binName), detail: packageName });
+    }
     verbose(`[dry-run] would create ${Object.keys(entries).length} bin link(s) for ${packageName}`);
     return Object.keys(entries).length;
   }
@@ -117,6 +121,9 @@ export async function removeBinLinks(
 ): Promise<void> {
   const entries = resolveBinEntries(pkg);
   if (isDryRun()) {
+    for (const binName of Object.keys(entries)) {
+      recordMutation({ type: "bin-unlink", path: join(consumerPath, "node_modules", ".bin", binName) });
+    }
     verbose(`[dry-run] would remove ${Object.keys(entries).length} bin link(s)`);
     return;
   }

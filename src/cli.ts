@@ -7,6 +7,7 @@ process.env.UV_THREADPOOL_SIZE ??= String(Math.max(availableParallelism(), 8));
 import { defineCommand, runMain } from "citty";
 import { initFlags } from "./utils/logger.js";
 import { showBanner } from "./utils/banner.js";
+import { consola } from "./utils/console.js";
 
 declare const __PLUNK_VERSION__: string;
 
@@ -14,17 +15,57 @@ initFlags();
 
 // Show banner when running without subcommand or with --help
 const args = process.argv.slice(2);
+const KNOWN_COMMANDS = [
+  "init", "publish", "add", "remove", "push", "dev",
+  "restore", "list", "status", "update", "clean", "gc",
+  "doctor", "migrate", "reset", "rollback", "check",
+];
 const hasSubcommand = args.some(
-  (arg) =>
-    !arg.startsWith("-") &&
-    [
-      "init", "publish", "add", "remove", "push", "dev",
-      "restore", "list", "status", "update", "clean", "gc",
-      "doctor", "migrate", "reset", "rollback", "check",
-    ].includes(arg)
+  (arg) => !arg.startsWith("-") && KNOWN_COMMANDS.includes(arg)
 );
-if (!hasSubcommand) {
+const hasHelpOrVersion = args.includes("--help") || args.includes("-h")
+  || args.includes("--version");
+
+if (!hasSubcommand && !hasHelpOrVersion && process.stdin.isTTY) {
   showBanner();
+  const selected = await showInteractiveMenu();
+  if (selected) {
+    // Inject the selected subcommand so citty picks it up
+    process.argv.splice(2, 0, selected);
+  }
+} else if (!hasSubcommand) {
+  showBanner();
+}
+
+async function showInteractiveMenu(): Promise<string | null> {
+  // Show brief status
+  try {
+    const { readConsumerStateSafe } = await import("./core/tracker.js");
+    const { resolve } = await import("node:path");
+    const { state } = await readConsumerStateSafe(resolve("."));
+    const linkCount = Object.keys(state.links).length;
+    if (linkCount > 0) {
+      consola.info(`${linkCount} package(s) linked in this project`);
+    }
+  } catch {
+    // Not in a consumer project, no status to show
+  }
+
+  const selected = await consola.prompt("What would you like to do?", {
+    type: "select",
+    options: [
+      { label: "init     — Set up plunk in this project", value: "init" },
+      { label: "publish  — Publish package to the plunk store", value: "publish" },
+      { label: "add      — Link a package from the store", value: "add" },
+      { label: "push     — Publish and push to all consumers", value: "push" },
+      { label: "dev      — Watch, rebuild, and push continuously", value: "dev" },
+      { label: "list     — Show linked packages", value: "list" },
+      { label: "status   — Show project status", value: "status" },
+      { label: "help     — Show help", value: "--help" },
+    ],
+  });
+
+  return selected || null;
 }
 
 const main = defineCommand({

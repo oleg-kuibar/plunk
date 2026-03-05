@@ -362,6 +362,30 @@ export async function buildWorkspaceGraph(
   return { packages, adjacency };
 }
 
+/**
+ * Build a reverse adjacency map: for each package, which packages depend on it.
+ * Used by WatchOrchestrator to trigger cascading rebuilds.
+ */
+export function buildReverseAdjacency(
+  adjacency: Map<string, Set<string>>
+): Map<string, Set<string>> {
+  const reverse = new Map<string, Set<string>>();
+  for (const name of adjacency.keys()) {
+    reverse.set(name, new Set());
+  }
+  for (const [name, deps] of adjacency) {
+    for (const dep of deps) {
+      let set = reverse.get(dep);
+      if (!set) {
+        set = new Set();
+        reverse.set(dep, set);
+      }
+      set.add(name);
+    }
+  }
+  return reverse;
+}
+
 /** Parse a YAML key-value line like `  react: ^18.0.0` */
 function parseKeyValue(line: string): [string, string] | null {
   const trimmed = line.trim();

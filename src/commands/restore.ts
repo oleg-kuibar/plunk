@@ -7,7 +7,8 @@ import { getStoreEntry } from "../core/store.js";
 import { inject } from "../core/injector.js";
 import { Timer } from "../utils/timer.js";
 import { suppressHumanOutput, output } from "../utils/output.js";
-import { verbose } from "../utils/logger.js";
+import { isDryRun, verbose } from "../utils/logger.js";
+import { printDryRunReport } from "../utils/dry-run.js";
 import { detectPackageManager, detectYarnNodeLinker, hasYarnrcYml } from "../utils/pm-detect.js";
 
 const restoreLimit = pLimit(4);
@@ -107,5 +108,7 @@ export default defineCommand({
       `Restore complete: ${restored} restored, ${failed} failed in ${timer.elapsed()}`
     );
     output({ restored, failed, failedPackages, elapsed: timer.elapsedMs() });
+
+    if (isDryRun()) printDryRunReport();
   },
 });

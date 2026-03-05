@@ -271,7 +271,7 @@ export async function startWatcher(
 /**
  * Run a build command and return true if it succeeds.
  */
-function runBuildCommand(cmd: string, cwd: string): Promise<boolean> {
+export function runBuildCommand(cmd: string, cwd: string): Promise<boolean> {
   return new Promise((resolve) => {
     const isWin = platform() === "win32";
     const shell = isWin ? "cmd" : "sh";

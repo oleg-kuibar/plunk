@@ -8,6 +8,8 @@ import { doPush } from "../core/push-engine.js";
 import { loadPlunkConfig } from "../utils/config.js";
 import { suppressHumanOutput, output } from "../utils/output.js";
 import { errorWithSuggestion } from "../utils/errors.js";
+import { isDryRun } from "../utils/logger.js";
+import { printDryRunReport } from "../utils/dry-run.js";
 import type { PackageJson } from "../types.js";
 
 export default defineCommand({
@@ -109,5 +111,7 @@ export default defineCommand({
     }
 
     output({ rolledBack: true, buildId: targetBuildId });
+
+    if (isDryRun()) printDryRunReport();
   },
 });

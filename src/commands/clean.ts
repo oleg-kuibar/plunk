@@ -10,7 +10,8 @@ import {
 import { listStoreEntries, removeStoreEntry } from "../core/store.js";
 import { exists, removeDir, dirSize } from "../utils/fs.js";
 import { formatBytes } from "../utils/format.js";
-import { verbose } from "../utils/logger.js";
+import { isDryRun, verbose } from "../utils/logger.js";
+import { printDryRunReport } from "../utils/dry-run.js";
 import { suppressHumanOutput, output } from "../utils/output.js";
 import { getStorePath, normalizePath } from "../utils/paths.js";
 import { Timer } from "../utils/timer.js";
@@ -183,5 +184,7 @@ export default defineCommand({
       reclaimedBytes,
       elapsed: timer.elapsedMs(),
     });
+
+    if (isDryRun()) printDryRunReport();
   },
 });

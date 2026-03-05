@@ -17,7 +17,8 @@ import { getConsumerStatePath } from "../utils/paths.js";
 import { Timer } from "../utils/timer.js";
 import { suppressHumanOutput, output } from "../utils/output.js";
 import { errorWithSuggestion } from "../utils/errors.js";
-import { verbose, isJsonOutput } from "../utils/logger.js";
+import { isDryRun, verbose, isJsonOutput } from "../utils/logger.js";
+import { printDryRunReport } from "../utils/dry-run.js";
 import { warnVersionMismatch } from "../utils/validators.js";
 import type { LinkEntry, PackageManager } from "../types.js";
 
@@ -241,6 +242,8 @@ export default defineCommand({
       binLinks: result.binLinks,
       elapsed: timer.elapsedMs(),
     });
+
+    if (isDryRun()) printDryRunReport();
   },
 });
 

@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { atomicWriteFile } from "./fs.js";
+import { isComplexConfig } from "./vite-config.js";
 
 /**
  * Detect the indentation style used in a file.
@@ -35,6 +36,29 @@ function formatArray(items: string[], indent: string): string {
 }
 
 /**
+ * Check if the Next.js config uses a wrapper function pattern.
+ * Returns null if not complex, or a reason string.
+ */
+function isComplexNextConfig(content: string): { complex: boolean; reason?: string } {
+  // Check shared complexity heuristics first
+  const shared = isComplexConfig(content);
+  if (shared.complex) return shared;
+
+  // Wrapper functions: withNextra({, withBundleAnalyzer({, etc.
+  const wrapperRegex = /(?:module\.exports\s*=\s*|export\s+default\s+)[\w.]+\s*\(\s*\{/;
+  if (wrapperRegex.test(content)) {
+    return { complex: true, reason: "wrapper function pattern" };
+  }
+
+  // Multiple chained wrappers: withFoo(withBar({...}))
+  if (/\w+\s*\(\s*\w+\s*\(/.test(content) && content.includes("module.exports")) {
+    return { complex: true, reason: "chained wrapper functions" };
+  }
+
+  return { complex: false };
+}
+
+/**
  * Add a package to transpilePackages in a Next.js config file.
  * Returns { modified: true } on success, { modified: false, error } on failure.
  */
@@ -47,6 +71,12 @@ export async function addToTranspilePackages(
     content = await readFile(configPath, "utf-8");
   } catch {
     return { modified: false, error: "could not read config file" };
+  }
+
+  // Check complexity before attempting rewrite
+  const complexity = isComplexNextConfig(content);
+  if (complexity.complex) {
+    return { modified: false, error: `config too complex (${complexity.reason})` };
   }
 
   const indent = detectIndent(content);
@@ -66,16 +96,25 @@ export async function addToTranspilePackages(
     return { modified: true };
   }
 
-  // Pattern 2: config object exists but no transpilePackages
-  // Match: module.exports = {, export default {, nextConfig = {, etc.
-  const configObjRegex = /(?:module\.exports\s*=\s*\{|export\s+default\s+\{|nextConfig\s*=\s*\{)/;
-  const configObjMatch = configObjRegex.exec(content);
-  if (configObjMatch) {
-    const insertPos = configObjMatch.index + configObjMatch[0].length;
-    const newSection = `\n${indent}transpilePackages: ['${packageName}'],`;
-    const updated = content.slice(0, insertPos) + newSection + content.slice(insertPos);
-    await atomicWriteFile(configPath, updated);
-    return { modified: true };
+  // Pattern 2: config object — match various patterns
+  const configPatterns = [
+    // module.exports = {
+    /module\.exports\s*=\s*\{/,
+    // export default {
+    /export\s+default\s+\{/,
+    // const nextConfig = {
+    /(?:const|let|var)\s+\w*[Cc]onfig\w*\s*=\s*\{/,
+  ];
+
+  for (const pattern of configPatterns) {
+    const configObjMatch = pattern.exec(content);
+    if (configObjMatch) {
+      const insertPos = configObjMatch.index + configObjMatch[0].length;
+      const newSection = `\n${indent}transpilePackages: ['${packageName}'],`;
+      const updated = content.slice(0, insertPos) + newSection + content.slice(insertPos);
+      await atomicWriteFile(configPath, updated);
+      return { modified: true };
+    }
   }
 
   return { modified: false, error: "unrecognized config pattern" };

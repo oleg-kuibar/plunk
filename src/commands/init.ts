@@ -10,6 +10,8 @@ import { detectBuildCommand as detectBuildCmd } from "../utils/build-detect.js";
 import { ensureGitignore, addPostinstall } from "../utils/init-helpers.js";
 import { Timer } from "../utils/timer.js";
 import { suppressHumanOutput, output } from "../utils/output.js";
+import { isDryRun } from "../utils/logger.js";
+import { printDryRunReport } from "../utils/dry-run.js";
 import {
   readConsumerState,
   writeConsumerState,
@@ -244,6 +246,8 @@ export default defineCommand({
       role,
       elapsed: timer.elapsedMs(),
     });
+
+    if (isDryRun()) printDryRunReport();
   },
 });
 

@@ -9,7 +9,8 @@ import { removeFromTranspilePackages } from "../utils/nextjs-config.js";
 import { Timer } from "../utils/timer.js";
 import { suppressHumanOutput, output } from "../utils/output.js";
 import { errorWithSuggestion } from "../utils/errors.js";
-import { verbose } from "../utils/logger.js";
+import { isDryRun, verbose } from "../utils/logger.js";
+import { printDryRunReport } from "../utils/dry-run.js";
 
 export default defineCommand({
   meta: {
@@ -108,6 +109,8 @@ export default defineCommand({
 
     consola.success(`Removed plunk link for ${packageName} in ${timer.elapsed()}`);
     output({ removed: 1, package: packageName, elapsed: timer.elapsedMs() });
+
+    if (isDryRun()) printDryRunReport();
   },
 });
 

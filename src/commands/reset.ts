@@ -8,7 +8,8 @@ import { removePostinstall } from "../utils/init-helpers.js";
 import { getConsumerPlunkDir } from "../utils/paths.js";
 import { Timer } from "../utils/timer.js";
 import { suppressHumanOutput, output } from "../utils/output.js";
-import { verbose } from "../utils/logger.js";
+import { isDryRun, verbose } from "../utils/logger.js";
+import { printDryRunReport } from "../utils/dry-run.js";
 
 export default defineCommand({
   meta: {
@@ -87,5 +88,7 @@ export default defineCommand({
       `Reset complete: ${removed} package(s) restored in ${timer.elapsed()}`
     );
     output({ reset: true, removed, elapsed: timer.elapsedMs() });
+
+    if (isDryRun()) printDryRunReport();
   },
 });

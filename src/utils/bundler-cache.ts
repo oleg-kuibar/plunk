@@ -3,6 +3,7 @@ import { removeDir, exists } from "./fs.js";
 import { detectAllBundlers } from "./bundler-detect.js";
 import type { BundlerInfo, BundlerType } from "./bundler-detect.js";
 import { isDryRun, verbose } from "./logger.js";
+import { recordMutation } from "./dry-run.js";
 
 /** Cache directories to clear for each bundler type.
  *  Vite is intentionally excluded — linked packages are served directly
@@ -28,6 +29,7 @@ export async function invalidateBundlerCache(
 ): Promise<void> {
   if (isDryRun()) {
     verbose(`[dry-run] would invalidate bundler caches for ${consumerPath}`);
+    recordMutation({ type: "cache-invalidate", path: consumerPath });
     return;
   }
 

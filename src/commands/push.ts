@@ -4,6 +4,8 @@ import { suppressHumanOutput } from "../utils/output.js";
 import { doPush, startWatchMode, startMultiWatchMode } from "../core/push-engine.js";
 import { doPushAll } from "../core/batch-push.js";
 import { loadPlunkConfig } from "../utils/config.js";
+import { isDryRun } from "../utils/logger.js";
+import { printDryRunReport } from "../utils/dry-run.js";
 
 export default defineCommand({
   meta: {
@@ -55,6 +57,11 @@ export default defineCommand({
       description: "Ring terminal bell on push completion (watch mode)",
       default: false,
     },
+    "no-cascade": {
+      type: "boolean",
+      description: "Disable cascading rebuilds in --all watch mode",
+      default: false,
+    },
   },
   async run({ args }) {
     suppressHumanOutput();
@@ -84,5 +91,7 @@ export default defineCommand({
         await startWatchMode(packageDir, args, push);
       }
     }
+
+    if (isDryRun()) printDryRunReport();
   },
 });

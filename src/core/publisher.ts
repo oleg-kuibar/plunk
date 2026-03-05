@@ -13,7 +13,8 @@ import { copyWithCoW, ensureDir, ensurePrivateDir, removeDir, moveDir, exists } 
 import { readMeta, writeMeta } from "./store.js";
 import { withFileLock } from "../utils/lockfile.js";
 import type { Catalogs } from "../utils/workspace.js";
-import { verbose } from "../utils/logger.js";
+import { isDryRun, verbose } from "../utils/logger.js";
+import { recordMutation } from "../utils/dry-run.js";
 
 export interface PublishOptions {
   allowPrivate?: boolean;
@@ -277,6 +278,15 @@ async function runLifecycleHook(
 ): Promise<void> {
   const script = pkg.scripts?.[hookName];
   if (!script) return;
+
+  if (isDryRun()) {
+    recordMutation({
+      type: "lifecycle-skip",
+      path: packageDir,
+      detail: `${hookName}: ${script}`,
+    });
+    return;
+  }
 
   verbose(`[lifecycle] Running ${hookName}: ${script}`);
   return new Promise((resolve, reject) => {

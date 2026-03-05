@@ -43,4 +43,13 @@ export default defineConfig([
     target: "node22",
     external: ["vite"],
   },
+  {
+    entry: { "webpack-plugin": "src/webpack-plugin.ts" },
+    format: ["esm"],
+    outExtension: () => ({ js: ".mjs" }),
+    dts: true,
+    splitting: false,
+    target: "node22",
+    external: ["webpack", "@rspack/core"],
+  },
 ]);

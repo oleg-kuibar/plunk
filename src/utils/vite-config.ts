@@ -58,6 +58,172 @@ function formatPlugins(items: string[], indent: string): string {
 }
 
 /**
+ * Find the `plugins: [...]` array in config content using balanced bracket
+ * scanning. Handles nested `[]`, `()`, `{}`, string literals, and comments.
+ * Returns the start index of `[`, end index after `]`, and the inner content.
+ */
+function findPluginsArray(
+  content: string
+): { start: number; end: number; inner: string } | null {
+  // Find "plugins" followed by ":" and then "["
+  const keyRegex = /plugins\s*:\s*\[/g;
+  const match = keyRegex.exec(content);
+  if (!match) return null;
+
+  const bracketStart = match.index + match[0].length - 1; // index of '['
+  let depth = 1;
+  let i = bracketStart + 1;
+  let inString: string | false = false;
+  let escaped = false;
+
+  while (i < content.length && depth > 0) {
+    const ch = content[i];
+
+    if (escaped) {
+      escaped = false;
+      i++;
+      continue;
+    }
+
+    if (ch === "\\") {
+      escaped = true;
+      i++;
+      continue;
+    }
+
+    // Handle string literals
+    if (inString) {
+      if (ch === inString) inString = false;
+      i++;
+      continue;
+    }
+
+    if (ch === '"' || ch === "'" || ch === "`") {
+      inString = ch;
+      i++;
+      continue;
+    }
+
+    // Skip line comments
+    if (ch === "/" && content[i + 1] === "/") {
+      const newline = content.indexOf("\n", i);
+      i = newline === -1 ? content.length : newline + 1;
+      continue;
+    }
+
+    // Skip block comments
+    if (ch === "/" && content[i + 1] === "*") {
+      const end = content.indexOf("*/", i + 2);
+      i = end === -1 ? content.length : end + 2;
+      continue;
+    }
+
+    // Track bracket depth (all types)
+    if (ch === "[" || ch === "(" || ch === "{") depth++;
+    if (ch === "]" || ch === ")" || ch === "}") depth--;
+
+    i++;
+  }
+
+  if (depth !== 0) return null;
+
+  return {
+    start: bracketStart,
+    end: i,
+    inner: content.slice(bracketStart + 1, i - 1),
+  };
+}
+
+/**
+ * Find the end position of the last import statement, handling multi-line
+ * imports like `import { foo,\n  bar } from "..."`.
+ */
+function findLastImportEnd(content: string): number {
+  let lastEnd = 0;
+  const importRegex = /^import\s/gm;
+  let match;
+
+  while ((match = importRegex.exec(content)) !== null) {
+    const start = match.index;
+    // Find the end of this import — look for the semicolon or newline after `from "..."`
+    // Handle multi-line: scan for closing quote after `from`
+    let pos = start + match[0].length;
+
+    // Simple approach: find the next unquoted semicolon or end of statement
+    let inString: string | false = false;
+    let braceDepth = 0;
+    while (pos < content.length) {
+      const ch = content[pos];
+
+      if (inString) {
+        if (ch === inString) inString = false;
+        pos++;
+        continue;
+      }
+
+      if (ch === '"' || ch === "'" || ch === "`") {
+        inString = ch;
+        pos++;
+        continue;
+      }
+
+      if (ch === "{") braceDepth++;
+      if (ch === "}") braceDepth--;
+
+      // End of import: semicolon at top level, or newline after from "..."
+      if (ch === ";" && braceDepth <= 0) {
+        pos++;
+        break;
+      }
+
+      // Newline after closing quote (no semicolon style)
+      if (ch === "\n" && braceDepth <= 0) {
+        // Check if previous non-whitespace was a quote (end of from "...")
+        const before = content.slice(start, pos).trimEnd();
+        if (before.endsWith('"') || before.endsWith("'")) {
+          break;
+        }
+        // Otherwise it's a multi-line import, continue
+      }
+
+      pos++;
+    }
+
+    lastEnd = pos;
+  }
+
+  return lastEnd;
+}
+
+/**
+ * Heuristic to detect configs that are too complex for automatic rewriting.
+ * Returns null if safe to rewrite, or a reason string if too complex.
+ */
+export function isComplexConfig(content: string): { complex: boolean; reason?: string } {
+  // Conditional config: ternary with defineConfig
+  if (/defineConfig\s*\(.*\?/.test(content)) {
+    return { complex: true, reason: "conditional defineConfig" };
+  }
+
+  // Dynamic export: export default function, or factory pattern
+  if (/export\s+default\s+function/.test(content)) {
+    return { complex: true, reason: "dynamic export (function)" };
+  }
+
+  // Spread into plugins: plugins: [...otherPlugins, ...]
+  if (/plugins\s*:\s*\[\s*\.\.\./.test(content)) {
+    return { complex: true, reason: "spread operator in plugins array" };
+  }
+
+  // Wrapper function: mergeConfig, defineConfig(async () => ...)
+  if (/defineConfig\s*\(\s*async/.test(content) || /mergeConfig\s*\(/.test(content)) {
+    return { complex: true, reason: "async or merged config" };
+  }
+
+  return { complex: false };
+}
+
+/**
  * Add the plunk Vite plugin import and plugin call to a Vite config file.
  * Returns { modified: true } on success, { modified: false, error } on failure.
  */
@@ -75,21 +241,27 @@ export async function addPlunkVitePlugin(
     return { modified: false }; // already configured
   }
 
+  // Check complexity before attempting rewrite
+  const complexity = isComplexConfig(content);
+  if (complexity.complex) {
+    return { modified: false, error: `config too complex (${complexity.reason})` };
+  }
+
   const indent = detectIndent(content);
 
   // Phase 1: Add plunk() to plugins array
-  // Pattern 1: existing plugins: [...] array
-  const pluginsRegex = /plugins\s*:\s*\[([\s\S]*?)\]/;
-  const pluginsMatch = pluginsRegex.exec(content);
+  const pluginsArr = findPluginsArray(content);
 
-  if (pluginsMatch) {
-    const items = parsePluginItems(pluginsMatch[1]);
+  if (pluginsArr) {
+    const items = parsePluginItems(pluginsArr.inner);
     items.push("plunk()");
     const newPlugins = formatPlugins(items, indent);
-    content = content.replace(pluginsRegex, `plugins: ${newPlugins}`);
+    content =
+      content.slice(0, pluginsArr.start) +
+      newPlugins +
+      content.slice(pluginsArr.end);
   } else {
     // Pattern 2: config object exists but no plugins array
-    // Match defineConfig({, export default {, etc.
     const configObjRegex =
       /(?:defineConfig\s*\(\s*\{|export\s+default\s+\{)/;
     const configObjMatch = configObjRegex.exec(content);
@@ -109,20 +281,15 @@ export async function addPlunkVitePlugin(
 
   // Phase 2: Add import statement after the last existing import
   const importLine = `import plunk from "@olegkuibar/plunk/vite";\n`;
-  const lastImportRegex = /^import\s.+$/gm;
-  let lastImportEnd = 0;
-  let match;
-  while ((match = lastImportRegex.exec(content)) !== null) {
-    lastImportEnd = match.index + match[0].length;
-  }
+  const lastEnd = findLastImportEnd(content);
 
-  if (lastImportEnd > 0) {
-    // Insert after last import line
+  if (lastEnd > 0) {
+    // Insert after last import
     content =
-      content.slice(0, lastImportEnd) +
+      content.slice(0, lastEnd) +
       "\n" +
       importLine +
-      content.slice(lastImportEnd + 1); // +1 to consume the \n after last import
+      content.slice(lastEnd);
   } else {
     // No imports found — prepend
     content = importLine + "\n" + content;
@@ -160,18 +327,20 @@ export async function removeFromViteConfig(
     modified = true;
   }
 
-  // Remove plunk() from plugins array
-  const pluginsRegex = /plugins\s*:\s*\[([\s\S]*?)\]/;
-  const pluginsMatch = pluginsRegex.exec(content);
-  if (pluginsMatch) {
-    const items = parsePluginItems(pluginsMatch[1]);
+  // Remove plunk() from plugins array using balanced bracket parser
+  const pluginsArr = findPluginsArray(content);
+  if (pluginsArr) {
+    const items = parsePluginItems(pluginsArr.inner);
     const filtered = items.filter(
       (item) => !item.startsWith("plunk("),
     );
     if (filtered.length !== items.length) {
       const indent = detectIndent(content);
       const newPlugins = formatPlugins(filtered, indent);
-      content = content.replace(pluginsRegex, `plugins: ${newPlugins}`);
+      content =
+        content.slice(0, pluginsArr.start) +
+        newPlugins +
+        content.slice(pluginsArr.end);
       modified = true;
     }
   }

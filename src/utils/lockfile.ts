@@ -2,6 +2,8 @@ import { mkdir, stat, rm } from "node:fs/promises";
 import { dirname } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { isNodeError } from "./fs.js";
+import { isDryRun } from "./logger.js";
+import { recordMutation } from "./dry-run.js";
 
 const DEFAULTS = {
   retries: 5,
@@ -21,6 +23,11 @@ export async function withFileLock<T>(
   fn: () => Promise<T>,
   lockOptions?: { stale?: number }
 ): Promise<T> {
+  if (isDryRun()) {
+    recordMutation({ type: "lock-skip", path: filePath });
+    return fn();
+  }
+
   await mkdir(dirname(filePath), { recursive: true });
 
   const lockDir = filePath + ".lk";
