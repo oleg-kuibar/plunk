@@ -1,7 +1,9 @@
 import { defineCommand } from "citty";
 import { resolve } from "node:path";
 import { suppressHumanOutput } from "../utils/output.js";
-import { doPush, startWatchMode } from "../core/push-engine.js";
+import { doPush, startWatchMode, startMultiWatchMode } from "../core/push-engine.js";
+import { doPushAll } from "../core/batch-push.js";
+import { loadPlunkConfig } from "../utils/config.js";
 
 export default defineCommand({
   meta: {
@@ -13,6 +15,11 @@ export default defineCommand({
     watch: {
       type: "boolean",
       description: "Watch for changes and auto-push",
+      default: false,
+    },
+    all: {
+      type: "boolean",
+      description: "Push all workspace packages in dependency order",
       default: false,
     },
     build: {
@@ -43,22 +50,39 @@ export default defineCommand({
       description: "Force copy all files, bypassing hash comparison",
       default: false,
     },
+    notify: {
+      type: "boolean",
+      description: "Ring terminal bell on push completion (watch mode)",
+      default: false,
+    },
   },
   async run({ args }) {
     suppressHumanOutput();
     const packageDir = resolve(".");
-
-    const push = () => doPush(packageDir, {
+    const config = await loadPlunkConfig(packageDir);
+    const pushOptions = {
       runScripts: !args["no-scripts"],
       force: args.force,
-    });
+      historyLimit: config.historyLimit,
+    };
 
-    // Initial push
-    await push();
+    if (args.all) {
+      // Push all workspace packages
+      await doPushAll(packageDir, pushOptions);
 
-    // Watch mode
-    if (args.watch) {
-      await startWatchMode(packageDir, args, push);
+      if (args.watch) {
+        await startMultiWatchMode(packageDir, args, pushOptions);
+      }
+    } else {
+      const push = () => doPush(packageDir, pushOptions);
+
+      // Initial push
+      await push();
+
+      // Watch mode
+      if (args.watch) {
+        await startWatchMode(packageDir, args, push);
+      }
     }
   },
 });

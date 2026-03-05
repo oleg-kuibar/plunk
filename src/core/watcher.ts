@@ -3,6 +3,7 @@ import { readdir, stat } from "node:fs/promises";
 import { platform } from "node:os";
 import { join } from "node:path";
 import { consola } from "../utils/console.js";
+import { ringBell } from "../utils/bell.js";
 import type { WatchOptions } from "../types.js";
 
 /** Module-level reference to active child process for signal cleanup */
@@ -119,12 +120,18 @@ export async function startWatcher(
         const success = await runBuildCommand(options.buildCmd, watchDir);
         if (!success) {
           consola.warn("Build failed (see output above), skipping push");
+          if (options.notify) {
+            const { ringBell } = await import("../utils/bell.js");
+            ringBell(true);
+          }
           return;
         }
       }
       await onChange();
+      if (options.notify) ringBell(true);
     } catch (err) {
       consola.error(`Push failed: ${err instanceof Error ? err.message : String(err)}`);
+      if (options.notify) ringBell(true);
     } finally {
       running = false;
       lastBuildEndTime = Date.now();
