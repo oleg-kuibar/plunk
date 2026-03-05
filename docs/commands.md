@@ -44,6 +44,7 @@ Flags:
 | `--private` | Allow publishing packages with `"private": true` in package.json |
 | `--no-scripts` | Skip `prepack`/`postpack` lifecycle hooks |
 | `-r, --recursive` | Publish all packages in the workspace |
+| `--no-check` | Skip pre-flight validation checks |
 
 Included files:
 
@@ -92,7 +93,9 @@ Publish and copy to all consumers that have this package linked.
 
 ```bash
 plunk push                                      # one-time push
+plunk push --all                               # push all workspace packages
 plunk push --watch                              # watch mode, auto-detects build command
+plunk push --watch --all                       # watch all workspace packages
 plunk push --watch --build "npx tsup"           # explicit build command
 plunk push --watch --skip-build                 # watch output dirs directly
 plunk push --watch --build "tsc" --debounce 500
@@ -103,12 +106,14 @@ Flags:
 | Flag | Description |
 |---|---|
 | `--watch` | Watch for file changes and auto-push |
+| `--all` | Push all workspace packages in dependency order |
 | `--build <cmd>` | Build command to run before publishing (watch mode) |
 | `--skip-build` | Watch output dirs directly, skip build command detection |
 | `--debounce <ms>` | Coalesce delay in milliseconds (default: `500`) |
 | `--cooldown <ms>` | Minimum time between builds in milliseconds (default: `500`) |
 | `--no-scripts` | Skip `prepack`/`postpack` lifecycle hooks |
 | `-f, --force` | Force copy all files, bypassing hash comparison |
+| `--notify` | Ring terminal bell on push completion (watch mode) |
 
 Without `--watch`, it runs once: publish, then copy changed files to all consumers.
 
@@ -152,6 +157,7 @@ Watch, rebuild, and push to all consumers. This is the recommended command for l
 ```bash
 cd my-lib
 plunk dev                              # auto-detects build command, enters watch mode
+plunk dev --all                        # watch all workspace packages
 plunk dev --build "npx tsup"           # explicit build command
 plunk dev --skip-build                 # watch output dirs directly
 plunk dev --debounce 500               # custom coalesce delay
@@ -161,12 +167,14 @@ Flags:
 
 | Flag | Description |
 |---|---|
+| `--all` | Watch all workspace packages in dependency order |
 | `--build <cmd>` | Override build command (default: auto-detect from package.json) |
 | `--skip-build` | Watch output dirs directly, skip build command detection |
 | `--debounce <ms>` | Coalesce delay in milliseconds (default: `500`) |
 | `--cooldown <ms>` | Minimum time between builds in milliseconds (default: `500`) |
 | `--no-scripts` | Skip `prepack`/`postpack` lifecycle hooks |
 | `-f, --force` | Force copy all files, bypassing hash comparison |
+| `--notify` | Ring terminal bell on push completion |
 
 On startup, `plunk dev`:
 
@@ -236,8 +244,9 @@ Reads `.plunk/state.json` and re-copies each linked package from the store. Miss
 Show linked packages.
 
 ```bash
-plunk list          # linked packages in current project
-plunk list --store  # all packages in the global store
+plunk list             # linked packages in current project
+plunk list --store     # all packages in the global store
+plunk list --history   # build history for linked packages
 ```
 
 Flags:
@@ -245,8 +254,9 @@ Flags:
 | Flag | Description |
 |---|---|
 | `--store` | List all packages in `~/.plunk/store/` instead of project links |
+| `--history` | Show build history for linked packages |
 
-Project mode shows name, version, and source path. Store mode adds publish time.
+Project mode shows name, version, and source path. Store mode adds publish time. History mode shows available rollback targets.
 
 ---
 
@@ -373,6 +383,50 @@ What it does:
 1. Removes all linked packages (restores backups if available)
 2. Deletes the `.plunk/` directory
 3. Removes the `postinstall` hook from `package.json`
+
+---
+
+## `plunk rollback`
+
+Restore a previous build from history. After publishing, plunk keeps the last 3 builds (configurable) so you can quickly revert.
+
+```bash
+plunk rollback                          # restore previous build
+plunk rollback --build-id abc12345     # restore a specific build
+plunk rollback --yes                   # skip confirmation
+```
+
+Flags:
+
+| Flag | Description |
+|---|---|
+| `--build-id <id>` | Specific build ID to restore (default: previous build) |
+| `-y, --yes` | Skip confirmation prompts |
+
+After restoring, plunk automatically pushes the restored build to all consumers. Use `plunk list --history` to see available builds.
+
+---
+
+## `plunk check`
+
+Validate package configuration before publishing. Checks that entry points, exports paths, types, and bin paths exist on disk.
+
+```bash
+plunk check                # check current directory
+plunk check ../my-lib      # check a specific directory
+```
+
+Checks performed:
+
+| Check | What it verifies |
+|---|---|
+| `EMPTY_FILES` | `files` field is present in package.json |
+| `MISSING_PATH` | `main`, `module`, `types`, `typings` entry points exist |
+| `EXPORTS_PATH_MISSING` | All paths in `exports` map exist on disk |
+| `TYPES_CONDITION_ORDER` | `types` condition comes before `import`/`require`/`default` |
+| `BIN_PATH_MISSING` | `bin` entry points exist on disk |
+
+Pre-flight checks also run automatically during `plunk publish` (suppress with `--no-check`).
 
 ---
 

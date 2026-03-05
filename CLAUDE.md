@@ -47,20 +47,25 @@ Tests redirect the store via `process.env.PLUNK_HOME` to temp dirs. Coverage thr
 
 ```
 src/cli.ts           → citty entry point, global flags (--verbose, --dry-run, --json)
-src/commands/*.ts    → one file per CLI command (15 commands, including reset)
+src/commands/*.ts    → one file per CLI command (17 commands)
 src/core/
-  publisher.ts       → file resolution, hashing, atomic store write, lifecycle hooks
+  publisher.ts       → file resolution, hashing, atomic store write, lifecycle hooks, history capture
   injector.ts        → incremental copy from store to node_modules, backup/restore
   store.ts           → store CRUD, meta read/write
   tracker.ts         → consumer state (state.json) + global registry (consumers.json)
-  push-engine.ts     → doPush() orchestrator, watch config resolution
-  watcher.ts         → chokidar watcher with debounce + cooldown, build subprocess
+  push-engine.ts     → doPush() orchestrator, watch config resolution, multi-watch mode
+  watcher.ts         → chokidar watcher with debounce + cooldown, build subprocess, bell notify
+  batch-push.ts      → workspace batch push in topological order (push --all / dev --all)
+  history.ts         → build history capture, list, restore, prune (plunk rollback)
 src/utils/           → shared helpers
   fs.ts              → copyWithCoW, incrementalCopy, ensureDir
   hash.ts            → xxHash64 per-file, SHA-256 aggregate (computeContentHash)
   pack-list.ts       → resolvePackFiles (npm-pack-compatible file resolution)
   pm-detect.ts       → packageManager field + lockfile-based PM detection
-  workspace.ts       → workspace root detection, catalog: parsing
+  workspace.ts       → workspace root detection, catalog: parsing, workspace graph building
+  topo-sort.ts       → Kahn's algorithm topological sort for workspace dependency ordering
+  preflight.ts       → pre-flight validation (exports, types, entry points, bin paths)
+  bell.ts            → terminal bell notification (\x07 to stderr)
   lockfile.ts        → withFileLock (mkdir-based atomic lock)
   concurrency.ts     → minimal pLimit reimplementation (two-pointer O(1) dequeue)
   bin-linker.ts      → create/remove node_modules/.bin entries
@@ -102,3 +107,6 @@ src/types.ts         → shared interfaces
 - tsup has three build entries: CLI (bundled+minified, `noExternal: [/.*/]`), API lib (with .d.ts), Vite plugin (with .d.ts, vite external)
 - Watch mode defaults: 500ms debounce, 500ms cooldown between builds
 - `plunk clean` / `plunk gc` are aliases (same command registered twice in `src/cli.ts`)
+- Build history: publisher captures old builds to `store/<pkg>/history/<buildId>/` before atomic swap; default limit 3, configurable via `package.json#plunk.historyLimit`
+- `plunk push --all` / `plunk dev --all`: discovers workspace packages, topologically sorts by deps+devDeps, pushes/watches in dependency-first order
+- Pre-flight checks run automatically on `plunk publish` (suppress with `--no-check`), also available standalone via `plunk check`
