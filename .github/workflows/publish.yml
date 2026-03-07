@@ -3,8 +3,6 @@ name: Publish
 on:
   push:
     branches: [master]
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       bump:
@@ -68,8 +66,6 @@ jobs:
         id: mode
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "mode=release" >> "$GITHUB_OUTPUT"
-          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             echo "mode=release" >> "$GITHUB_OUTPUT"
           else
             echo "mode=canary" >> "$GITHUB_OUTPUT"
