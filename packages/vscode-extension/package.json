@@ -1,0 +1,70 @@
+{
+  "name": "plunk-vscode",
+  "displayName": "Plunk",
+  "description": "Visualize plunk-linked packages in your workspace",
+  "version": "0.1.0",
+  "publisher": "olegkuibar",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "workspaceContains:**/.plunk/state.json"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "plunk-explorer",
+          "title": "Plunk",
+          "icon": "resources/plunk-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "plunk-explorer": [
+        {
+          "id": "plunk.linkedPackages",
+          "name": "Linked Packages"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "plunk.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "plunk.showGraph",
+        "title": "Show Dependency Graph"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "plunk.refresh",
+          "when": "view == plunk.linkedPackages",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "build": "esbuild src/extension.ts src/graph/webview.ts --bundle --outdir=dist --external:vscode --format=cjs --platform=node --sourcemap",
+    "watch": "pnpm build --watch",
+    "package": "vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "elkjs": "^0.9.3"
+  }
+}
