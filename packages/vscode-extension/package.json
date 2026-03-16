@@ -55,8 +55,8 @@
     }
   },
   "scripts": {
-    "build": "esbuild src/extension.ts src/graph/webview.ts --bundle --outdir=dist --external:vscode --format=cjs --platform=node --sourcemap",
-    "watch": "pnpm build --watch",
+    "build": "node esbuild.config.mjs",
+    "watch": "node esbuild.config.mjs --watch",
     "package": "vsce package --no-dependencies"
   },
   "devDependencies": {
