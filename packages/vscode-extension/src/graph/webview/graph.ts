@@ -32,7 +32,7 @@ interface LayoutEdge {
 
 declare function acquireVsCodeApi(): { postMessage(msg: unknown): void };
 
-const vscode = acquireVsCodeApi();
+acquireVsCodeApi();
 const elk = new ELK();
 
 const graphEl = document.getElementById("graph")!;
@@ -268,7 +268,7 @@ graphEl.addEventListener("wheel", (e) => {
   if (svg) {
     (svg as HTMLElement).style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
   }
-});
+}, { passive: false });
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");

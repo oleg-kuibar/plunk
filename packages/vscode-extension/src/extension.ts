@@ -17,7 +17,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const treeView = vscode.window.createTreeView("plunk.linkedPackages", {
     treeDataProvider: treeProvider,
   });
-  context.subscriptions.push(treeView);
+  context.subscriptions.push(treeView, treeProvider);
 
   // Auto-refresh tree on state changes
   stateWatcher.onDidChange((event) => {

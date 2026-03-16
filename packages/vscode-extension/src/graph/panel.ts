@@ -4,6 +4,7 @@ import type { PlunkStateWatcher } from "../state-watcher";
 export class GraphPanel implements vscode.Disposable {
   private panel: vscode.WebviewPanel | undefined;
   private readonly disposables: vscode.Disposable[] = [];
+  private panelDisposables: vscode.Disposable[] = [];
 
   constructor(
     private readonly extensionUri: vscode.Uri,
@@ -33,20 +34,20 @@ export class GraphPanel implements vscode.Disposable {
 
     this.panel.onDidDispose(
       () => {
+        this.panelDisposables.forEach((d) => d.dispose());
+        this.panelDisposables = [];
         this.panel = undefined;
       },
       null,
       this.disposables
     );
 
-    this.watcher.onDidChange(
-      async (event) => {
+    this.panelDisposables.push(
+      this.watcher.onDidChange(async (event) => {
         if (event === "consumers-changed" || event === "state-changed") {
           await this.updateGraph();
         }
-      },
-      null,
-      this.disposables
+      })
     );
 
     await this.updateGraph();
