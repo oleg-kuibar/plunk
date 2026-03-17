@@ -19,17 +19,31 @@ export function activate(context: vscode.ExtensionContext): void {
   });
   context.subscriptions.push(treeView, treeProvider);
 
-  // Auto-refresh tree on state changes
-  stateWatcher.onDidChange((event) => {
-    if (event === "state-changed") {
-      treeProvider.refresh();
-    }
+  // Auto-refresh tree on any state change
+  stateWatcher.onDidChange(() => {
+    treeProvider.refresh();
   });
 
   // Refresh command
   context.subscriptions.push(
     vscode.commands.registerCommand("plunk.refresh", () => {
       treeProvider.refresh();
+    })
+  );
+
+  // Open source package.json on click
+  context.subscriptions.push(
+    vscode.commands.registerCommand("plunk.openSource", async (sourcePath: string) => {
+      const pkgJson = vscode.Uri.file(
+        sourcePath.replace(/\\/g, "/") + "/package.json"
+      );
+      try {
+        const doc = await vscode.workspace.openTextDocument(pkgJson);
+        await vscode.window.showTextDocument(doc, { preview: true });
+      } catch {
+        // If package.json doesn't exist, reveal the folder in explorer
+        vscode.commands.executeCommand("revealInExplorer", vscode.Uri.file(sourcePath));
+      }
     })
   );
 

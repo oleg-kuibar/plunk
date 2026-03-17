@@ -1,21 +1,72 @@
 import * as vscode from "vscode";
-import type { LinkEntry } from "../types";
+import type { LinkEntry, PlunkMeta } from "../types";
 
-/** Top-level node: a linked package */
-export class PackageItem extends vscode.TreeItem {
+/** Top-level node: a project folder that has .plunk/state.json */
+export class ProjectItem extends vscode.TreeItem {
   constructor(
-    public readonly packageName: string,
-    public readonly link: LinkEntry
+    public readonly projectLabel: string,
+    public readonly projectPath: string,
+    packageNames: string[]
   ) {
-    super(packageName, vscode.TreeItemCollapsibleState.Collapsed);
-    this.description = link.version;
-    this.tooltip = `${packageName}@${link.version}`;
-    this.iconPath = new vscode.ThemeIcon("package");
-    this.contextValue = "plunkPackage";
+    super(projectLabel, vscode.TreeItemCollapsibleState.Expanded);
+    this.description = packageNames.join(", ");
+    this.iconPath = new vscode.ThemeIcon("folder");
+    this.contextValue = "plunkProject";
+    this.resourceUri = vscode.Uri.file(projectPath);
   }
 }
 
-/** Child node: a metadata field of a linked package */
+/** Second-level node: a linked package within a project */
+export class PackageItem extends vscode.TreeItem {
+  constructor(
+    public readonly packageName: string,
+    public readonly link: LinkEntry,
+    public readonly projectPath: string,
+    storeMeta?: PlunkMeta
+  ) {
+    super(packageName, vscode.TreeItemCollapsibleState.Collapsed);
+
+    const stale = storeMeta && storeMeta.contentHash !== link.contentHash;
+
+    this.description = stale ? `${link.version} \u2022 stale` : link.version;
+    this.iconPath = new vscode.ThemeIcon(
+      stale ? "warning" : "package",
+      stale
+        ? new vscode.ThemeColor("editorWarning.foreground")
+        : undefined
+    );
+    this.contextValue = "plunkPackage";
+
+    // Click → open source folder
+    this.command = {
+      command: "plunk.openSource",
+      title: "Open Source Folder",
+      arguments: [link.sourcePath],
+    };
+
+    // Rich tooltip
+    const lines = [
+      `**${packageName}** @ ${link.version}`,
+      ``,
+      `Source: \`${shortenPath(link.sourcePath)}\``,
+      `Linked: ${formatRelativeTime(link.linkedAt)}`,
+    ];
+    if (link.buildId) lines.push(`Build: \`${link.buildId}\``);
+    if (stale && storeMeta?.buildId) {
+      lines.push(``, `Store has newer build: \`${storeMeta.buildId}\``);
+      lines.push(`Run \`plunk update\` or \`plunk push\` to sync`);
+    } else if (storeMeta) {
+      lines.push(``, `In sync with store`);
+    }
+    lines.push(`Backup: ${link.backupExists ? "available" : "none"}`);
+
+    const md = new vscode.MarkdownString(lines.join("\n"));
+    md.isTrusted = true;
+    this.tooltip = md;
+  }
+}
+
+/** Leaf node: a metadata field of a linked package */
 export class MetadataItem extends vscode.TreeItem {
   constructor(label: string, value: string, icon?: string) {
     super(`${label}: ${value}`, vscode.TreeItemCollapsibleState.None);
@@ -25,13 +76,26 @@ export class MetadataItem extends vscode.TreeItem {
 }
 
 /** Helper: build metadata children for a linked package */
-export function buildMetadataItems(link: LinkEntry): MetadataItem[] {
+export function buildMetadataItems(link: LinkEntry, storeMeta?: PlunkMeta): MetadataItem[] {
   const items: MetadataItem[] = [];
   items.push(new MetadataItem("Source", shortenPath(link.sourcePath), "folder"));
   items.push(new MetadataItem("Linked", formatRelativeTime(link.linkedAt), "clock"));
   if (link.buildId) {
     items.push(new MetadataItem("Build", link.buildId, "tag"));
   }
+
+  // Staleness
+  if (storeMeta) {
+    const inSync = storeMeta.contentHash === link.contentHash;
+    items.push(
+      new MetadataItem(
+        "Store",
+        inSync ? "in sync" : `stale (store: ${storeMeta.buildId ?? "unknown"})`,
+        inSync ? "pass" : "warning"
+      )
+    );
+  }
+
   items.push(
     new MetadataItem(
       "Backup",
@@ -44,10 +108,12 @@ export function buildMetadataItems(link: LinkEntry): MetadataItem[] {
 
 function shortenPath(p: string): string {
   const home = process.env.HOME || process.env.USERPROFILE || "";
-  if (home && p.startsWith(home)) {
-    return "~" + p.slice(home.length);
+  const normalized = p.replace(/\\/g, "/");
+  const normalizedHome = home.replace(/\\/g, "/");
+  if (normalizedHome && normalized.startsWith(normalizedHome)) {
+    return "~" + normalized.slice(normalizedHome.length);
   }
-  return p;
+  return normalized;
 }
 
 function formatRelativeTime(iso: string): string {

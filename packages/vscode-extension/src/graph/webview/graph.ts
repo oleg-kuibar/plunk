@@ -1,10 +1,14 @@
 import ELK from "elkjs/lib/elk.bundled.js";
 
+interface ProjectInfo {
+  label: string;
+  projectPath: string;
+  links: Record<string, { version: string; linkedAt: string; buildId?: string }>;
+}
+
 interface GraphMessage {
   command: "update";
-  state: {
-    links: Record<string, { version: string; linkedAt: string; buildId?: string }>;
-  } | null;
+  projects: ProjectInfo[];
   consumers: Record<string, string[]> | null;
 }
 
@@ -50,49 +54,61 @@ let lastMouse = { x: 0, y: 0 };
 window.addEventListener("message", async (event: MessageEvent<GraphMessage>) => {
   const msg = event.data;
   if (msg.command === "update") {
-    await layoutAndRender(msg.state, msg.consumers);
+    await layoutAndRender(msg.projects, msg.consumers);
   }
 });
 
 async function layoutAndRender(
-  state: GraphMessage["state"],
+  projects: ProjectInfo[],
   consumers: GraphMessage["consumers"]
 ): Promise<void> {
-  if (!consumers || Object.keys(consumers).length === 0) {
-    graphEl.innerHTML = '<div class="empty-state">No linked packages found</div>';
-    return;
-  }
-
   const nodeMap = new Map<string, LayoutNode>();
   const edges: Array<{ id: string; sources: string[]; targets: string[] }> = [];
-
   let edgeIdx = 0;
-  for (const [pkgName, consumerPaths] of Object.entries(consumers)) {
-    const libId = `lib:${pkgName}`;
-    if (!nodeMap.has(libId)) {
-      const linkInfo = state?.links?.[pkgName];
-      const meta = linkInfo
-        ? `v${linkInfo.version}${linkInfo.buildId ? ` (${linkInfo.buildId})` : ""}`
-        : "";
-      nodeMap.set(libId, {
-        id: libId,
-        type: "library",
-        label: pkgName,
-        meta,
-        width: Math.max(120, pkgName.length * 8 + 24),
+
+  // Normalize paths for matching: forward slashes, lowercase on Windows
+  const normPath = (p: string) => p.replace(/\\/g, "/").toLowerCase();
+
+  // Build a map of normalized project paths → labels for workspace projects
+  const projectLabels = new Map<string, string>();
+  for (const p of projects) {
+    projectLabels.set(normPath(p.projectPath), p.label);
+  }
+
+  // Collect all link info from all projects (for library metadata)
+  const allLinks = new Map<string, { version: string; buildId?: string }>();
+  for (const project of projects) {
+    for (const [pkgName, link] of Object.entries(project.links)) {
+      if (!allLinks.has(pkgName)) {
+        allLinks.set(pkgName, { version: link.version, buildId: link.buildId });
+      }
+    }
+  }
+
+  // Build graph from workspace projects (local links)
+  for (const project of projects) {
+    const consId = `con:${normPath(project.projectPath)}`;
+    if (!nodeMap.has(consId)) {
+      nodeMap.set(consId, {
+        id: consId,
+        type: "consumer",
+        label: project.label,
+        meta: `${Object.keys(project.links).length} linked`,
+        width: Math.max(120, project.label.length * 8 + 24),
         height: 40,
       });
     }
 
-    for (const consumerPath of consumerPaths) {
-      const consId = `con:${consumerPath}`;
-      if (!nodeMap.has(consId)) {
-        const shortPath = consumerPath.split("/").slice(-2).join("/");
-        nodeMap.set(consId, {
-          id: consId,
-          type: "consumer",
-          label: shortPath,
-          width: Math.max(120, shortPath.length * 8 + 24),
+    for (const [pkgName, link] of Object.entries(project.links)) {
+      const libId = `lib:${pkgName}`;
+      if (!nodeMap.has(libId)) {
+        const meta = `v${link.version}${link.buildId ? ` (${link.buildId})` : ""}`;
+        nodeMap.set(libId, {
+          id: libId,
+          type: "library",
+          label: pkgName,
+          meta,
+          width: Math.max(120, pkgName.length * 8 + 24),
           height: 40,
         });
       }
@@ -103,6 +119,70 @@ async function layoutAndRender(
         targets: [consId],
       });
     }
+  }
+
+  // Add edges from consumers.json for consumers outside the workspace
+  if (consumers) {
+    for (const [pkgName, consumerPaths] of Object.entries(consumers)) {
+      const libId = `lib:${pkgName}`;
+      if (!nodeMap.has(libId)) {
+        const linkInfo = allLinks.get(pkgName);
+        const meta = linkInfo
+          ? `v${linkInfo.version}${linkInfo.buildId ? ` (${linkInfo.buildId})` : ""}`
+          : "";
+        nodeMap.set(libId, {
+          id: libId,
+          type: "library",
+          label: pkgName,
+          meta,
+          width: Math.max(120, pkgName.length * 8 + 24),
+          height: 40,
+        });
+      }
+
+      for (const consumerPath of consumerPaths) {
+        const normConsumer = normPath(consumerPath);
+        const consId = `con:${normConsumer}`;
+
+        // Skip if already added from workspace projects (avoid duplicates)
+        if (nodeMap.has(consId)) {
+          // But still add the edge if it doesn't exist
+          const edgeExists = edges.some(
+            (e) => e.sources[0] === libId && e.targets[0] === consId
+          );
+          if (!edgeExists) {
+            edges.push({
+              id: `e${edgeIdx++}`,
+              sources: [libId],
+              targets: [consId],
+            });
+          }
+          continue;
+        }
+
+        // External consumer — use short path, dimmer style
+        const shortPath = consumerPath.split("/").slice(-2).join("/");
+        nodeMap.set(consId, {
+          id: consId,
+          type: "consumer",
+          label: shortPath,
+          meta: "external",
+          width: Math.max(120, shortPath.length * 8 + 24),
+          height: 40,
+        });
+
+        edges.push({
+          id: `e${edgeIdx++}`,
+          sources: [libId],
+          targets: [consId],
+        });
+      }
+    }
+  }
+
+  if (nodeMap.size === 0) {
+    graphEl.innerHTML = '<div class="empty-state">No linked packages found</div>';
+    return;
   }
 
   const elkGraph = {
@@ -196,18 +276,16 @@ function render(): void {
   for (const node of currentNodes) {
     const nx = node.x ?? 0;
     const ny = node.y ?? 0;
+    const isExternal = node.meta === "external";
+    const cssClass = node.type === "library" ? "node-library" : "node-consumer";
+    const extraClass = isExternal ? " node-external" : "";
+    const rx = node.type === "library" ? 20 : 4;
 
-    if (node.type === "library") {
-      svg += `<rect x="${nx}" y="${ny}" width="${node.width}" height="${node.height}"
-        rx="20" ry="20" class="node-library"
-        data-id="${node.id}" data-meta="${escapeAttr(node.meta || "")}" />`;
-    } else {
-      svg += `<rect x="${nx}" y="${ny}" width="${node.width}" height="${node.height}"
-        rx="4" ry="4" class="node-consumer"
-        data-id="${node.id}" />`;
-    }
+    svg += `<rect x="${nx}" y="${ny}" width="${node.width}" height="${node.height}"
+      rx="${rx}" ry="${rx}" class="${cssClass}${extraClass}"
+      data-id="${node.id}" data-meta="${escapeAttr(node.meta || "")}" />`;
 
-    svg += `<text class="label" x="${nx + node.width / 2}" y="${ny + node.height / 2}">${escapeHtml(node.label)}</text>`;
+    svg += `<text class="label${isExternal ? " label-external" : ""}" x="${nx + node.width / 2}" y="${ny + node.height / 2}">${escapeHtml(node.label)}</text>`;
   }
 
   svg += "</svg>";
@@ -222,7 +300,8 @@ function render(): void {
       if (!node) return;
 
       let text = node.label;
-      if (node.meta) text += `\n${node.meta}`;
+      if (node.meta && node.meta !== "external") text += `\n${node.meta}`;
+      if (node.meta === "external") text += "\n(outside workspace)";
       tooltipEl.textContent = text;
       tooltipEl.style.display = "block";
     });

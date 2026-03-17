@@ -37,11 +37,13 @@
       {
         "command": "plunk.refresh",
         "title": "Refresh",
+        "category": "Plunk",
         "icon": "$(refresh)"
       },
       {
         "command": "plunk.showGraph",
-        "title": "Show Dependency Graph"
+        "title": "Show Dependency Graph",
+        "category": "Plunk"
       }
     ],
     "menus": {

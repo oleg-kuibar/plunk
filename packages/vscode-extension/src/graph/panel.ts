@@ -56,14 +56,18 @@ export class GraphPanel implements vscode.Disposable {
   private async updateGraph(): Promise<void> {
     if (!this.panel) return;
 
-    const [state, consumers] = await Promise.all([
-      this.watcher.readState(),
+    const [projects, consumers] = await Promise.all([
+      this.watcher.readAllProjects(),
       this.watcher.readConsumers(),
     ]);
 
     this.panel.webview.postMessage({
       command: "update",
-      state: state ?? null,
+      projects: projects.map((p) => ({
+        label: p.label,
+        projectPath: p.projectPath,
+        links: p.state.links,
+      })),
       consumers: consumers ?? null,
     });
   }
@@ -98,9 +102,15 @@ export class GraphPanel implements vscode.Disposable {
     }
     .node-library {
       fill: var(--vscode-charts-blue, #4fc1ff);
+      fill-opacity: 0.15;
+      stroke: var(--vscode-charts-blue, #4fc1ff);
+      stroke-width: 1.5;
     }
     .node-consumer {
       fill: var(--vscode-charts-green, #89d185);
+      fill-opacity: 0.15;
+      stroke: var(--vscode-charts-green, #89d185);
+      stroke-width: 1.5;
     }
     .edge {
       stroke: var(--vscode-editorWidget-border, #454545);
@@ -123,6 +133,12 @@ export class GraphPanel implements vscode.Disposable {
       pointer-events: none;
       display: none;
       z-index: 10;
+    }
+    .node-external {
+      opacity: 0.4;
+    }
+    .label-external {
+      opacity: 0.5;
     }
     .empty-state {
       display: flex;

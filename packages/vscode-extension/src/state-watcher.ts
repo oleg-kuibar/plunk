@@ -1,9 +1,18 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as os from "os";
-import type { ConsumerState, ConsumersRegistry } from "./types";
+import type { ConsumerState, ConsumersRegistry, PlunkMeta } from "./types";
 
 export type StateEvent = "state-changed" | "consumers-changed";
+
+export interface ProjectState {
+  /** Absolute path to the project folder containing .plunk/state.json */
+  projectPath: string;
+  /** Short display name (last 1-2 path segments, relative to workspace root) */
+  label: string;
+  /** Parsed state */
+  state: ConsumerState;
+}
 
 export class PlunkStateWatcher implements vscode.Disposable {
   private readonly disposables: vscode.Disposable[] = [];
@@ -13,7 +22,7 @@ export class PlunkStateWatcher implements vscode.Disposable {
   private debounceTimer: ReturnType<typeof setTimeout> | undefined;
   private readonly DEBOUNCE_MS = 200;
 
-  private cachedState: ConsumerState | undefined;
+  private cachedProjects: ProjectState[] | undefined;
   private cachedConsumers: ConsumersRegistry | undefined;
 
   constructor(private readonly workspaceRoot: string) {
@@ -25,16 +34,16 @@ export class PlunkStateWatcher implements vscode.Disposable {
   }
 
   private setupWatchers(): void {
-    // Watch local .plunk/state.json
+    // Watch ALL .plunk/state.json files anywhere in the workspace
     const statePattern = new vscode.RelativePattern(
       this.workspaceRoot,
-      ".plunk/state.json"
+      "**/.plunk/state.json"
     );
     const stateWatcher = vscode.workspace.createFileSystemWatcher(statePattern);
     stateWatcher.onDidChange(() => this.debouncedEmit("state-changed"));
     stateWatcher.onDidCreate(() => this.debouncedEmit("state-changed"));
     stateWatcher.onDidDelete(() => {
-      this.cachedState = undefined;
+      this.cachedProjects = undefined;
       this.debouncedEmit("state-changed");
     });
     this.disposables.push(stateWatcher);
@@ -58,21 +67,60 @@ export class PlunkStateWatcher implements vscode.Disposable {
   private debouncedEmit(event: StateEvent): void {
     if (this.debounceTimer) clearTimeout(this.debounceTimer);
     this.debounceTimer = setTimeout(() => {
-      if (event === "state-changed") this.cachedState = undefined;
+      if (event === "state-changed") this.cachedProjects = undefined;
       if (event === "consumers-changed") this.cachedConsumers = undefined;
       this.emitter.fire(event);
     }, this.DEBOUNCE_MS);
   }
 
-  async readState(): Promise<ConsumerState | undefined> {
-    if (this.cachedState) return this.cachedState;
+  /** Discover and read all .plunk/state.json files in the workspace */
+  async readAllProjects(): Promise<ProjectState[]> {
+    if (this.cachedProjects) return this.cachedProjects;
+
+    const pattern = new vscode.RelativePattern(
+      this.workspaceRoot,
+      "**/.plunk/state.json"
+    );
+    const files = await vscode.workspace.findFiles(pattern, "**/node_modules/**");
+
+    const projects: ProjectState[] = [];
+    for (const uri of files) {
+      try {
+        const data = await vscode.workspace.fs.readFile(uri);
+        const state: ConsumerState = JSON.parse(
+          Buffer.from(data).toString("utf-8")
+        );
+        // .plunk/state.json is inside <project>/.plunk/, so go up two levels
+        const projectPath = path.dirname(path.dirname(uri.fsPath));
+        const relative = path.relative(this.workspaceRoot, projectPath);
+        const label = relative || path.basename(projectPath);
+        projects.push({ projectPath, label: label.replace(/\\/g, "/"), state });
+      } catch {
+        // Skip malformed files
+      }
+    }
+
+    projects.sort((a, b) => a.label.localeCompare(b.label));
+    this.cachedProjects = projects;
+    return projects;
+  }
+
+  /** Read store metadata for a specific package */
+  async readStoreMeta(
+    packageName: string,
+    version: string
+  ): Promise<PlunkMeta | undefined> {
     try {
-      const uri = vscode.Uri.file(
-        path.join(this.workspaceRoot, ".plunk", "state.json")
+      const encoded = packageName.replace(/\//g, "+");
+      const metaPath = path.join(
+        this.plunkHome,
+        "store",
+        `${encoded}@${version}`,
+        ".plunk-meta.json"
       );
+      const uri = vscode.Uri.file(metaPath);
       const data = await vscode.workspace.fs.readFile(uri);
-      this.cachedState = JSON.parse(Buffer.from(data).toString("utf-8"));
-      return this.cachedState;
+      return JSON.parse(Buffer.from(data).toString("utf-8"));
     } catch {
       return undefined;
     }
