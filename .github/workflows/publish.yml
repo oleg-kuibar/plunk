@@ -163,7 +163,7 @@ jobs:
 
       - name: Create GitHub Release
         if: steps.mode.outputs.mode == 'release' && inputs.dry_run != true
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.version.outputs.tag || github.ref_name }}
           body_path: RELEASE_NOTES.md
