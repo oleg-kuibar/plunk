@@ -309,7 +309,6 @@ function render(): void {
     rect.setAttribute("ry", String(rx));
     rect.setAttribute("class", `${cssClass}${extraClass}`);
     rect.dataset.id = node.id;
-    rect.dataset.meta = node.meta || "";
     svg.appendChild(rect);
 
     const label = document.createElementNS(svgNs, "text");

@@ -20,14 +20,11 @@ function hasPlunkPlugin(content: string): boolean {
 }
 
 function defineConfigUsesTernary(content: string): boolean {
-  let searchFrom = 0;
+  const callRegex = /(^|[^A-Za-z0-9_$])defineConfig\s*\(/g;
+  let match: RegExpExecArray | null;
 
-  while (searchFrom < content.length) {
-    const defineConfigIndex = content.indexOf("defineConfig", searchFrom);
-    if (defineConfigIndex === -1) return false;
-
-    const parenStart = content.indexOf("(", defineConfigIndex + "defineConfig".length);
-    if (parenStart === -1) return false;
+  while ((match = callRegex.exec(content)) !== null) {
+    const parenStart = match.index + match[0].length - 1;
 
     let depth = 1;
     let i = parenStart + 1;
@@ -73,14 +70,20 @@ function defineConfigUsesTernary(content: string): boolean {
         continue;
       }
 
-      if (ch === "?") return true;
+      if (ch === "?") {
+        const next = content[i + 1];
+        if (next === "." || next === "?") {
+          i += 2;
+          continue;
+        }
+        return true;
+      }
       if (ch === "(") depth++;
       if (ch === ")") depth--;
 
       i++;
     }
-
-    searchFrom = i;
+    callRegex.lastIndex = i;
   }
 
   return false;

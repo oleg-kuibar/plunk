@@ -13,4 +13,28 @@ describe("isComplexConfig", () => {
       isComplexConfig('export default defineConfig({ server: { proxy: "https://example.test?a=1" } })')
     ).toEqual({ complex: false });
   });
+
+  it("ignores optional chaining inside defineConfig", () => {
+    expect(
+      isComplexConfig("export default defineConfig({ base: env?.PUBLIC_URL })")
+    ).toEqual({ complex: false });
+  });
+
+  it("ignores nullish coalescing inside defineConfig", () => {
+    expect(
+      isComplexConfig("export default defineConfig({ server: { port: process.env.PORT ?? 3000 } })")
+    ).toEqual({ complex: false });
+  });
+
+  it("ignores question marks in line comments inside defineConfig", () => {
+    expect(
+      isComplexConfig("export default defineConfig({\n  // is this needed?\n  plugins: []\n})")
+    ).toEqual({ complex: false });
+  });
+
+  it("only scans actual defineConfig calls", () => {
+    expect(
+      isComplexConfig("const myDefineConfig = () => condition ? a : b;\nexport default defineConfig({ plugins: [] })")
+    ).toEqual({ complex: false });
+  });
 });
