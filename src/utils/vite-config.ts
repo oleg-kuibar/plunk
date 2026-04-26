@@ -19,6 +19,76 @@ function hasPlunkPlugin(content: string): boolean {
   );
 }
 
+function defineConfigUsesTernary(content: string): boolean {
+  const callRegex = /(^|[^A-Za-z0-9_$])defineConfig\s*\(/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = callRegex.exec(content)) !== null) {
+    const parenStart = match.index + match[0].length - 1;
+
+    let depth = 1;
+    let i = parenStart + 1;
+    let inString: string | false = false;
+    let escaped = false;
+
+    while (i < content.length && depth > 0) {
+      const ch = content[i];
+
+      if (escaped) {
+        escaped = false;
+        i++;
+        continue;
+      }
+
+      if (ch === "\\") {
+        escaped = true;
+        i++;
+        continue;
+      }
+
+      if (inString) {
+        if (ch === inString) inString = false;
+        i++;
+        continue;
+      }
+
+      if (ch === '"' || ch === "'" || ch === "`") {
+        inString = ch;
+        i++;
+        continue;
+      }
+
+      if (ch === "/" && content[i + 1] === "/") {
+        const newline = content.indexOf("\n", i);
+        i = newline === -1 ? content.length : newline + 1;
+        continue;
+      }
+
+      if (ch === "/" && content[i + 1] === "*") {
+        const end = content.indexOf("*/", i + 2);
+        i = end === -1 ? content.length : end + 2;
+        continue;
+      }
+
+      if (ch === "?") {
+        const next = content[i + 1];
+        if (next === "." || next === "?") {
+          i += 2;
+          continue;
+        }
+        return true;
+      }
+      if (ch === "(") depth++;
+      if (ch === ")") depth--;
+
+      i++;
+    }
+    callRegex.lastIndex = i;
+  }
+
+  return false;
+}
+
 /**
  * Parse comma-separated plugin entries, handling nested parentheses.
  * e.g. "react(), svelte({ hot: true })" → ["react()", "svelte({ hot: true })"]
@@ -201,7 +271,7 @@ function findLastImportEnd(content: string): number {
  */
 export function isComplexConfig(content: string): { complex: boolean; reason?: string } {
   // Conditional config: ternary with defineConfig
-  if (/defineConfig\s*\(.*\?/.test(content)) {
+  if (defineConfigUsesTernary(content)) {
     return { complex: true, reason: "conditional defineConfig" };
   }
 

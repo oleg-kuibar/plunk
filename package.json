@@ -81,7 +81,7 @@
     "@types/picomatch": "^4.0.2",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
-    "vite": "^7.3.1",
+    "vite": "^7.3.2",
     "vitest": "^4.0.18"
   },
   "peerDependencies": {
@@ -104,10 +104,16 @@
     "chokidar": "^5.0.0",
     "citty": "^0.2.1",
     "picocolors": "^1.1.1",
-    "picomatch": "^4.0.3",
+    "picomatch": "^4.0.4",
     "xxhash-wasm": "^1.1.0"
   },
   "pnpm": {
+    "overrides": {
+      "dompurify": "^3.4.1",
+      "picomatch": "^4.0.4",
+      "postcss": "^8.5.10",
+      "rollup": "^4.59.0"
+    },
     "onlyBuiltDependencies": [
       "esbuild"
     ]

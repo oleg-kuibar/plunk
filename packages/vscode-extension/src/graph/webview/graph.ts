@@ -181,7 +181,7 @@ async function layoutAndRender(
   }
 
   if (nodeMap.size === 0) {
-    graphEl.innerHTML = '<div class="empty-state">No linked packages found</div>';
+    renderEmptyState("No linked packages found");
     return;
   }
 
@@ -226,7 +226,7 @@ async function layoutAndRender(
 
     render();
   } catch (err) {
-    graphEl.innerHTML = `<div class="empty-state">Layout error: ${err}</div>`;
+    renderEmptyState(`Layout error: ${err}`);
   }
 }
 
@@ -246,15 +246,30 @@ function render(): void {
   const vbW = maxX - minX + pad * 2;
   const vbH = maxY - minY + pad * 2;
 
-  let svg = `<svg xmlns="${svgNs}" width="100%" height="100%"
-    viewBox="${minX - pad} ${minY - pad} ${vbW} ${vbH}"
-    style="transform: translate(${panX}px, ${panY}px) scale(${scale}); transform-origin: center;">`;
+  const svg = document.createElementNS(svgNs, "svg");
+  svg.setAttribute("width", "100%");
+  svg.setAttribute("height", "100%");
+  svg.setAttribute("viewBox", `${minX - pad} ${minY - pad} ${vbW} ${vbH}`);
+  svg.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+  svg.style.transformOrigin = "center";
 
   // Arrowhead marker
-  svg += `<defs><marker id="arrowhead" viewBox="0 0 10 7" refX="10" refY="3.5"
-    markerWidth="8" markerHeight="6" orient="auto-start-reverse">
-    <polygon points="0 0, 10 3.5, 0 7" fill="var(--vscode-editorWidget-border, #454545)"/>
-  </marker></defs>`;
+  const defs = document.createElementNS(svgNs, "defs");
+  const marker = document.createElementNS(svgNs, "marker");
+  marker.setAttribute("id", "arrowhead");
+  marker.setAttribute("viewBox", "0 0 10 7");
+  marker.setAttribute("refX", "10");
+  marker.setAttribute("refY", "3.5");
+  marker.setAttribute("markerWidth", "8");
+  marker.setAttribute("markerHeight", "6");
+  marker.setAttribute("orient", "auto-start-reverse");
+
+  const arrowhead = document.createElementNS(svgNs, "polygon");
+  arrowhead.setAttribute("points", "0 0, 10 3.5, 0 7");
+  arrowhead.setAttribute("fill", "var(--vscode-editorWidget-border, #454545)");
+  marker.appendChild(arrowhead);
+  defs.appendChild(marker);
+  svg.appendChild(defs);
 
   // Edges
   for (const edge of currentEdges) {
@@ -267,7 +282,11 @@ function render(): void {
           }
         }
         d += ` L ${section.endPoint.x} ${section.endPoint.y}`;
-        svg += `<path class="edge" d="${d}" marker-end="url(#arrowhead)"/>`;
+        const path = document.createElementNS(svgNs, "path");
+        path.setAttribute("class", "edge");
+        path.setAttribute("d", d);
+        path.setAttribute("marker-end", "url(#arrowhead)");
+        svg.appendChild(path);
       }
     }
   }
@@ -281,15 +300,26 @@ function render(): void {
     const extraClass = isExternal ? " node-external" : "";
     const rx = node.type === "library" ? 20 : 4;
 
-    svg += `<rect x="${nx}" y="${ny}" width="${node.width}" height="${node.height}"
-      rx="${rx}" ry="${rx}" class="${cssClass}${extraClass}"
-      data-id="${node.id}" data-meta="${escapeAttr(node.meta || "")}" />`;
+    const rect = document.createElementNS(svgNs, "rect");
+    rect.setAttribute("x", String(nx));
+    rect.setAttribute("y", String(ny));
+    rect.setAttribute("width", String(node.width));
+    rect.setAttribute("height", String(node.height));
+    rect.setAttribute("rx", String(rx));
+    rect.setAttribute("ry", String(rx));
+    rect.setAttribute("class", `${cssClass}${extraClass}`);
+    rect.dataset.id = node.id;
+    svg.appendChild(rect);
 
-    svg += `<text class="label${isExternal ? " label-external" : ""}" x="${nx + node.width / 2}" y="${ny + node.height / 2}">${escapeHtml(node.label)}</text>`;
+    const label = document.createElementNS(svgNs, "text");
+    label.setAttribute("class", `label${isExternal ? " label-external" : ""}`);
+    label.setAttribute("x", String(nx + node.width / 2));
+    label.setAttribute("y", String(ny + node.height / 2));
+    label.textContent = node.label;
+    svg.appendChild(label);
   }
 
-  svg += "</svg>";
-  graphEl.innerHTML = svg;
+  graphEl.replaceChildren(svg);
 
   // Hover events
   graphEl.querySelectorAll("rect[data-id]").forEach((el) => {
@@ -316,6 +346,13 @@ function render(): void {
       tooltipEl.style.display = "none";
     });
   });
+}
+
+function renderEmptyState(message: string): void {
+  const emptyState = document.createElement("div");
+  emptyState.className = "empty-state";
+  emptyState.textContent = message;
+  graphEl.replaceChildren(emptyState);
 }
 
 // Pan/zoom
@@ -349,10 +386,3 @@ graphEl.addEventListener("wheel", (e) => {
   }
 }, { passive: false });
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-function escapeAttr(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
