@@ -17,8 +17,8 @@ knarr dev
 
 | | yalc | Knarr |
 |---|---|---|
-| **package.json** | Rewrites deps to `file:.yalc/` | Never touches package.json |
-| **Git contamination** | `.yalc/` dir + modified package.json | Everything in gitignored `.knarr/` |
+| **package.json** | Rewrites deps to `file:.yalc/` | Leaves dependency specs alone; may add a restore `postinstall` script |
+| **Git contamination** | `.yalc/` dir + modified dependency specs | Local state in gitignored `.knarr/` |
 | **Lock file** | `yalc.lock` in project root | `.knarr/state.json` (gitignored) |
 | **pnpm support** | Broken since pnpm v7.10 | Works (follows `.pnpm/` symlinks) |
 | **Watch mode** | External (yalc-watch, unmaintained) | Built-in (`knarr dev` or `knarr push --watch`) |
@@ -80,7 +80,7 @@ This gets you back to a clean `node_modules/` with the registry-published versio
 npx knarr init
 ```
 
-This creates `.knarr/`, adds it to `.gitignore`, and wires up the `postinstall` hook.
+This creates `.knarr/`, adds it to `.gitignore`, and wires up the `postinstall` hook. `.knarr/` contains local link state and backups; it is intentionally not committed.
 
 ### 4. Publish and link your packages
 
@@ -143,11 +143,11 @@ yalc installs a pre-push git hook that warns if yalc packages are linked. Knarr 
 
 yalc rewrites dependency versions to `file:.yalc/my-lib`. This means `git diff` shows changes, CI might install from the wrong source, and `npm publish` from the consumer can accidentally include the override.
 
-Knarr never touches `package.json`. The real version from the registry stays in your dependency list. Knarr just overwrites the files inside `node_modules/` at runtime.
+Knarr never rewrites dependency specs. The real version from the registry stays in your dependency list, and Knarr just overwrites the files inside `node_modules/` at runtime. It may add a `postinstall` restore script during setup.
 
 ### postinstall hook
 
-knarr uses a `postinstall` script (`knarr restore || true`) to automatically re-inject linked packages after `npm install` / `pnpm install`. The `|| true` ensures it does not break installs if Knarr is not globally installed.
+Knarr uses a `postinstall` script (`npx knarr restore || true`) to automatically re-inject linked packages after `npm install` / `pnpm install`. `npx` resolves Knarr without a global install, and `|| true` keeps installs from failing if restore cannot run.
 
 ### Verify with doctor
 

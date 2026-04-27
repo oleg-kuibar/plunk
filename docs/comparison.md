@@ -111,7 +111,7 @@ yalc modifies `package.json`:
 
 It also creates a `.yalc/my-lib/` directory. Forget to revert before committing and your team gets broken builds.
 
-Knarr keeps everything in `.knarr/` which is gitignored. Your `package.json` stays clean.
+Knarr keeps local link state and backups in `.knarr/`, which setup adds to `.gitignore`. Your dependency specs and lockfile stay clean; Knarr may add a restore `postinstall` script so links can be repaired after installs.
 
 ### pnpm (yalc + npm link)
 

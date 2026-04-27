@@ -29,9 +29,9 @@ Knarr also uses incremental copying with a three-tier check: it compares file si
 
 The main differences:
 
-1. **Knarr never modifies package.json.** yalc rewrites dependency versions to `file:.yalc/my-lib`, which shows up in git diffs and can leak into CI or npm publishes. Knarr keeps `package.json` clean.
+1. **Knarr never rewrites dependency specs.** yalc rewrites dependency versions to `file:.yalc/my-lib`, which shows up in git diffs and can leak into CI or npm publishes. Knarr leaves dependencies and lockfiles alone.
 
-2. **Knarr never creates project-level store directories.** yalc creates a `.yalc/` directory with package copies inside your project. knarr uses a single global store at `~/.knarr/store/` and only creates a gitignored `.knarr/` directory for state tracking.
+2. **Knarr separates global package storage from local state.** yalc creates a `.yalc/` directory with package copies inside your project. Knarr uses a single global store at `~/.knarr/store/` and creates a gitignored `.knarr/` directory only for consumer state, backups, and restore metadata.
 
 3. **pnpm support.** yalc has been broken with pnpm since v7.10. Knarr detects pnpm and follows the `.pnpm/` symlink chain to inject files at the correct location.
 
@@ -45,13 +45,13 @@ See [Migrating from yalc](migrating-from-yalc.md) for a step-by-step migration g
 
 ## Does Knarr modify package.json?
 
-No. Knarr never modifies the consumer's `package.json` or lockfile. The only project-level artifacts are:
+Knarr never changes dependency versions or lockfiles. During `knarr init`, `knarr add`, or `knarr use`, it may add a `postinstall` restore script to `package.json` so links can be repaired after fresh installs. The local state lives in `.knarr/`:
 
 - `.knarr/state.json` -- tracks which packages are linked (gitignored)
 - `.knarr/backups/` -- backup of original npm-installed packages (gitignored)
-- A `postinstall` script entry (`knarr restore || true`) added by `knarr init`
+- A `postinstall` script entry (`npx knarr restore || true`) may be added to restore links after install
 
-The `postinstall` script is the only change to `package.json`, and it is opt-in via `knarr init`. It does not affect dependency resolution or version specifiers.
+Setup also adds `.knarr/` to `.gitignore` when it initializes a consumer, so state and backups stay local. The `postinstall` script does not affect dependency resolution or version specifiers.
 
 ## What about pnpm strict mode?
 
@@ -171,4 +171,4 @@ Running `npm install` or `pnpm install` replaces files in `node_modules/`, which
 knarr restore
 ```
 
-If you ran `knarr init`, this happens automatically via the `postinstall` hook. The hook runs `knarr restore || true`, which re-injects all linked packages. The `|| true` ensures the install does not fail if Knarr is not globally available.
+If you ran `knarr init`, this happens automatically via the `postinstall` hook. The hook runs `npx knarr restore || true`, which re-injects all linked packages. The `|| true` ensures the install does not fail if restore cannot run.

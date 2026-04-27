@@ -17,7 +17,7 @@
 
 # Knarr
 
-Test local npm packages in real apps without `npm link`, duplicate React, or dirty `package.json` diffs.
+Test local npm packages in real apps without `npm link`, duplicate React, or dirty dependency diffs.
 
 Knarr copies the built package output directly into the consumer app's `node_modules/`, so your package behaves like the version you would publish to npm. It works well with pnpm, Vite, Next.js, Webpack/rspack, Turbopack, and teams that want local package overrides to stay out of git.
 
@@ -38,13 +38,15 @@ If you have not installed Knarr globally, use `npx knarr dev` for the second com
 - Library and design-system authors testing packages inside real consumer apps
 - React developers avoiding duplicate React instances and invalid hook calls from symlinks
 - pnpm users where `npm link` or yalc do not match the installed dependency tree
-- Teams that want clean git diffs while iterating on local packages
+- Teams that want local package state kept out of commits
 
 ## Why Knarr?
 
 `npm link` creates symlinks that can break module resolution: duplicate React instances, peer dependency mismatches, and bundlers that cannot follow links outside the project root. yalc improves this by copying files, but it rewrites consumer dependency specs and usually needs extra watch tooling.
 
-Knarr keeps your `package.json` and lockfile clean. It publishes a local package into `~/.knarr/store/`, injects that package into every registered consumer, and can watch, rebuild, and push changes continuously.
+Knarr keeps dependency specs and lockfiles clean. It publishes a local package into `~/.knarr/store/`, injects that package into every registered consumer, and can watch, rebuild, and push changes continuously.
+
+Knarr does create a `.knarr/` directory in each consumer app for local state, backups, and restore metadata. Setup adds `.knarr/` to `.gitignore`, so that state stays local instead of becoming a committed package override.
 
 ## Quick Start
 

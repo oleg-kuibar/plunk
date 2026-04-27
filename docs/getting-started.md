@@ -28,6 +28,8 @@ This command:
 4. Copies the package into `my-app/node_modules/`
 5. Records the link so future `knarr push` and `knarr dev` runs know where to update
 
+The `.knarr/` directory is local consumer state: link metadata, backups, and restore information. Knarr adds it to `.gitignore` during setup so it does not become part of your committed source.
+
 `knarr use` is equivalent to:
 
 ```bash
