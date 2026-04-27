@@ -254,7 +254,7 @@ function TerminalInstance({ tabId, status, spawnShell, isActive, isFirst, onShel
           write('\x1b[1;33m  ╚═╝     ╚══════╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝  ╚═╝\x1b[0m\r\n');
           write('\r\n');
           write('\x1b[36m  📦 Local package development playground\x1b[0m\r\n');
-          write('\x1b[90m  Run "npx @olegkuibar/plunk --help" to get started\x1b[0m\r\n\r\n');
+          write('\x1b[90m  Run "npx knarr --help" to get started\x1b[0m\r\n\r\n');
         } else {
           write('\x1b[32m✓ Shell connected\x1b[0m\r\n\r\n');
         }
@@ -313,7 +313,7 @@ function TerminalInstance({ tabId, status, spawnShell, isActive, isFirst, onShel
     } else if (status === 'mounting') {
       write('\x1b[36mMounting file system...\x1b[0m\r\n');
     } else if (status === 'installing') {
-      write('\x1b[36mInstalling plunk CLI...\x1b[0m\r\n');
+      write('\x1b[36mInstalling KNARR CLI...\x1b[0m\r\n');
     } else if (status === 'ready' && !isConnected && !hasConnectedRef.current) {
       write('\x1b[32m\u2713 Environment ready!\x1b[0m\r\n');
     }

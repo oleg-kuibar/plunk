@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import type { PlunkStateWatcher } from "../state-watcher";
+import type { KnarrStateWatcher } from "../state-watcher";
 
 export class GraphPanel implements vscode.Disposable {
   private panel: vscode.WebviewPanel | undefined;
@@ -8,7 +8,7 @@ export class GraphPanel implements vscode.Disposable {
 
   constructor(
     private readonly extensionUri: vscode.Uri,
-    private readonly watcher: PlunkStateWatcher
+    private readonly watcher: KnarrStateWatcher
   ) {}
 
   async show(): Promise<void> {
@@ -19,8 +19,8 @@ export class GraphPanel implements vscode.Disposable {
     }
 
     this.panel = vscode.window.createWebviewPanel(
-      "plunk.dependencyGraph",
-      "Plunk: Dependency Graph",
+      "knarr.dependencyGraph",
+      "Knarr: Dependency Graph",
       vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -86,7 +86,7 @@ export class GraphPanel implements vscode.Disposable {
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Plunk Dependency Graph</title>
+  <title>Knarr Dependency Graph</title>
   <style>
     body {
       margin: 0;

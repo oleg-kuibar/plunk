@@ -3,13 +3,13 @@ import { join } from "node:path";
 import { exists, ensureDir, removeDir, moveDir } from "../utils/fs.js";
 import { getStoreHistoryPath, getHistoryEntryPath, getStoreEntryPath } from "../utils/paths.js";
 import { verbose } from "../utils/logger.js";
-import type { PlunkMeta, HistoryEntry } from "../types.js";
+import type { KnarrMeta, HistoryEntry } from "../types.js";
 
 const DEFAULT_HISTORY_LIMIT = 3;
 
 /**
  * Capture the current store entry as a history entry before it gets replaced.
- * Moves the old package/ and .plunk-meta.json into history/<buildId>/.
+ * Moves the old package/ and .knarr-meta.json into history/<buildId>/.
  */
 export async function captureHistory(
   name: string,
@@ -18,8 +18,8 @@ export async function captureHistory(
   historyLimit?: number
 ): Promise<void> {
   // Read meta to get buildId
-  const metaPath = join(oldEntryDir, ".plunk-meta.json");
-  let meta: PlunkMeta;
+  const metaPath = join(oldEntryDir, ".knarr-meta.json");
+  let meta: KnarrMeta;
   try {
     meta = JSON.parse(await readFile(metaPath, "utf-8"));
   } catch {
@@ -45,7 +45,7 @@ export async function captureHistory(
   await ensureDir(historyDir);
 
   // Move the old entry into history/<buildId>/
-  // We move the entire old entry dir contents (package/ + .plunk-meta.json)
+  // We move the entire old entry dir contents (package/ + .knarr-meta.json)
   const tmpHistoryEntry = entryDir + `.tmp-${process.pid}`;
   try {
     await ensureDir(tmpHistoryEntry);
@@ -58,7 +58,7 @@ export async function captureHistory(
 
     // Copy meta
     await writeFile(
-      join(tmpHistoryEntry, ".plunk-meta.json"),
+      join(tmpHistoryEntry, ".knarr-meta.json"),
       JSON.stringify(meta, null, 2)
     );
 
@@ -95,9 +95,9 @@ export async function listHistory(
   const result: HistoryEntry[] = [];
   for (const buildId of entries) {
     const entryDir = join(historyDir, buildId);
-    const metaPath = join(entryDir, ".plunk-meta.json");
+    const metaPath = join(entryDir, ".knarr-meta.json");
     try {
-      const meta = JSON.parse(await readFile(metaPath, "utf-8")) as PlunkMeta;
+      const meta = JSON.parse(await readFile(metaPath, "utf-8")) as KnarrMeta;
       result.push({
         buildId: meta.buildId ?? buildId,
         contentHash: meta.contentHash,
@@ -124,10 +124,10 @@ export async function getHistoryEntry(
   buildId: string
 ): Promise<HistoryEntry | null> {
   const entryDir = getHistoryEntryPath(name, version, buildId);
-  const metaPath = join(entryDir, ".plunk-meta.json");
+  const metaPath = join(entryDir, ".knarr-meta.json");
 
   try {
-    const meta = JSON.parse(await readFile(metaPath, "utf-8")) as PlunkMeta;
+    const meta = JSON.parse(await readFile(metaPath, "utf-8")) as KnarrMeta;
     return {
       buildId: meta.buildId ?? buildId,
       contentHash: meta.contentHash,
@@ -157,7 +157,7 @@ export async function restoreHistoryEntry(
   const historyEntryDir = getHistoryEntryPath(name, version, buildId);
 
   const historyPkg = join(historyEntryDir, "package");
-  const historyMeta = join(historyEntryDir, ".plunk-meta.json");
+  const historyMeta = join(historyEntryDir, ".knarr-meta.json");
 
   // Read the history meta first (before any mutations) so failure is clean
   const metaContent = await readFile(historyMeta, "utf-8");
@@ -169,7 +169,7 @@ export async function restoreHistoryEntry(
 
   // Swap: remove current package/, move history package/ into place, write meta
   const storePkg = join(storeEntryDir, "package");
-  const storeMeta = join(storeEntryDir, ".plunk-meta.json");
+  const storeMeta = join(storeEntryDir, ".knarr-meta.json");
 
   if (await exists(storePkg)) await removeDir(storePkg);
   if (await exists(historyPkg)) {

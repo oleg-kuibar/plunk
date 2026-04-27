@@ -17,7 +17,7 @@ const PARTICLE_COLORS = [
 ];
 
 /**
- * Plunk Loader - Ring spinner with orbiting particles and centered logo
+ * KNARR Loader - Ring spinner with orbiting particles and centered logo
  */
 export function Loader({ message, size = 'md' }: LoaderProps) {
   const sizes = {
@@ -121,8 +121,8 @@ export function Loader({ message, size = 'md' }: LoaderProps) {
           }}
         >
           <img
-            src="/plunk_logo.png"
-            alt="Plunk"
+            src="/KNARR_logo.png"
+            alt="KNARR"
             className="w-full h-full object-cover"
           />
         </div>

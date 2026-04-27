@@ -6,7 +6,7 @@ console.log(`  formatDate: ${formatDate(new Date())}`);
 console.log(`  slugify:    ${slugify("Hello World Example")}`);
 console.log(`  truncate:   ${truncate("This is a long string that should be truncated", 25)}`);
 
-console.log("\n=== @example/ui-kit (plunk-injected) ===");
+console.log("\n=== @example/ui-kit (Knarr-injected) ===");
 
 const button = renderButton({ label: "Deploy", variant: "primary" });
 console.log(`  Button:\n${button}`);
@@ -18,4 +18,4 @@ const card = renderCard({
 });
 console.log(`  Card:\n${card}`);
 
-console.log("\n--- server app is working with workspace + plunk packages! ---");
+console.log("\n--- server app is working with workspace + Knarr packages! ---");

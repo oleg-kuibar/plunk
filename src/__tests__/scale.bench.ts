@@ -15,10 +15,10 @@ import { getStoreEntry } from "../core/store.js";
 import type { PackageJson, StoreEntry } from "../types.js";
 
 let largePackageDir: string;
-let plunkHome: string;
+let KNARRHome: string;
 let consumerDir: string;
 let largePkg: PackageJson;
-let savedPlunkHome: string | undefined;
+let savedKNARRHome: string | undefined;
 
 /** Generate a synthetic package with many files of varying sizes */
 async function createLargeFixture(dir: string): Promise<PackageJson> {
@@ -73,16 +73,16 @@ async function createLargeFixture(dir: string): Promise<PackageJson> {
 
 beforeAll(async () => {
   // Create synthetic large package
-  largePackageDir = await mkdtemp(join(tmpdir(), "plunk-bench-large-pkg-"));
+  largePackageDir = await mkdtemp(join(tmpdir(), "KNARR-bench-large-pkg-"));
   largePkg = await createLargeFixture(largePackageDir);
 
   // Isolate store
-  savedPlunkHome = process.env.PLUNK_HOME;
-  plunkHome = await mkdtemp(join(tmpdir(), "plunk-bench-scale-home-"));
-  process.env.PLUNK_HOME = plunkHome;
+  savedKNARRHome = process.env.KNARR_HOME;
+  KNARRHome = await mkdtemp(join(tmpdir(), "KNARR-bench-scale-home-"));
+  process.env.KNARR_HOME = KNARRHome;
 
   // Set up consumer
-  consumerDir = await mkdtemp(join(tmpdir(), "plunk-bench-scale-consumer-"));
+  consumerDir = await mkdtemp(join(tmpdir(), "KNARR-bench-scale-consumer-"));
   await writeFile(
     join(consumerDir, "package.json"),
     JSON.stringify({ name: "bench-scale-consumer", version: "1.0.0" })
@@ -95,12 +95,12 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  if (savedPlunkHome !== undefined) {
-    process.env.PLUNK_HOME = savedPlunkHome;
+  if (savedKNARRHome !== undefined) {
+    process.env.KNARR_HOME = savedKNARRHome;
   } else {
-    delete process.env.PLUNK_HOME;
+    delete process.env.KNARR_HOME;
   }
-  await rm(plunkHome, { recursive: true, force: true });
+  await rm(KNARRHome, { recursive: true, force: true });
   await rm(consumerDir, { recursive: true, force: true });
   await rm(largePackageDir, { recursive: true, force: true });
 });
@@ -119,7 +119,7 @@ describe("scale: publish", () => {
     },
     {
       async setup() {
-        const entryPath = join(plunkHome, "store");
+        const entryPath = join(KNARRHome, "store");
         if (await exists(entryPath)) {
           await removeDir(entryPath);
         }

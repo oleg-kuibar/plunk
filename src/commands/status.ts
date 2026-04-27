@@ -49,13 +49,13 @@ export default defineCommand({
           if (!entry) {
             issues.push("store entry missing");
           } else if (entry.meta.contentHash !== link.contentHash) {
-            issues.push("store has newer content (run plunk update)");
+            issues.push("store has newer content (run knarr update)");
           }
 
           // Check if node_modules version exists
           const nmPath = join(consumerPath, "node_modules", name);
           if (!(await exists(nmPath))) {
-            issues.push("missing from node_modules (run plunk restore)");
+            issues.push("missing from node_modules (run knarr restore)");
           }
 
           // Check if source directory still exists

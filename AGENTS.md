@@ -1,8 +1,8 @@
-# CLAUDE.md
+# AGENTS.md
 
 ## Project
 
-Knarr — Local npm package development without symlinks. Copies built files into consumer `node_modules/` with incremental sync and watch mode.
+Knarr - Local npm package development without symlinks. Copies built files into consumer `node_modules/` with incremental sync and watch mode.
 
 ## Tech stack
 
@@ -102,11 +102,11 @@ src/types.ts         → shared interfaces
 
 ## Gotchas
 
-- `pnpm dev` (in the Commands section above) is `tsup --watch` for building Knarr itself — not the same as the `knarr dev` CLI command
-- pnpm injects into `.pnpm/` virtual store by following symlinks — see `src/core/injector.ts`
-- `workspace:*` and `catalog:` protocol versions are rewritten to real versions in the store copy (source untouched) — see `src/core/publisher.ts` and `src/utils/workspace.ts`
-- Vite plugin watches `.knarr/state.json` and triggers server restart (new package) or full reload (existing package update) — not HMR
-- Lifecycle hooks run in order: `preknarr` → `prepack` → [publish] → `postpack` → `postknarr`. Default timeout 30s (`KNARR_HOOK_TIMEOUT` env var)
+- `pnpm dev` (in the Commands section above) is `tsup --watch` for building Knarr itself - not the same as the `knarr dev` CLI command
+- pnpm injects into `.pnpm/` virtual store by following symlinks - see `src/core/injector.ts`
+- `workspace:*` and `catalog:` protocol versions are rewritten to real versions in the store copy (source untouched) - see `src/core/publisher.ts` and `src/utils/workspace.ts`
+- Vite plugin watches `.knarr/state.json` and triggers server restart (new package) or full reload (existing package update) - not HMR
+- Lifecycle hooks run in order: `preknarr` -> `prepack` -> [publish] -> `postpack` -> `postknarr`. Default timeout 30s (`KNARR_HOOK_TIMEOUT` env var)
 - tsup has four build entries: CLI (bundled+minified, `noExternal: [/.*/]`), API lib (with .d.ts), Vite plugin (with .d.ts, vite external), Webpack plugin (with .d.ts, webpack external)
 - Watch mode defaults: 500ms debounce, 500ms cooldown between builds
 - `knarr clean` / `knarr gc` are aliases (same command registered twice in `src/cli.ts`)
@@ -116,5 +116,5 @@ src/types.ts         → shared interfaces
 - Pre-flight checks run automatically on `knarr publish` (suppress with `--no-check`), also available standalone via `knarr check`
 - `--dry-run` records all skipped mutations via `recordMutation()` in `src/utils/dry-run.ts`; commands print a grouped summary at exit
 - Interactive CLI: running `knarr` with no subcommand in a TTY shows a select menu; non-TTY/CI shows banner only
-- Webpack plugin (`knarr/webpack`): mirrors Vite plugin pattern — excludes linked packages from snapshot cache, watches state.json, invalidates compiler on changes
+- Webpack plugin (`knarr/webpack`): mirrors Vite plugin pattern - excludes linked packages from snapshot cache, watches state.json, invalidates compiler on changes
 - Config rewriting uses balanced bracket scanner (handles nested `[]`, `()`, `{}`, strings, comments) and complexity detector (`isComplexConfig`) that gracefully falls back to manual instructions

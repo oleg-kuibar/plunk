@@ -1,7 +1,7 @@
 {
-  "name": "plunk-vscode",
-  "displayName": "Plunk",
-  "description": "Visualize plunk-linked packages in your workspace",
+  "name": "knarr-vscode",
+  "displayName": "Knarr",
+  "description": "Visualize Knarr-linked packages in your workspace",
   "version": "0.1.0",
   "publisher": "olegkuibar",
   "license": "MIT",
@@ -13,44 +13,44 @@
   ],
   "main": "./dist/extension.js",
   "activationEvents": [
-    "workspaceContains:**/.plunk/state.json"
+    "workspaceContains:**/.knarr/state.json"
   ],
   "contributes": {
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "plunk-explorer",
-          "title": "Plunk",
-          "icon": "resources/plunk-icon.svg"
+          "id": "knarr-explorer",
+          "title": "Knarr",
+          "icon": "resources/knarr-icon.svg"
         }
       ]
     },
     "views": {
-      "plunk-explorer": [
+      "knarr-explorer": [
         {
-          "id": "plunk.linkedPackages",
+          "id": "knarr.linkedPackages",
           "name": "Linked Packages"
         }
       ]
     },
     "commands": [
       {
-        "command": "plunk.refresh",
+        "command": "knarr.refresh",
         "title": "Refresh",
-        "category": "Plunk",
+        "category": "Knarr",
         "icon": "$(refresh)"
       },
       {
-        "command": "plunk.showGraph",
+        "command": "knarr.showGraph",
         "title": "Show Dependency Graph",
-        "category": "Plunk"
+        "category": "Knarr"
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command": "plunk.refresh",
-          "when": "view == plunk.linkedPackages",
+          "command": "knarr.refresh",
+          "when": "view == knarr.linkedPackages",
           "group": "navigation"
         }
       ]
@@ -62,11 +62,11 @@
     "package": "vsce package --no-dependencies"
   },
   "devDependencies": {
-    "@types/vscode": "^1.85.0",
-    "esbuild": "^0.27.3",
-    "typescript": "^5.9.3"
+    "@types/vscode": "^1.116.0",
+    "esbuild": "^0.28.0",
+    "typescript": "^6.0.3"
   },
   "dependencies": {
-    "elkjs": "^0.9.3"
+    "elkjs": "^0.11.1"
   }
 }

@@ -23,7 +23,7 @@ interface YalcLock {
 export default defineCommand({
   meta: {
     name: "migrate",
-    description: "Migrate from yalc to plunk",
+    description: "Migrate from yalc to Knarr",
   },
   args: {
     yes: {
@@ -55,7 +55,7 @@ export default defineCommand({
 
     if (!args.yes) {
       const confirmed = await consola.prompt(
-        "Migrate from yalc to plunk? This will modify package.json and remove .yalc/ and yalc.lock.",
+        "Migrate from yalc to Knarr? This will modify package.json and remove .yalc/ and yalc.lock.",
         { type: "confirm" }
       );
       if (!confirmed || typeof confirmed === "symbol") {
@@ -127,16 +127,16 @@ export default defineCommand({
     // 5. Show next steps
     consola.log("");
     consola.info(`${pc.bold("Migration complete!")} Next steps:\n`);
-    consola.log(`  1. ${pc.cyan("plunk init")}`);
+    consola.log(`  1. ${pc.cyan("knarr init")}`);
     if (packages.length > 0) {
       for (const pkg of packages) {
         consola.log(
-          `  2. ${pc.cyan(`plunk add ${pkg} --from <path-to-${pkg}>`)}`
+          `  2. ${pc.cyan(`knarr add ${pkg} --from <path-to-${pkg}>`)}`
         );
       }
     }
     consola.log(
-      `\n  Run ${pc.cyan("plunk doctor")} to verify your setup.\n`
+      `\n  Run ${pc.cyan("knarr doctor")} to verify your setup.\n`
     );
 
     consola.info(`Migrated in ${timer.elapsed()}`);

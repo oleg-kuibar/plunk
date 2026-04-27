@@ -20,7 +20,7 @@ const PHASE_LABELS: Record<string, { title: string; detail: string }> = {
   },
   installing: {
     title: 'Installing dependencies...',
-    detail: 'Running npm install for plunk CLI and example packages',
+    detail: 'Running npm install for KNARR CLI and example packages',
   },
 };
 
@@ -39,7 +39,7 @@ export function LoadingScreen({ status }: { status: BootStatus }) {
         <Loader size="lg" />
 
         <div className="text-center space-y-2">
-          <h1 className="text-lg font-semibold text-text">Plunk Playground</h1>
+          <h1 className="text-lg font-semibold text-text">KNARR Playground</h1>
           <p className="text-sm text-text-muted">
             {PHASE_LABELS[status]?.title ?? 'Loading...'}
           </p>

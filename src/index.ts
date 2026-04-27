@@ -12,8 +12,8 @@ export { captureHistory, listHistory, getHistoryEntry, restoreHistoryEntry, prun
 export { startWatcher, killActiveBuild, runBuildCommand } from "./core/watcher.js";
 export { WatchOrchestrator } from "./core/watch-orchestrator.js";
 export { detectPackageManager } from "./utils/pm-detect.js";
-export { loadPlunkConfig } from "./utils/config.js";
-export type { PlunkConfig } from "./utils/config.js";
+export { loadKnarrConfig, loadKNARRConfig } from "./utils/config.js";
+export type { KnarrConfig, KNARRConfig } from "./utils/config.js";
 export { topoSort, CycleError } from "./utils/topo-sort.js";
 export { buildWorkspaceGraph, buildReverseAdjacency } from "./utils/workspace.js";
 export type { WorkspacePackage, WorkspaceGraph } from "./utils/workspace.js";

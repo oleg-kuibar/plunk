@@ -2,11 +2,11 @@
   "name": "@mono/server",
   "version": "1.0.0",
   "private": true,
-  "description": "Node.js app — uses shared-utils (workspace) + ui-kit (plunk)",
+  "description": "Node.js app — uses shared-utils (workspace) + ui-kit (Knarr)",
   "type": "module",
   "scripts": {
     "start": "node --import tsx src/main.ts",
-    "postinstall": "plunk restore || true"
+    "postinstall": "knarr restore || true"
   },
   "dependencies": {
     "@mono/shared-utils": "workspace:*"

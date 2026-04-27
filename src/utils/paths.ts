@@ -1,29 +1,29 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-/** Root plunk directory: ~/.plunk/ (override with PLUNK_HOME env var) */
-export function getPlunkHome(): string {
-  return process.env.PLUNK_HOME || join(homedir(), ".plunk");
+/** Root knarr directory: ~/.knarr/ (override with KNARR_HOME env var). */
+export function getKnarrHome(): string {
+  return process.env.KNARR_HOME || join(homedir(), ".knarr");
 }
 
-/** Store root: ~/.plunk/store/ */
+/** Store root: ~/.knarr/store/ */
 export function getStorePath(): string {
-  return join(getPlunkHome(), "store");
+  return join(getKnarrHome(), "store");
 }
 
-/** Consumers registry: ~/.plunk/consumers.json */
+/** Consumers registry: ~/.knarr/consumers.json */
 export function getConsumersPath(): string {
-  return join(getPlunkHome(), "consumers.json");
+  return join(getKnarrHome(), "consumers.json");
 }
 
-/** Global config: ~/.plunk/config.json */
+/** Global config: ~/.knarr/config.json */
 export function getConfigPath(): string {
-  return join(getPlunkHome(), "config.json");
+  return join(getKnarrHome(), "config.json");
 }
 
 /**
  * Encode a package name for use as a directory name.
- * Scoped packages: `@scope/name` → `@scope+name`
+ * Scoped packages: `@scope/name` -> `@scope+name`
  */
 export function encodePackageName(name: string): string {
   return name.replace(/\//g, "+");
@@ -31,10 +31,9 @@ export function encodePackageName(name: string): string {
 
 /**
  * Decode a directory name back to a package name.
- * `@scope+name` → `@scope/name`
+ * `@scope+name` -> `@scope/name`
  */
 export function decodePackageName(encoded: string): string {
-  // Only decode the + after a scope prefix
   if (encoded.startsWith("@")) {
     const plusIdx = encoded.indexOf("+");
     if (plusIdx !== -1) {
@@ -54,17 +53,17 @@ export function getStorePackagePath(name: string, version: string): string {
   return join(getStoreEntryPath(name, version), "package");
 }
 
-/** Get the .plunk-meta.json path for a store entry */
+/** Get the .knarr-meta.json path for a store entry */
 export function getStoreMetaPath(name: string, version: string): string {
-  return join(getStoreEntryPath(name, version), ".plunk-meta.json");
+  return join(getStoreEntryPath(name, version), ".knarr-meta.json");
 }
 
-/** Get the history directory for a store entry: ~/.plunk/store/<pkg>@<ver>/history/ */
+/** Get the history directory for a store entry */
 export function getStoreHistoryPath(name: string, version: string): string {
   return join(getStoreEntryPath(name, version), "history");
 }
 
-/** Get a specific history entry directory: ~/.plunk/store/<pkg>@<ver>/history/<buildId>/ */
+/** Get a specific history entry directory */
 export function getHistoryEntryPath(
   name: string,
   version: string,
@@ -73,14 +72,16 @@ export function getHistoryEntryPath(
   return join(getStoreHistoryPath(name, version), buildId);
 }
 
-/** Get the .plunk/ directory in a consumer project */
-export function getConsumerPlunkDir(consumerPath: string): string {
-  return join(consumerPath, ".plunk");
+/** Get the .knarr/ directory in a consumer project */
+export function getConsumerKnarrDir(consumerPath: string): string {
+  return join(consumerPath, ".knarr");
 }
+
+export const getConsumerKNARRDir = getConsumerKnarrDir;
 
 /** Get the state file in a consumer project */
 export function getConsumerStatePath(consumerPath: string): string {
-  return join(consumerPath, ".plunk", "state.json");
+  return join(consumerPath, ".knarr", "state.json");
 }
 
 /** Get the backups directory in a consumer project */
@@ -88,7 +89,7 @@ export function getConsumerBackupPath(
   consumerPath: string,
   packageName: string
 ): string {
-  return join(consumerPath, ".plunk", "backups", encodePackageName(packageName));
+  return join(consumerPath, ".knarr", "backups", encodePackageName(packageName));
 }
 
 /** Normalize a file path to use forward slashes (for cross-platform consistency). */
@@ -101,6 +102,5 @@ export function getNodeModulesPackagePath(
   consumerPath: string,
   packageName: string
 ): string {
-  // Scoped packages: node_modules/@scope/name (use original name with /)
   return join(consumerPath, "node_modules", packageName);
 }

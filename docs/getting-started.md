@@ -1,155 +1,126 @@
 # Getting started
 
+Knarr's shortest path is `knarr use`: run it in the app, point it at the local package, and knarr publishes + links the package in one step.
+
 ## Install
 
 ```bash
-pnpm add -g @olegkuibar/plunk
+pnpm add -g knarr
 
-# or just use npx
-npx @olegkuibar/plunk init
+# or use it one time without installing globally
+npx knarr use ../my-lib
 ```
 
-> **Tip:** Running `plunk` with no arguments in a terminal shows an interactive menu where you can select the command you want to run.
+> **Tip:** Running `knarr` with no arguments in a terminal shows an interactive menu where you can select the command you want to run.
 
-## The workflow
+## 1. Link a local package into your app
+
+```bash
+cd my-app
+npx knarr use ../my-lib
+```
+
+This command:
+
+1. Reads `../my-lib/package.json` and infers the package name
+2. Publishes the built package files to `~/.knarr/store/`
+3. Initializes `.knarr/` in the app if needed
+4. Copies the package into `my-app/node_modules/`
+5. Records the link so future `knarr push` and `knarr dev` runs know where to update
+
+`knarr use` is equivalent to:
+
+```bash
+cd ../my-lib
+knarr publish
+
+cd ../my-app
+knarr add my-lib
+```
+
+## 2. Start the continuous dev loop
+
+```bash
+cd ../my-lib
+knarr dev
+```
+
+`knarr dev` auto-detects your build command from `package.json` scripts and enters watch mode. Each change is coalesced, rebuilt, published, and pushed to every app that has the package linked.
+
+If Knarr is not installed globally, run `npx knarr dev` instead.
 
 ```mermaid
-sequenceDiagram
-    box rgb(46,125,50) Source
-        participant Lib as Library
-    end
-    box rgb(21,101,192) Store
-        participant Store as ~/.plunk/store
-    end
-    box rgb(230,81,0) Consumer
-        participant App as App (node_modules)
-    end
+graph LR
+    A[Edit package] --> B[Build]
+    B --> C[Publish to store]
+    C --> D[Copy changed files]
+    D --> E[Consumer bundler updates]
 
-    Note over Lib: pnpm build
-    Lib->>Store: plunk publish
-    Store->>App: plunk add my-lib
-
-    loop Watch mode
-        Note over Lib: edit source
-        Lib->>Lib: build (tsup, tsc, etc.)
-        Lib->>Store: publish
-        Store->>App: copy changed files
-        Note over App: bundler detects changes → HMR
-    end
+    style A fill:#2e7d32,stroke:#66bb6a,color:#e8f5e9
+    style B fill:#1565c0,stroke:#64b5f6,color:#e3f2fd
+    style C fill:#6a1b9a,stroke:#ba68c8,color:#f3e5f5
+    style D fill:#e65100,stroke:#ffb74d,color:#fff3e0
+    style E fill:#00838f,stroke:#4dd0e1,color:#e0f2f1
 ```
 
-## 1. Initialize your app (optional)
-
-Run `plunk init` in any project that will consume local packages:
+For explicit control:
 
 ```bash
-cd my-app
-npx plunk init
+knarr push --watch --build "pnpm build"
+knarr push --watch --skip-build
 ```
 
-This adds `.plunk/` to `.gitignore`, wires up a `postinstall` hook (`plunk restore || true`), creates the `.plunk/` state directory, and auto-injects the plunk Vite plugin if a Vite config is detected. Safe to run multiple times.
+## 3. Use explicit publish/add when you need it
 
-> **Note:** `plunk add` auto-initializes the consumer if needed, so you can skip this step and go straight to step 3.
-
-## 2. Publish your library
-
-In the library you're developing:
-
-```bash
-cd my-lib
-pnpm build            # build your library first
-plunk publish
-```
-
-plunk reads the `files` field from `package.json` (same as `npm pack`) and copies those files to `~/.plunk/store/my-lib@<version>/`. If nothing changed since last time, it skips.
-
-## 3. Link into your app
-
-```bash
-cd my-app
-plunk add my-lib
-```
-
-This copies files from the store into `node_modules/my-lib/`. plunk checks your lockfile to figure out the package manager and uses the right injection strategy (pnpm needs special handling for `.pnpm/`).
-
-You can also publish and add in one step:
-
-```bash
-plunk add my-lib --from ../my-lib
-```
-
-## 4. Push changes
-
-After making changes to your library:
+Use `publish` and `add` separately when you want to publish once, pin a version, or link something that is already in the store:
 
 ```bash
 cd my-lib
 pnpm build
-plunk push
+knarr publish
+
+cd ../my-app
+knarr add my-lib
+knarr add @scope/my-lib@1.2.3
+knarr add my-lib --from ../my-lib
 ```
 
-This publishes to the store and copies changed files to every app that has `my-lib` linked. Only files that actually changed get re-copied.
+## 4. After `npm install`
 
-## 5. Watch mode
-
-Instead of manually rebuilding and pushing each time, use `plunk dev`:
+Running `npm install`, `pnpm install`, `yarn install`, or `bun install` can wipe `node_modules/` overrides. Get them back:
 
 ```bash
-cd my-lib
-plunk dev
+knarr restore
 ```
 
-This auto-detects your build command from `package.json` scripts and enters watch mode. You can also use `plunk push --watch` for more control:
+If you ran `knarr init` or `knarr use`, this can happen automatically via the `postinstall` hook.
 
-```bash
-plunk push --watch --build "pnpm build"
-```
-
-```mermaid
-graph LR
-    A[File change] --> B[Coalesce 500ms]
-    B --> C[Run build cmd]
-    C -->|Success| D[Publish to store]
-    C -->|Failure| E[Log error, keep watching]
-    D --> F[Copy to all consumers]
-    F --> G[Bundler HMR triggers]
-    F -->|Changes during push?| B
-
-    style A fill:#2e7d32,stroke:#66bb6a,color:#e8f5e9
-    style B fill:#e65100,stroke:#ffb74d,color:#fff3e0
-    style C fill:#1565c0,stroke:#64b5f6,color:#e3f2fd
-    style D fill:#6a1b9a,stroke:#ba68c8,color:#f3e5f5
-    style E fill:#c62828,stroke:#ef5350,color:#ffebee
-    style F fill:#e65100,stroke:#ffb74d,color:#fff3e0
-    style G fill:#00838f,stroke:#4dd0e1,color:#e0f2f1
-```
-
-Changes are detected immediately but coalesced — rapid saves within 500ms collapse into a single push. If new changes arrive while a push is running, plunk automatically re-pushes after it finishes. Build failures are logged but the watcher keeps running.
-
-## 6. After `npm install`
-
-Running `pnpm install` wipes `node_modules/` overrides. Get them back:
-
-```bash
-pnpm install       # links wiped
-plunk restore      # all back
-```
-
-If you ran `plunk init`, this happens automatically via the `postinstall` hook.
-
-## 7. Clean up
+## 5. Clean up
 
 When you're done with local development:
 
 ```bash
-plunk remove my-lib
+knarr remove my-lib
 ```
 
-This removes the plunk link and restores the original npm-installed version (if it was backed up).
+This removes the Knarr link and restores the original npm-installed version if one was backed up.
+
+## Migrating from yalc
+
+```bash
+cd my-app
+npx knarr migrate
+npx knarr use ../my-lib
+
+cd ../my-lib
+knarr dev
+```
+
+See [Migrating from yalc](migrating-from-yalc.md) for the full guide.
 
 ## Try it for real
 
-The [examples/](../examples/) folder has a working setup: two library packages, a Node.js consumer, and a React + Vite app with HMR. Good for kicking the tires.
+The [examples/](../examples/) folder has a working setup: two library packages, a Node.js consumer, and a React + Vite app with HMR.
 
 ## Next
 

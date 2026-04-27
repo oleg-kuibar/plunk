@@ -1,12 +1,12 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as os from "os";
-import type { ConsumerState, ConsumersRegistry, PlunkMeta } from "./types";
+import type { ConsumerState, ConsumersRegistry, KnarrMeta } from "./types";
 
 export type StateEvent = "state-changed" | "consumers-changed";
 
 export interface ProjectState {
-  /** Absolute path to the project folder containing .plunk/state.json */
+  /** Absolute path to the project folder containing .knarr/state.json */
   projectPath: string;
   /** Short display name (last 1-2 path segments, relative to workspace root) */
   label: string;
@@ -14,7 +14,7 @@ export interface ProjectState {
   state: ConsumerState;
 }
 
-export class PlunkStateWatcher implements vscode.Disposable {
+export class KnarrStateWatcher implements vscode.Disposable {
   private readonly disposables: vscode.Disposable[] = [];
   private readonly emitter = new vscode.EventEmitter<StateEvent>();
   readonly onDidChange = this.emitter.event;
@@ -29,15 +29,15 @@ export class PlunkStateWatcher implements vscode.Disposable {
     this.setupWatchers();
   }
 
-  private get plunkHome(): string {
-    return process.env.PLUNK_HOME || path.join(os.homedir(), ".plunk");
+  private get knarrHome(): string {
+    return process.env.KNARR_HOME || path.join(os.homedir(), ".knarr");
   }
 
   private setupWatchers(): void {
-    // Watch ALL .plunk/state.json files anywhere in the workspace
+    // Watch ALL .knarr/state.json files anywhere in the workspace
     const statePattern = new vscode.RelativePattern(
       this.workspaceRoot,
-      "**/.plunk/state.json"
+      "**/.knarr/state.json"
     );
     const stateWatcher = vscode.workspace.createFileSystemWatcher(statePattern);
     stateWatcher.onDidChange(() => this.debouncedEmit("state-changed"));
@@ -50,7 +50,7 @@ export class PlunkStateWatcher implements vscode.Disposable {
 
     // Watch global consumers.json
     const consumersPattern = new vscode.RelativePattern(
-      vscode.Uri.file(this.plunkHome),
+      vscode.Uri.file(this.knarrHome),
       "consumers.json"
     );
     const consumersWatcher =
@@ -73,13 +73,13 @@ export class PlunkStateWatcher implements vscode.Disposable {
     }, this.DEBOUNCE_MS);
   }
 
-  /** Discover and read all .plunk/state.json files in the workspace */
+  /** Discover and read all .knarr/state.json files in the workspace */
   async readAllProjects(): Promise<ProjectState[]> {
     if (this.cachedProjects) return this.cachedProjects;
 
     const pattern = new vscode.RelativePattern(
       this.workspaceRoot,
-      "**/.plunk/state.json"
+      "**/.knarr/state.json"
     );
     const files = await vscode.workspace.findFiles(pattern, "**/node_modules/**");
 
@@ -90,7 +90,7 @@ export class PlunkStateWatcher implements vscode.Disposable {
         const state: ConsumerState = JSON.parse(
           Buffer.from(data).toString("utf-8")
         );
-        // .plunk/state.json is inside <project>/.plunk/, so go up two levels
+        // .knarr/state.json is inside <project>/.knarr/, so go up two levels
         const projectPath = path.dirname(path.dirname(uri.fsPath));
         const relative = path.relative(this.workspaceRoot, projectPath);
         const label = relative || path.basename(projectPath);
@@ -109,14 +109,14 @@ export class PlunkStateWatcher implements vscode.Disposable {
   async readStoreMeta(
     packageName: string,
     version: string
-  ): Promise<PlunkMeta | undefined> {
+  ): Promise<KnarrMeta | undefined> {
     try {
       const encoded = packageName.replace(/\//g, "+");
       const metaPath = path.join(
-        this.plunkHome,
+        this.knarrHome,
         "store",
         `${encoded}@${version}`,
-        ".plunk-meta.json"
+        ".knarr-meta.json"
       );
       const uri = vscode.Uri.file(metaPath);
       const data = await vscode.workspace.fs.readFile(uri);
@@ -130,7 +130,7 @@ export class PlunkStateWatcher implements vscode.Disposable {
     if (this.cachedConsumers) return this.cachedConsumers;
     try {
       const uri = vscode.Uri.file(
-        path.join(this.plunkHome, "consumers.json")
+        path.join(this.knarrHome, "consumers.json")
       );
       const data = await vscode.workspace.fs.readFile(uri);
       this.cachedConsumers = JSON.parse(Buffer.from(data).toString("utf-8"));

@@ -39,7 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v5
+      - uses: pnpm/action-setup@v6
 
       - uses: actions/setup-node@v6
         with:
@@ -74,9 +74,9 @@ jobs:
           ssh-key: ${{ secrets.DEPLOY_KEY }}
           fetch-depth: ${{ steps.mode.outputs.mode == 'release' && '0' || '1' }}
 
-      - uses: pnpm/action-setup@v5
+      - uses: pnpm/action-setup@v6
 
-      # No registry-url — trusted publishing uses OIDC, not tokens
+      # No registry-url: trusted publishing uses OIDC, not tokens.
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -109,7 +109,7 @@ jobs:
           fi
           echo "new=$NEW" >> "$GITHUB_OUTPUT"
           echo "tag=v$NEW" >> "$GITHUB_OUTPUT"
-          echo "### Version: $CURRENT → $NEW" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Version: $CURRENT -> $NEW" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Bump package.json
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run == false
@@ -128,7 +128,7 @@ jobs:
       - name: Dry run summary
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run == true
         run: |
-          echo "### Dry run — no publish" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Dry run - no publish" >> "$GITHUB_STEP_SUMMARY"
           echo "Would release **${{ steps.version.outputs.tag }}**" >> "$GITHUB_STEP_SUMMARY"
 
       # --- Canary version stamp ---
@@ -141,7 +141,7 @@ jobs:
           npm version "$CANARY" --no-git-tag-version
           echo "CANARY_VERSION=$CANARY" >> $GITHUB_ENV
 
-      # --- Publish (OIDC trusted publishing — no token needed) ---
+      # --- Publish (OIDC trusted publishing - no token needed) ---
       # Uses npm (not pnpm) because pnpm doesn't support OIDC yet
       # https://github.com/pnpm/pnpm/issues/9812
       - name: Publish canary

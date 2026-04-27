@@ -5,7 +5,7 @@ import { consola } from "../utils/console.js";
 import pc from "picocolors";
 import { listHistory, restoreHistoryEntry, resolveHistoryLimit } from "../core/history.js";
 import { doPush } from "../core/push-engine.js";
-import { loadPlunkConfig } from "../utils/config.js";
+import { loadKnarrConfig } from "../utils/config.js";
 import { suppressHumanOutput, output } from "../utils/output.js";
 import { errorWithSuggestion } from "../utils/errors.js";
 import { isDryRun } from "../utils/logger.js";
@@ -87,7 +87,7 @@ export default defineCommand({
       }
     }
 
-    const config = await loadPlunkConfig(packageDir);
+    const config = await loadKnarrConfig(packageDir);
     const limit = resolveHistoryLimit(config.historyLimit);
     const restored = await restoreHistoryEntry(pkg.name, pkg.version, targetBuildId, limit);
 

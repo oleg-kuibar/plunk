@@ -1,13 +1,13 @@
 # Bundler guide
 
-Since plunk copies real files into `node_modules/`, bundler compatibility is mostly free. The one exception is Vite, which needs a config tweak.
+Since Knarr copies real files into `node_modules/`, bundler compatibility is mostly free. The one exception is Vite, which needs a config tweak.
 
 ## How detection works
 
 ```mermaid
 sequenceDiagram
-    box rgb(21,101,192) plunk
-        participant W as plunk watch
+    box rgb(21,101,192) Knarr
+        participant W as Knarr watch
     end
     box rgb(106,27,154) System
         participant FS as Filesystem
@@ -23,7 +23,7 @@ sequenceDiagram
     B->>B: Send HMR update to browser
 ```
 
-When plunk copies a file into `node_modules/`, it generates a real filesystem write event at that path. Bundlers watching imported files see the mtime change and rebuild.
+When Knarr copies a file into `node_modules/`, it generates a real filesystem write event at that path. Bundlers watching imported files see the mtime change and rebuild.
 
 ## Vite
 
@@ -31,23 +31,23 @@ Vite pre-bundles dependencies with esbuild and caches the result. Changes to fil
 
 ### Vite plugin (auto-configured)
 
-plunk provides a Vite plugin that handles cache invalidation and dev server reloads automatically:
+Knarr provides a Vite plugin that handles cache invalidation and dev server reloads automatically:
 
 ```ts
 // vite.config.ts
 import { defineConfig } from 'vite'
-import plunk from '@olegkuibar/plunk/vite'
+import knarr from 'knarr/vite'
 
 export default defineConfig({
-  plugins: [plunk()],
+  plugins: [knarr()],
 })
 ```
 
-> **Auto-injection:** Both `plunk add` and `plunk init` automatically add the plunk Vite plugin to your config when they detect Vite. `plunk remove` removes it when the last plunk-linked package is unlinked. You typically don't need to add it manually.
+> **Auto-injection:** Both `knarr add` and `knarr init` automatically add the Knarr Vite plugin to your config when they detect Vite. `knarr remove` removes it when the last Knarr-linked package is unlinked. You typically don't need to add it manually.
 
 ### Why a plugin?
 
-Vite pre-bundles dependencies into `.vite/deps/` and caches the result. The plunk Vite plugin watches `.plunk/state.json` for changes and triggers a full reload when plunk pushes new files, ensuring the dev server always picks up the latest version.
+Vite pre-bundles dependencies into `.vite/deps/` and caches the result. The Knarr Vite plugin watches `.knarr/state.json` for changes and triggers a full reload when knarr pushes new files, ensuring the dev server always picks up the latest version.
 
 ### If changes aren't detected
 
@@ -72,30 +72,30 @@ You almost certainly don't need this.
 
 ## Tailwind CSS v4
 
-Tailwind v4's Oxide scanner follows `.gitignore` rules, which means it skips `node_modules/` by default. When plunk pushes updated files into `node_modules/`, Tailwind won't see the new utility classes unless you explicitly register the package path with `@source`.
+Tailwind v4's Oxide scanner follows `.gitignore` rules, which means it skips `node_modules/` by default. When knarr pushes updated files into `node_modules/`, Tailwind won't see the new utility classes unless you explicitly register the package path with `@source`.
 
 ### Required setup
 
-In your main CSS file, add an `@source` directive for each plunk-linked package:
+In your main CSS file, add an `@source` directive for each Knarr-linked package:
 
 ```css
 @import "tailwindcss";
 @source "../node_modules/@my-scope/my-pkg";
 ```
 
-This tells Tailwind's scanner to walk that directory despite it being gitignored. Without it, classes used only in plunk-linked packages will have no CSS rules.
+This tells Tailwind's scanner to walk that directory despite it being gitignored. Without it, classes used only in Knarr-linked packages will have no CSS rules.
 
-> **Auto-injection:** `plunk add` automatically inserts the `@source` directive when it detects a Tailwind v4 CSS file (one containing `@import "tailwindcss"`). `plunk remove` cleans it up per-package. You typically don't need to add it manually.
+> **Auto-injection:** `knarr add` automatically inserts the `@source` directive when it detects a Tailwind v4 CSS file (one containing `@import "tailwindcss"`). `knarr remove` cleans it up per-package. You typically don't need to add it manually.
 
 ### How it works
 
-When plunk pushes and the Vite plugin detects the change, it:
+When knarr pushes and the Vite plugin detects the change, it:
 
 1. Invalidates all CSS modules in Vite's module graph (clears cached transform results)
 2. Clears the Vite disk cache
 3. Sends a full-reload to the browser
 
-On reload, Vite re-runs Tailwind's `transform` hook. The Oxide scanner incrementally re-walks all source directories (including `@source` paths), detects the new file mtimes from plunk's injection, re-reads them, extracts the new utility candidates, and generates fresh CSS.
+On reload, Vite re-runs Tailwind's `transform` hook. The Oxide scanner incrementally re-walks all source directories (including `@source` paths), detects the new file mtimes from Knarr's injection, re-reads them, extracts the new utility candidates, and generates fresh CSS.
 
 ### Tailwind v3
 
@@ -112,34 +112,34 @@ module.exports = {
 
 ## Webpack
 
-Webpack's `watchpack` detects mtime changes on every file it resolves, so basic rebuilds work automatically. For the best experience, use the plunk webpack plugin:
+Webpack's `watchpack` detects mtime changes on every file it resolves, so basic rebuilds work automatically. For the best experience, use the Knarr webpack plugin:
 
 ### Webpack plugin (optional)
 
-plunk provides a webpack plugin that handles cache invalidation and rebuild triggering for webpack 5 and rspack:
+Knarr provides a webpack plugin that handles cache invalidation and rebuild triggering for webpack 5 and rspack:
 
 ```js
 // webpack.config.js
-const { PlunkWebpackPlugin } = require('@olegkuibar/plunk/webpack')
+const { KnarrWebpackPlugin } = require('knarr/webpack')
 
 module.exports = {
-  plugins: [new PlunkWebpackPlugin()],
+  plugins: [new KnarrWebpackPlugin()],
 }
 ```
 
 ```ts
 // rspack.config.ts
-import { PlunkWebpackPlugin } from '@olegkuibar/plunk/webpack'
+import { KnarrWebpackPlugin } from 'knarr/webpack'
 
 export default {
-  plugins: [new PlunkWebpackPlugin()],
+  plugins: [new KnarrWebpackPlugin()],
 }
 ```
 
 The plugin:
 
 - Excludes linked package paths from webpack's `snapshot.managedPaths` so webpack doesn't cache them as "immutable node_modules"
-- Watches `.plunk/state.json` and linked package directories for changes
+- Watches `.knarr/state.json` and linked package directories for changes
 - Calls `compiler.watching.invalidate()` on change (200ms debounce)
 - Adds linked package directories as `contextDependencies` so webpack tracks them
 - Falls back to polling in WebContainer environments (StackBlitz, etc.)
@@ -158,7 +158,7 @@ esbuild src/index.ts --bundle --watch
 
 ## Turbopack
 
-No config needed. Turbopack restricts file watching to the project root, which is why `npm link` (symlinks pointing outside) breaks. Since plunk copies files _inside_ `node_modules/`, Turbopack sees them.
+No config needed. Turbopack restricts file watching to the project root, which is why `npm link` (symlinks pointing outside) breaks. Since Knarr copies files _inside_ `node_modules/`, Turbopack sees them.
 
 ## Rollup
 
@@ -172,7 +172,7 @@ rollup -c --watch
 
 ```mermaid
 graph LR
-    P[plunk push] --> FS[fs.copyFile]
+    P[knarr push] --> FS[fs.copyFile]
     FS --> E1[mtime changes at<br/>node_modules/ path]
     E1 --> V[Vite*]
     E1 --> W[Webpack**]
@@ -190,13 +190,13 @@ graph LR
     style R fill:#2e7d32,stroke:#66bb6a,color:#e8f5e9
 ```
 
-*Vite requires the plunk plugin (auto-injected by `plunk add`/`plunk init`). Webpack has an optional plugin for reliable cache invalidation. Everything else works without changes.*
+*Vite requires the Knarr plugin (auto-injected by `knarr add`/`knarr init`). Webpack has an optional plugin for reliable cache invalidation. Everything else works without changes.*
 
 | Bundler | Config needed | Why it works |
 |---|---|---|
-| Vite | plunk plugin (auto-injected) | Plugin triggers reload on push |
-| Webpack | plunk plugin (optional) | Plugin handles cache invalidation; without it, watchpack detects mtime changes |
-| rspack | plunk plugin (optional) | Same plugin works with rspack |
+| Vite | Knarr plugin (auto-injected) | Plugin triggers reload on push |
+| Webpack | Knarr plugin (optional) | Plugin handles cache invalidation; without it, watchpack detects mtime changes |
+| rspack | Knarr plugin (optional) | Same plugin works with rspack |
 | esbuild | None | Poll-based watch sees mtime changes |
 | Turbopack | None | Files are inside project root |
 | Rollup | None | Watch mode tracks resolved files |

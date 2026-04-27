@@ -7,8 +7,8 @@ import { inject } from "./injector.js";
 import { addLink, getConsumers, getLink } from "./tracker.js";
 import { detectBuildCommand } from "../utils/build-detect.js";
 import { detectPackageManager } from "../utils/pm-detect.js";
-import { loadPlunkConfig } from "../utils/config.js";
-import type { PlunkConfig } from "../utils/config.js";
+import { loadKnarrConfig } from "../utils/config.js";
+import type { KnarrConfig } from "../utils/config.js";
 import { Timer } from "../utils/timer.js";
 import { output } from "../utils/output.js";
 import { errorWithSuggestion } from "../utils/errors.js";
@@ -63,7 +63,7 @@ export async function doPush(
       `Published ${result.name}@${result.version} to store`
     );
     consola.info(
-      "No consumers registered yet. Run 'plunk add " + result.name + "' in a consumer project to start receiving pushes."
+      "No consumers registered yet. Run 'knarr add " + result.name + "' in a consumer project to start receiving pushes."
     );
     output({
       name: result.name,
@@ -104,7 +104,7 @@ export async function doPush(
 
           // Always update state.json so the Vite plugin detects the push
           // and triggers a full reload. Even if no files were copied (all
-          // skipped as unchanged), the user expects a refresh after `plunk push`.
+          // skipped as unchanged), the user expects a refresh after `knarr push`.
           await addLink(consumerPath, result.name, {
             ...link,
             contentHash: entry.meta.contentHash,
@@ -175,7 +175,7 @@ function parseMs(value: string | undefined): number | undefined {
 /**
  * Start watch mode: resolve config, start watcher, wait for signal.
  * Shared by both `push --watch` and `dev` commands.
- * Merge priority: CLI args > package.json#plunk > auto-detection.
+ * Merge priority: CLI args > package.json#knarr > auto-detection.
  */
 export async function startWatchMode(
   packageDir: string,
@@ -183,7 +183,7 @@ export async function startWatchMode(
   push: () => Promise<void>
 ): Promise<void> {
   const { startWatcher } = await import("./watcher.js");
-  const config = await loadPlunkConfig(packageDir);
+  const config = await loadKnarrConfig(packageDir);
   const { buildCmd, patterns } = await resolveWatchConfig(packageDir, args, config);
 
   const notify = args.notify ?? config.notify ?? false;
@@ -212,12 +212,12 @@ export async function startWatchMode(
 
 /**
  * Resolve build command and watch patterns from CLI args, config, and auto-detection.
- * Merge priority: CLI args > package.json#plunk > auto-detection.
+ * Merge priority: CLI args > package.json#knarr > auto-detection.
  */
 export async function resolveWatchConfig(
   packageDir: string,
   args: { build?: string; "skip-build"?: boolean },
-  config?: PlunkConfig
+  config?: KnarrConfig
 ): Promise<WatchConfig> {
   let buildCmd: string | undefined = args.build;
   let patterns: string[] | undefined = config?.watchPatterns;
@@ -227,7 +227,7 @@ export async function resolveWatchConfig(
   } else if (args["skip-build"]) {
     // Explicitly no build
   } else if (config?.buildCmd) {
-    // From package.json#plunk
+    // From package.json#knarr
     buildCmd = config.buildCmd;
     consola.info(`Using build command from config: ${buildCmd}`);
   } else {

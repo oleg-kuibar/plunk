@@ -58,7 +58,7 @@ function AboutPopover() {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="btn btn-ghost p-1.5"
-        aria-label="About plunk"
+        aria-label="About KNARR"
         aria-expanded={isOpen}
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
@@ -79,8 +79,8 @@ function AboutPopover() {
           >
             <div className="p-4 border-b border-border">
               <div className="flex items-center gap-2 mb-2">
-                <img src="/plunk_logo.png" alt="" className="w-6 h-6 rounded-full object-cover" />
-                <span className="font-semibold text-text text-sm">plunk</span>
+                <img src="/KNARR_logo.png" alt="" className="w-6 h-6 rounded-full object-cover" />
+                <span className="font-semibold text-text text-sm">KNARR</span>
               </div>
               <p className="text-xs text-text-muted leading-relaxed">
                 Local npm package development without symlinks. Copies built files into consumer <code className="text-accent">node_modules/</code> with incremental sync and watch mode.
@@ -90,7 +90,7 @@ function AboutPopover() {
             <div className="p-4 space-y-2">
               <p className="text-[10px] text-text-subtle uppercase tracking-wider font-semibold mb-2">Key concepts</p>
               {[
-                { name: 'Store', desc: 'Mutable package cache at ~/.plunk/store/' },
+                { name: 'Store', desc: 'Mutable package cache at ~/.KNARR/store/' },
                 { name: 'Publish', desc: 'Copy built files to the store' },
                 { name: 'Inject', desc: 'Copy from store to node_modules/' },
                 { name: 'Push', desc: 'Publish + inject to all consumers' },
@@ -104,7 +104,7 @@ function AboutPopover() {
 
             <div className="px-4 py-3 border-t border-border flex gap-3">
               <a
-                href="https://github.com/oleg-kuibar/plunk#readme"
+                href="https://github.com/oleg-kuibar/KNARR#readme"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs text-secondary hover:underline"
@@ -112,7 +112,7 @@ function AboutPopover() {
                 Docs
               </a>
               <a
-                href="https://github.com/oleg-kuibar/plunk"
+                href="https://github.com/oleg-kuibar/KNARR"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs text-secondary hover:underline"
@@ -120,7 +120,7 @@ function AboutPopover() {
                 GitHub
               </a>
               <a
-                href="https://www.npmjs.com/package/@olegkuibar/plunk"
+                href="https://www.npmjs.com/package/knarr"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs text-secondary hover:underline"
@@ -160,18 +160,18 @@ export function Header({
       </button>
 
       <a
-        href="https://github.com/oleg-kuibar/plunk"
+        href="https://github.com/oleg-kuibar/KNARR"
         target="_blank"
         rel="noopener noreferrer"
         className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-        aria-label="Plunk - View on GitHub"
+        aria-label="KNARR - View on GitHub"
       >
         <img
-          src="/plunk_logo.png"
+          src="/KNARR_logo.png"
           alt=""
           className="w-6 h-6 rounded-full object-cover"
         />
-        <span className="font-semibold text-sm text-text">Plunk Playground</span>
+        <span className="font-semibold text-sm text-text">KNARR Playground</span>
       </a>
 
       {/* Connection dot */}

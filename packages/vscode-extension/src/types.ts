@@ -1,4 +1,4 @@
-/** Consumer project state file (.plunk/state.json) */
+/** Consumer project state file (.knarr/state.json) */
 export interface ConsumerState {
   version: "1";
   packageManager?: PackageManager;
@@ -17,13 +17,13 @@ export interface LinkEntry {
   buildId?: string;
 }
 
-/** Global consumers registry (~/.plunk/consumers.json) */
+/** Global consumers registry (~/.knarr/consumers.json) */
 export interface ConsumersRegistry {
   [packageName: string]: string[];
 }
 
-/** Store metadata (.plunk-meta.json) */
-export interface PlunkMeta {
+/** Store metadata (.knarr-meta.json) */
+export interface KnarrMeta {
   schemaVersion?: number;
   contentHash: string;
   publishedAt: string;

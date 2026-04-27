@@ -1,12 +1,12 @@
-# Plunk Playground
+# Knarr Playground
 
-Interactive browser-based playground for demonstrating plunk's package development workflow.
+Interactive browser-based playground for demonstrating Knarr's package development workflow.
 
 ## Features
 
 - **WebContainers**: Full Node.js environment running in the browser
 - **Monaco Editor**: VS Code-like editing experience
-- **xterm.js Terminal**: Real shell with plunk CLI
+- **xterm.js Terminal**: Real shell with Knarr CLI
 - **Live Preview**: See your changes with HMR
 
 ## Development
@@ -43,6 +43,6 @@ vercel deploy
 
 1. **Boot**: WebContainer boots a lightweight Node.js environment (~3s)
 2. **Mount**: Template files are mounted to the virtual filesystem
-3. **Install**: plunk CLI is installed globally from npm
+3. **Install**: Knarr CLI is installed globally from npm
 4. **Shell**: jsh shell is spawned for terminal interaction
 5. **Preview**: Vite dev server URL is captured and displayed in iframe

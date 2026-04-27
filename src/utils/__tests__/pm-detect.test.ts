@@ -8,7 +8,7 @@ describe("detectPackageManager", () => {
   let tempDir: string;
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), "plunk-test-"));
+    tempDir = await mkdtemp(join(tmpdir(), "KNARR-test-"));
   });
 
   afterEach(async () => {
@@ -65,7 +65,7 @@ describe("detectYarnNodeLinker", () => {
   let tempDir: string;
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), "plunk-test-"));
+    tempDir = await mkdtemp(join(tmpdir(), "KNARR-test-"));
   });
 
   afterEach(async () => {
@@ -126,7 +126,7 @@ describe("hasYarnrcYml", () => {
   let tempDir: string;
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), "plunk-test-"));
+    tempDir = await mkdtemp(join(tmpdir(), "KNARR-test-"));
   });
 
   afterEach(async () => {

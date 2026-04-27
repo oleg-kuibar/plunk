@@ -2,7 +2,7 @@ import { join, normalize } from "node:path";
 import { readFileSync } from "node:fs";
 import type { Plugin, UserConfig } from "vite";
 
-interface PlunkState {
+interface KnarrState {
   links?: Record<string, unknown>;
 }
 
@@ -10,20 +10,20 @@ interface PlunkState {
 function readLinkedPackagesSync(stateFile: string): string[] {
   try {
     const content = readFileSync(stateFile, "utf-8");
-    const state = JSON.parse(content) as PlunkState;
+    const state = JSON.parse(content) as KnarrState;
     return Object.keys(state.links ?? {});
   } catch {
     return [];
   }
 }
 
-export default function plunkPlugin(): Plugin {
-  let plunkStateFile: string;
+export default function knarrPlugin(): Plugin {
+  let knarrStateFile: string;
   let nodeModulesDir: string;
   let pollTimer: ReturnType<typeof setInterval> | undefined;
 
   return {
-    name: "vite-plugin-plunk",
+    name: "vite-plugin-knarr",
     apply: "serve",
 
     // Exclude linked packages from pre-bundling so Vite serves them
@@ -32,7 +32,7 @@ export default function plunkPlugin(): Plugin {
       if (command !== "serve") return;
 
       const root = config.root ?? process.cwd();
-      const stateFile = join(root, ".plunk", "state.json");
+      const stateFile = join(root, ".knarr", "state.json");
       const linkedPackages = readLinkedPackagesSync(stateFile);
 
       const result: UserConfig = {};
@@ -45,7 +45,7 @@ export default function plunkPlugin(): Plugin {
           ...linkedPackages.filter((pkg) => !existingExclude.includes(pkg)),
         ];
 
-        console.log(`[plunk] Excluding from pre-bundling: ${newExclude.join(", ")}`);
+        console.log(`[knarr] Excluding from pre-bundling: ${newExclude.join(", ")}`);
         result.optimizeDeps = { exclude: newExclude };
       }
 
@@ -56,7 +56,7 @@ export default function plunkPlugin(): Plugin {
         result.server = {
           watch: { usePolling: true, interval: 1000 },
         };
-        console.log("[plunk] WebContainer detected, enabling filesystem polling");
+        console.log("[knarr] WebContainer detected, enabling filesystem polling");
       }
 
       if (Object.keys(result).length === 0) return;
@@ -66,12 +66,12 @@ export default function plunkPlugin(): Plugin {
 
     configResolved(config) {
       nodeModulesDir = join(config.root, "node_modules");
-      plunkStateFile = normalize(join(config.root, ".plunk", "state.json"));
-      console.log(`[plunk] Watching state file: ${plunkStateFile}`);
+      knarrStateFile = normalize(join(config.root, ".knarr", "state.json"));
+      console.log(`[knarr] Watching state file: ${knarrStateFile}`);
     },
 
     configureServer(server) {
-      // Mutable set of watched packages — updated whenever state.json changes
+      // Mutable set of watched packages - updated whenever state.json changes
       const watchedPackages = new Set<string>();
       let isRestarting = false;
       let pendingRestart = false;
@@ -81,7 +81,7 @@ export default function plunkPlugin(): Plugin {
       /** Re-read state.json and add watchers for any new linked packages */
       function syncPackageWatchers() {
         let added = false;
-        for (const pkg of readLinkedPackagesSync(plunkStateFile)) {
+        for (const pkg of readLinkedPackagesSync(knarrStateFile)) {
           if (!watchedPackages.has(pkg)) {
             watchedPackages.add(pkg);
             added = true;
@@ -108,7 +108,7 @@ export default function plunkPlugin(): Plugin {
           // Force chokidar to recompute its ignored filter.
           // Chokidar lazily caches the result of its `_userIgnored` function;
           // clearing it forces re-evaluation with the updated `ignored` list.
-          // Workaround for vitejs/vite#8619. Fragile — breaks if chokidar
+          // Workaround for vitejs/vite#8619. Fragile - breaks if chokidar
           // renames this internal field.
           (server.watcher as any)._userIgnored = undefined;
 
@@ -116,7 +116,7 @@ export default function plunkPlugin(): Plugin {
           for (const pkg of watchedPackages) {
             const pkgPath = join(nodeModulesDir, pkg);
             server.watcher.add(pkgPath);
-            console.log(`[plunk] Added watcher for package: ${pkgPath}`);
+          console.log(`[knarr] Added watcher for package: ${pkgPath}`);
           }
         }
       }
@@ -125,14 +125,14 @@ export default function plunkPlugin(): Plugin {
       async function restartServer(source: string) {
         if (isRestarting) {
           pendingRestart = true;
-          console.log(`[plunk] Restart already in progress, queued: ${source}`);
+          console.log(`[knarr] Restart already in progress, queued: ${source}`);
           return;
         }
         isRestarting = true;
 
         syncPackageWatchers();
 
-        console.log(`[plunk] ${source}, restarting server...`);
+        console.log(`[knarr] ${source}, restarting server...`);
 
         try {
           await server.restart();
@@ -159,7 +159,7 @@ export default function plunkPlugin(): Plugin {
         if (reloadTimer) clearTimeout(reloadTimer);
         reloadTimer = setTimeout(() => {
           reloadTimer = null;
-          console.log("[plunk] Linked package updated, reloading");
+          console.log("[knarr] Linked package updated, reloading");
           server.hot.send({ type: "full-reload", path: "*" });
         }, 200);
       }
@@ -187,8 +187,8 @@ export default function plunkPlugin(): Plugin {
         scheduleReload();
       }
 
-      server.watcher.add(plunkStateFile);
-      console.log(`[plunk] Added watcher for: ${plunkStateFile}`);
+      server.watcher.add(knarrStateFile);
+      console.log(`[knarr] Added watcher for: ${knarrStateFile}`);
 
       // Initial sync
       syncPackageWatchers();
@@ -201,8 +201,8 @@ export default function plunkPlugin(): Plugin {
       server.watcher.on("change", async (changedPath: string) => {
         const normalizedChanged = normalize(changedPath);
 
-        if (normalizedChanged === plunkStateFile) {
-          const currentPackages = readLinkedPackagesSync(plunkStateFile);
+        if (normalizedChanged === knarrStateFile) {
+          const currentPackages = readLinkedPackagesSync(knarrStateFile);
           const hasNew = currentPackages.some((pkg) => !watchedPackages.has(pkg));
           if (hasNew) {
             scheduleRestart("New package linked");
@@ -220,7 +220,7 @@ export default function plunkPlugin(): Plugin {
         }
       });
 
-      // `plunk push` may copy new files that trigger chokidar `add` (not
+      // `knarr push` may copy new files that trigger chokidar `add` (not
       // `change`) events. Handle them with the same invalidate+reload logic.
       server.watcher.on("add", (addedPath: string) => {
         const normalizedAdded = normalize(addedPath);
@@ -238,17 +238,17 @@ export default function plunkPlugin(): Plugin {
 
         let lastStateContent = "";
         try {
-          lastStateContent = readFileSync(plunkStateFile, "utf-8");
+          lastStateContent = readFileSync(knarrStateFile, "utf-8");
         } catch {
           // state.json doesn't exist yet
         }
 
         pollTimer = setInterval(async () => {
           try {
-            const content = readFileSync(plunkStateFile, "utf-8");
+              const content = readFileSync(knarrStateFile, "utf-8");
             if (lastStateContent && content !== lastStateContent) {
               lastStateContent = content;
-              const currentPackages = readLinkedPackagesSync(plunkStateFile);
+              const currentPackages = readLinkedPackagesSync(knarrStateFile);
               const hasNew = currentPackages.some(
                 (pkg) => !watchedPackages.has(pkg)
               );
@@ -264,7 +264,7 @@ export default function plunkPlugin(): Plugin {
           }
         }, 1000);
 
-        console.log("[plunk] WebContainer polling fallback active (1s interval)");
+        console.log("[knarr] WebContainer polling fallback active (1s interval)");
       }
 
       server.httpServer?.on('close', () => {

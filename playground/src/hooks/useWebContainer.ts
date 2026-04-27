@@ -28,17 +28,17 @@ export interface UseWebContainerResult {
   readdir: (path: string) => Promise<string[]>;
 }
 
-const NPM_REGISTRY_URL = 'https://registry.npmjs.org/@olegkuibar/plunk';
+const NPM_REGISTRY_URL = 'https://registry.npmjs.org/knarr';
 
-/** Fetch the latest stable version of plunk from npm registry */
-async function fetchLatestPlunkVersion(): Promise<string> {
+/** Fetch the latest stable version of KNARR from npm registry */
+async function fetchLatestKNARRVersion(): Promise<string> {
   try {
     const res = await fetch(NPM_REGISTRY_URL);
     if (!res.ok) throw new Error(`npm registry returned ${res.status}`);
     const data = await res.json();
     return data['dist-tags']?.latest ?? 'latest';
   } catch (err) {
-    console.warn('[plunk playground] Failed to fetch latest version, using "latest":', err);
+    console.warn('[KNARR playground] Failed to fetch latest version, using "latest":', err);
     return 'latest';
   }
 }
@@ -48,7 +48,7 @@ let bootPromise: Promise<WebContainer> | null = null;
 
 // The workdir is always based on PLAYGROUND_NAME which is now stable via sessionStorage
 function getWorkdir(): string {
-  return `/home/plunk-${PLAYGROUND_NAME}`;
+  return `/home/KNARR-${PLAYGROUND_NAME}`;
 }
 
 export function useWebContainer(): UseWebContainerResult {
@@ -76,7 +76,7 @@ export function useWebContainer(): UseWebContainerResult {
         // Use singleton pattern for WebContainer
         if (!bootPromise) {
           bootPromise = WebContainer.boot({
-            workdirName: `plunk-${PLAYGROUND_NAME}`,
+            workdirName: `KNARR-${PLAYGROUND_NAME}`,
           });
         }
 
@@ -88,12 +88,12 @@ export function useWebContainer(): UseWebContainerResult {
         setStatus('mounting');
 
         // Fetch latest canary version from npm and build the template
-        const plunkVersion = await fetchLatestPlunkVersion();
-        console.log(`[plunk playground] Using plunk version: ${plunkVersion}`);
-        const template = createBasicTemplate(plunkVersion);
+        const KNARRVersion = await fetchLatestKNARRVersion();
+        console.log(`[KNARR playground] Using KNARR version: ${KNARRVersion}`);
+        const template = createBasicTemplate(KNARRVersion);
 
         // Mount the template files at the workdir (default mount location)
-        // The workdir is /home/plunk-<name>/ based on workdirName
+        // The workdir is /home/KNARR-<name>/ based on workdirName
         await container.mount(template as FileSystemTree);
 
         if (cancelled) return;
@@ -105,8 +105,8 @@ export function useWebContainer(): UseWebContainerResult {
 
         setStatus('installing');
 
-        // Install root devDependencies (includes @olegkuibar/plunk)
-        // This makes plunk available via npx without download prompts
+        // Install root devDependencies (includes knarr)
+        // This makes KNARR available via npx without download prompts
         // Don't specify cwd - it defaults to the workdir set by workdirName
         const installProcess = await container.spawn('npm', ['install']);
 
@@ -120,7 +120,7 @@ export function useWebContainer(): UseWebContainerResult {
         }
 
         // Install dependencies for packages (needed for tsc/build commands)
-        // This enables `plunk push --watch` to auto-detect and run build commands
+        // This enables `knarr push --watch` to auto-detect and run build commands
         const packageDirs = ['packages/api-client', 'packages/ui-kit', 'consumer-app'];
         for (const dir of packageDirs) {
           // Use shell to cd and install - more reliable than --prefix
@@ -134,8 +134,8 @@ export function useWebContainer(): UseWebContainerResult {
 
         // Pre-populate @example packages into consumer-app/node_modules so
         // Vite can resolve static imports immediately — before the tutorial
-        // runs `plunk publish` / `plunk add`. The tutorial later overwrites
-        // these with proper plunk-tracked versions.
+        // runs `knarr publish` / `knarr add`. The tutorial later overwrites
+        // these with proper KNARR-tracked versions.
         const seed = await container.spawn('sh', ['-c',
           'mkdir -p consumer-app/node_modules/@example/api-client && ' +
           'cp packages/api-client/package.json consumer-app/node_modules/@example/api-client/ && ' +
@@ -147,18 +147,18 @@ export function useWebContainer(): UseWebContainerResult {
         await seed.exit;
         if (cancelled) return;
 
-        // Overwrite npm-installed plunk with the locally-built dist so the
+        // Overwrite npm-installed KNARR with the locally-built dist so the
         // playground always runs the latest code (including unreleased fixes).
-        const { default: localPlunkTree } = await import('virtual:local-plunk');
-        if (localPlunkTree) {
+        const { default: localKNARRTree } = await import('virtual:local-KNARR');
+        if (localKNARRTree) {
           await container.mount({
             node_modules: { directory: {
               '@olegkuibar': { directory: {
-                plunk: { directory: localPlunkTree },
+                knarr: { directory: localKNARRTree },
               } },
             } },
           } as FileSystemTree);
-          console.log('[plunk playground] Mounted local plunk build');
+          console.log('[KNARR playground] Mounted local KNARR build');
         }
 
         setStatus('ready');
@@ -199,7 +199,7 @@ export function useWebContainer(): UseWebContainerResult {
           },
           env: {
             HOME: workdir,
-            PS1: `\x1b[1;33mplunk-${PLAYGROUND_NAME}\x1b[0m \x1b[1;32m❯\x1b[0m `,
+            PS1: `\x1b[1;33mKNARR-${PLAYGROUND_NAME}\x1b[0m \x1b[1;32m❯\x1b[0m `,
             // Include common npm global bin paths for WebContainer
             PATH: '/usr/local/bin:/usr/bin:/bin:/home/.npm-global/bin:/root/.npm-global/bin:/usr/local/lib/node_modules/.bin',
           },

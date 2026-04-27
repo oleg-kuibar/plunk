@@ -15,7 +15,7 @@ import { printDryRunReport } from "../utils/dry-run.js";
 export default defineCommand({
   meta: {
     name: "remove",
-    description: "Remove a plunk-linked package and restore the original",
+    description: "Remove a Knarr-linked package and restore the original",
   },
   args: {
     package: {
@@ -82,7 +82,7 @@ export default defineCommand({
         }
       }
 
-      consola.success(`Removed ${removed} plunk link(s)${failed > 0 ? `, ${failed} failed` : ""} in ${timer.elapsed()}`);
+      consola.success(`Removed ${removed} Knarr link(s)${failed > 0 ? `, ${failed} failed` : ""} in ${timer.elapsed()}`);
       output({ removed, failed, elapsed: timer.elapsedMs() });
       return;
     }
@@ -107,7 +107,7 @@ export default defineCommand({
 
     await removeSinglePackage(consumerPath, packageName, link);
 
-    consola.success(`Removed plunk link for ${packageName} in ${timer.elapsed()}`);
+    consola.success(`Removed Knarr link for ${packageName} in ${timer.elapsed()}`);
     output({ removed: 1, package: packageName, elapsed: timer.elapsedMs() });
 
     if (isDryRun()) printDryRunReport();
@@ -173,7 +173,7 @@ export async function removeSinglePackage(
       const { removeFromViteConfig } = await import("../utils/vite-config.js");
       const result = await removeFromViteConfig(bundler.configFile);
       if (result.modified) {
-        verbose(`[remove] Removed plunk plugin from ${basename(bundler.configFile)}`);
+        verbose(`[remove] Removed Knarr plugin from ${basename(bundler.configFile)}`);
       }
     }
   }

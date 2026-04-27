@@ -27,14 +27,14 @@ const SCRIPT_GROUPS: ScriptGroup[] = [
     scripts: [
       { id: 'push-api', name: 'push:api', command: 'npm run push:api' },
       { id: 'push-ui', name: 'push:ui', command: 'npm run push:ui' },
-      { id: 'watch-api', name: 'watch api-client', command: 'cd packages/api-client && npx -y @olegkuibar/plunk push --watch --build "npm run build"' },
-      { id: 'watch-ui', name: 'watch ui-kit', command: 'cd packages/ui-kit && npx -y @olegkuibar/plunk push --watch --build "npm run build"' },
+      { id: 'watch-api', name: 'watch api-client', command: 'cd packages/api-client && npx -y knarr push --watch --build "npm run build"' },
+      { id: 'watch-ui', name: 'watch ui-kit', command: 'cd packages/ui-kit && npx -y knarr push --watch --build "npm run build"' },
     ],
   },
   {
-    label: 'Plunk',
+    label: 'KNARR',
     scripts: [
-      { id: 'plunk-list', name: 'list', command: 'npx -y @olegkuibar/plunk list' },
+      { id: 'KNARR-list', name: 'list', command: 'npx -y knarr list' },
     ],
   },
 ];

@@ -3,13 +3,14 @@ import { join } from "node:path";
 import { consola } from "./console.js";
 import type {
   ConsumerState,
-  PlunkMeta,
+  KnarrMeta,
+  KNARRMeta,
   ConsumersRegistry,
   LinkEntry,
 } from "../types.js";
 
-/** Check if a value is a valid PlunkMeta */
-export function isPlunkMeta(value: unknown): value is PlunkMeta {
+/** Check if a value is valid Knarr metadata. */
+export function isKnarrMeta(value: unknown): value is KnarrMeta {
   if (typeof value !== "object" || value === null) return false;
   const v = value as Record<string, unknown>;
   return (
@@ -20,6 +21,9 @@ export function isPlunkMeta(value: unknown): value is PlunkMeta {
     (v.schemaVersion === undefined || typeof v.schemaVersion === "number")
   );
 }
+
+/** @deprecated Use isKnarrMeta. */
+export const isKNARRMeta = isKnarrMeta as (value: unknown) => value is KNARRMeta;
 
 /** Check if a value is a valid LinkEntry */
 export function isLinkEntry(value: unknown): value is LinkEntry {

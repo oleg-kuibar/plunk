@@ -1,7 +1,7 @@
 /**
  * End-to-end tests using the real example packages as fixtures.
  *
- * These tests exercise every core plunk workflow against real built packages
+ * These tests exercise every core KNARR workflow against real built packages
  * (examples/packages/api-client and examples/packages/ui-kit), providing
  * thorough coverage of publish, inject, push, backup/restore, incremental
  * copy, multi-consumer, scoped packages, and error handling.
@@ -28,7 +28,7 @@ const EXAMPLES_ROOT = resolve(__dirname, "../../examples");
 const API_CLIENT_DIR = join(EXAMPLES_ROOT, "packages/api-client");
 const UI_KIT_DIR = join(EXAMPLES_ROOT, "packages/ui-kit");
 
-let plunkHome: string;
+let KNARRHome: string;
 let consumer1: string;
 let consumer2: string;
 
@@ -46,10 +46,10 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  plunkHome = await mkdtemp(join(tmpdir(), "plunk-e2e-home-"));
-  consumer1 = await mkdtemp(join(tmpdir(), "plunk-e2e-c1-"));
-  consumer2 = await mkdtemp(join(tmpdir(), "plunk-e2e-c2-"));
-  process.env.PLUNK_HOME = plunkHome;
+  KNARRHome = await mkdtemp(join(tmpdir(), "KNARR-e2e-home-"));
+  consumer1 = await mkdtemp(join(tmpdir(), "KNARR-e2e-c1-"));
+  consumer2 = await mkdtemp(join(tmpdir(), "KNARR-e2e-c2-"));
+  process.env.KNARR_HOME = KNARRHome;
 
   // Set up both consumers with node_modules and a lockfile
   for (const dir of [consumer1, consumer2]) {
@@ -63,8 +63,8 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-  delete process.env.PLUNK_HOME;
-  await rm(plunkHome, { recursive: true, force: true });
+  delete process.env.KNARR_HOME;
+  await rm(KNARRHome, { recursive: true, force: true });
   await rm(consumer1, { recursive: true, force: true });
   await rm(consumer2, { recursive: true, force: true });
 });
@@ -85,11 +85,11 @@ describe("publish with real example packages", () => {
     expect(result.buildId).toMatch(/^[a-f0-9]{8}$/);
 
     // Verify scoped package encoding in store path
-    const storeDir = join(plunkHome, "store", "@example+api-client@1.0.0");
+    const storeDir = join(KNARRHome, "store", "@example+api-client@1.0.0");
     expect(await exists(storeDir)).toBe(true);
     expect(await exists(join(storeDir, "package", "package.json"))).toBe(true);
     expect(await exists(join(storeDir, "package", "dist", "index.js"))).toBe(true);
-    expect(await exists(join(storeDir, ".plunk-meta.json"))).toBe(true);
+    expect(await exists(join(storeDir, ".knarr-meta.json"))).toBe(true);
   });
 
   it("publishes @example/ui-kit to the store", async () => {
@@ -114,10 +114,10 @@ describe("publish with real example packages", () => {
     const result = await publish(API_CLIENT_DIR);
 
     const metaPath = join(
-      plunkHome,
+      KNARRHome,
       "store",
       "@example+api-client@1.0.0",
-      ".plunk-meta.json"
+      ".knarr-meta.json"
     );
     const meta = JSON.parse(await readFile(metaPath, "utf-8"));
     expect(meta.contentHash).toMatch(/^sha256(v2)?:/);
@@ -132,7 +132,7 @@ describe("publish with real example packages", () => {
     await publish(API_CLIENT_DIR);
 
     const storePackageDir = join(
-      plunkHome,
+      KNARRHome,
       "store",
       "@example+api-client@1.0.0",
       "package"
@@ -356,16 +356,16 @@ describe("backup, restore, and remove flow", () => {
     expect(backed).toBe(true);
 
     // Verify backup exists
-    const backupDir = join(consumer1, ".plunk", "backups", "@example+api-client");
+    const backupDir = join(consumer1, ".knarr", "backups", "@example+api-client");
     expect(await exists(backupDir)).toBe(true);
     expect(await exists(join(backupDir, "original.js"))).toBe(true);
 
-    // Now inject plunk version
+    // Now inject Knarr version
     await publish(API_CLIENT_DIR);
     const entry = await getStoreEntry("@example/api-client", "1.0.0");
     await inject(entry!, consumer1, "npm");
 
-    // Verify plunk version replaced original
+    // Verify Knarr version replaced original
     const pkg = JSON.parse(await readFile(join(nmDir, "package.json"), "utf-8"));
     expect(pkg.version).toBe("1.0.0");
     expect(await exists(join(nmDir, "original.js"))).toBe(false); // removed by incremental copy
@@ -383,7 +383,7 @@ describe("backup, restore, and remove flow", () => {
     await backupExisting(consumer1, "@example/api-client", "npm");
 
     // Overwrite with something else
-    await writeFile(join(nmDir, "index.js"), "// plunk version");
+    await writeFile(join(nmDir, "index.js"), "// Knarr version");
 
     // Restore
     const restored = await restoreBackup(consumer1, "@example/api-client", "npm");
@@ -393,7 +393,7 @@ describe("backup, restore, and remove flow", () => {
     expect(content).toBe("// npm-installed v0.9.0");
 
     // Backup should be cleaned up after restore
-    const backupDir = join(consumer1, ".plunk", "backups", "@example+api-client");
+    const backupDir = join(consumer1, ".knarr", "backups", "@example+api-client");
     expect(await exists(backupDir)).toBe(false);
   });
 
@@ -486,8 +486,8 @@ describe("tracker state management", () => {
     const { readConsumerState } = await import("../core/tracker.js");
 
     // Write invalid JSON
-    await mkdir(join(consumer1, ".plunk"), { recursive: true });
-    await writeFile(join(consumer1, ".plunk", "state.json"), "NOT JSON {{{");
+    await mkdir(join(consumer1, ".knarr"), { recursive: true });
+    await writeFile(join(consumer1, ".knarr", "state.json"), "NOT JSON {{{");
 
     const state = await readConsumerState(consumer1);
     expect(state.version).toBe("1");
@@ -535,7 +535,7 @@ describe("transitive dependency checking", () => {
     const { getStoreEntry } = await import("../core/store.js");
 
     // Create a temp lib with deps
-    const tempLib = await mkdtemp(join(tmpdir(), "plunk-lib-"));
+    const tempLib = await mkdtemp(join(tmpdir(), "KNARR-lib-"));
     await mkdir(join(tempLib, "dist"), { recursive: true });
     await writeFile(join(tempLib, "dist", "index.js"), "");
     await writeFile(
@@ -563,7 +563,7 @@ describe("transitive dependency checking", () => {
     const { publish } = await import("../core/publisher.js");
     const { getStoreEntry } = await import("../core/store.js");
 
-    const tempLib = await mkdtemp(join(tmpdir(), "plunk-lib-"));
+    const tempLib = await mkdtemp(join(tmpdir(), "KNARR-lib-"));
     await mkdir(join(tempLib, "dist"), { recursive: true });
     await writeFile(join(tempLib, "dist", "index.js"), "");
     await writeFile(
@@ -596,14 +596,14 @@ describe("transitive dependency checking", () => {
 describe("publish error handling", () => {
   it("throws when package.json is missing", async () => {
     const { publish } = await import("../core/publisher.js");
-    const emptyDir = await mkdtemp(join(tmpdir(), "plunk-empty-"));
+    const emptyDir = await mkdtemp(join(tmpdir(), "KNARR-empty-"));
     await expect(publish(emptyDir)).rejects.toThrow("No package.json");
     await rm(emptyDir, { recursive: true, force: true });
   });
 
   it("throws when name field is missing", async () => {
     const { publish } = await import("../core/publisher.js");
-    const dir = await mkdtemp(join(tmpdir(), "plunk-noname-"));
+    const dir = await mkdtemp(join(tmpdir(), "KNARR-noname-"));
     await writeFile(join(dir, "package.json"), JSON.stringify({ version: "1.0.0" }));
     await expect(publish(dir)).rejects.toThrow("missing 'name'");
     await rm(dir, { recursive: true, force: true });
@@ -611,7 +611,7 @@ describe("publish error handling", () => {
 
   it("throws when version field is missing", async () => {
     const { publish } = await import("../core/publisher.js");
-    const dir = await mkdtemp(join(tmpdir(), "plunk-nover-"));
+    const dir = await mkdtemp(join(tmpdir(), "KNARR-nover-"));
     await writeFile(join(dir, "package.json"), JSON.stringify({ name: "test" }));
     await expect(publish(dir)).rejects.toThrow("missing 'version'");
     await rm(dir, { recursive: true, force: true });
@@ -626,7 +626,7 @@ describe("workspace protocol rewriting on publish", () => {
   it("rewrites workspace:* to actual version in store copy", async () => {
     const { publish } = await import("../core/publisher.js");
 
-    const tempLib = await mkdtemp(join(tmpdir(), "plunk-ws-"));
+    const tempLib = await mkdtemp(join(tmpdir(), "KNARR-ws-"));
     await mkdir(join(tempLib, "dist"), { recursive: true });
     await writeFile(join(tempLib, "dist", "index.js"), "");
     await writeFile(
@@ -650,7 +650,7 @@ describe("workspace protocol rewriting on publish", () => {
     // Read the published package.json from the store
     const storePkg = JSON.parse(
       await readFile(
-        join(plunkHome, "store", "ws-lib@3.2.1", "package", "package.json"),
+        join(KNARRHome, "store", "ws-lib@3.2.1", "package", "package.json"),
         "utf-8"
       )
     );
@@ -676,7 +676,7 @@ describe("workspace protocol rewriting on publish", () => {
 
     const sourceContent = await readFile(join(API_CLIENT_DIR, "package.json"), "utf-8");
     const storeContent = await readFile(
-      join(plunkHome, "store", "@example+api-client@1.0.0", "package", "package.json"),
+      join(KNARRHome, "store", "@example+api-client@1.0.0", "package", "package.json"),
       "utf-8"
     );
     // Content should be identical (not reformatted)
@@ -882,7 +882,7 @@ describe("incremental push after source changes", () => {
     const { inject } = await import("../core/injector.js");
 
     // Create a temp lib so we can modify files
-    const tempLib = await mkdtemp(join(tmpdir(), "plunk-inc-"));
+    const tempLib = await mkdtemp(join(tmpdir(), "KNARR-inc-"));
     await mkdir(join(tempLib, "dist"), { recursive: true });
     await writeFile(
       join(tempLib, "package.json"),
@@ -922,7 +922,7 @@ describe("incremental push after source changes", () => {
     const { getStoreEntry } = await import("../core/store.js");
     const { inject } = await import("../core/injector.js");
 
-    const tempLib = await mkdtemp(join(tmpdir(), "plunk-del-"));
+    const tempLib = await mkdtemp(join(tmpdir(), "KNARR-del-"));
     await mkdir(join(tempLib, "dist"), { recursive: true });
     await writeFile(
       join(tempLib, "package.json"),
@@ -968,7 +968,7 @@ describe("multiple versions in store", () => {
     const { publish } = await import("../core/publisher.js");
     const { getStoreEntry, listStoreEntries } = await import("../core/store.js");
 
-    const tempLib = await mkdtemp(join(tmpdir(), "plunk-multi-"));
+    const tempLib = await mkdtemp(join(tmpdir(), "KNARR-multi-"));
     await mkdir(join(tempLib, "dist"), { recursive: true });
     await writeFile(join(tempLib, "dist", "index.js"), "v1");
     await writeFile(
@@ -1009,7 +1009,7 @@ describe("multiple versions in store", () => {
     const { publish } = await import("../core/publisher.js");
     const { findStoreEntry } = await import("../core/store.js");
 
-    const tempLib = await mkdtemp(join(tmpdir(), "plunk-latest-"));
+    const tempLib = await mkdtemp(join(tmpdir(), "KNARR-latest-"));
     await mkdir(join(tempLib, "dist"), { recursive: true });
     await writeFile(join(tempLib, "dist", "index.js"), "");
     await writeFile(

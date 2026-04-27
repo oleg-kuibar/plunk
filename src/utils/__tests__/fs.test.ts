@@ -15,7 +15,7 @@ describe("copyWithCoW", () => {
   let tempDir: string;
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), "plunk-test-"));
+    tempDir = await mkdtemp(join(tmpdir(), "KNARR-test-"));
   });
 
   afterEach(async () => {
@@ -43,7 +43,7 @@ describe("incrementalCopy", () => {
   let tempDir: string;
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), "plunk-test-"));
+    tempDir = await mkdtemp(join(tmpdir(), "KNARR-test-"));
   });
 
   afterEach(async () => {
@@ -143,7 +143,7 @@ describe("moveDir", () => {
   let tempDir: string;
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), "plunk-test-"));
+    tempDir = await mkdtemp(join(tmpdir(), "KNARR-test-"));
   });
 
   afterEach(async () => {
@@ -175,7 +175,7 @@ describe("ensurePrivateDir", () => {
   let tempDir: string;
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), "plunk-test-"));
+    tempDir = await mkdtemp(join(tmpdir(), "KNARR-test-"));
   });
 
   afterEach(async () => {
@@ -193,7 +193,7 @@ describe("collectFiles", () => {
   let tempDir: string;
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), "plunk-test-"));
+    tempDir = await mkdtemp(join(tmpdir(), "KNARR-test-"));
   });
 
   afterEach(async () => {

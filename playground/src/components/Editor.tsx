@@ -22,7 +22,7 @@ function getLanguage(path: string): string {
 }
 
 // GitHub-inspired Monaco theme with amber accents
-const plunkTheme: editor.IStandaloneThemeData = {
+const KNARRTheme: editor.IStandaloneThemeData = {
   base: 'vs-dark',
   inherit: true,
   rules: [
@@ -96,8 +96,8 @@ export function Editor({
       editorRef.current = editor;
       isMountedRef.current = true;
 
-      monaco.editor.defineTheme('plunk', plunkTheme);
-      monaco.editor.setTheme('plunk');
+      monaco.editor.defineTheme('KNARR', KNARRTheme);
+      monaco.editor.setTheme('KNARR');
 
       editor.addAction({
         id: 'save-file',
@@ -182,7 +182,7 @@ export function Editor({
           value={content}
           onChange={handleChange}
           onMount={handleMount}
-          theme="plunk"
+          theme="KNARR"
           options={{
             readOnly,
             fontSize: 13,

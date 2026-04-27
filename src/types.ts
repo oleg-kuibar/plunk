@@ -1,5 +1,5 @@
-/** Metadata stored alongside each package in the plunk store */
-export interface PlunkMeta {
+/** Metadata stored alongside each package in the Knarr store */
+export interface KnarrMeta {
   schemaVersion?: number;
   contentHash: string;
   publishedAt: string;
@@ -8,12 +8,15 @@ export interface PlunkMeta {
   buildId?: string;
 }
 
+/** @deprecated Use KnarrMeta. */
+export type KNARRMeta = KnarrMeta;
+
 /** A store entry representing a published package */
 export interface StoreEntry {
   name: string;
   version: string;
   packageDir: string; // path to package/ dir in store
-  meta: PlunkMeta;
+  meta: KnarrMeta;
 }
 
 /** Tracks a single linked package in a consumer project */
@@ -28,7 +31,7 @@ export interface LinkEntry {
   buildId?: string;
 }
 
-/** Consumer project state file (.plunk/state.json) */
+/** Consumer project state file (.knarr/state.json) */
 export interface ConsumerState {
   version: "1";
   packageManager?: PackageManager;
@@ -36,7 +39,7 @@ export interface ConsumerState {
   links: Record<string, LinkEntry>;
 }
 
-/** Global consumers registry (~/.plunk/consumers.json) */
+/** Global consumers registry (~/.knarr/consumers.json) */
 export interface ConsumersRegistry {
   /** Maps package name → array of consumer project paths */
   [packageName: string]: string[];

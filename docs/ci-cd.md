@@ -1,15 +1,15 @@
-# Using plunk in CI/CD
+# Using Knarr in CI/CD
 
-plunk can run in CI pipelines to test against local (unpublished) versions of packages — useful when you want to verify a library change doesn't break consumers before publishing to npm.
+Knarr can run in CI pipelines to test against local (unpublished) versions of packages — useful when you want to verify a library change doesn't break consumers before publishing to npm.
 
 ## Key flags for CI
 
 ### --json
 
-All plunk commands support `--json` for machine-readable output. When enabled, human-readable log messages are suppressed and structured JSON is printed to stdout.
+All Knarr commands support `--json` for machine-readable output. When enabled, human-readable log messages are suppressed and structured JSON is printed to stdout.
 
 ```bash
-plunk publish --json
+knarr publish --json
 # Output:
 # {
 #   "name": "my-lib",
@@ -19,29 +19,29 @@ plunk publish --json
 #   "elapsed": 45
 # }
 
-plunk status --json
-plunk list --json
-plunk push --json
+knarr status --json
+knarr list --json
+knarr push --json
 ```
 
 Use this to parse results in CI scripts:
 
 ```bash
-RESULT=$(plunk push --json)
+RESULT=$(knarr push --json)
 CONSUMERS=$(echo "$RESULT" | jq '.consumers')
 echo "Pushed to $CONSUMERS consumer(s)"
 ```
 
 ### --dry-run
 
-Preview what plunk would do without writing any files:
+Preview what Knarr would do without writing any files:
 
 ```bash
-plunk publish --dry-run
-plunk push --dry-run
+knarr publish --dry-run
+knarr push --dry-run
 ```
 
-When `--dry-run` completes, plunk prints a grouped summary of all mutations that would have been performed (file copies, removals, directory creation, bin links, lock acquisitions, lifecycle hooks). With `--json`, the summary is output as structured JSON.
+When `--dry-run` completes, Knarr prints a grouped summary of all mutations that would have been performed (file copies, removals, directory creation, bin links, lock acquisitions, lifecycle hooks). With `--json`, the summary is output as structured JSON.
 
 Good for validation steps where you want to confirm the operation succeeds without writing files.
 
@@ -50,7 +50,7 @@ Good for validation steps where you want to confirm the operation succeeds witho
 Enable debug-level logging for troubleshooting CI failures:
 
 ```bash
-plunk push --verbose
+knarr push --verbose
 ```
 
 Logs file hash computations, symlink resolution, store operations, and timing. In combination with `--json`, verbose logs go to stderr while structured output goes to stdout.
@@ -60,28 +60,28 @@ Logs file hash computations, symlink resolution, store operations, and timing. I
 Allow publishing packages that have `"private": true` in package.json:
 
 ```bash
-plunk publish --private
+knarr publish --private
 ```
 
 Private packages are skipped by default. Use this flag in CI when testing internal packages that are not meant for the npm registry.
 
-## PLUNK_HOME for isolated environments
+## KNARR_HOME for isolated environments
 
-By default, plunk stores data in `~/.plunk/`. In CI, you typically want an isolated store per job to avoid cross-contamination between builds.
+By default, Knarr stores data in `~/.knarr/`. In CI, you typically want an isolated store per job to avoid cross-contamination between builds.
 
-Set the `PLUNK_HOME` environment variable to redirect the store:
+Set the `KNARR_HOME` environment variable to redirect the store:
 
 ```bash
-export PLUNK_HOME=$(mktemp -d)
-plunk publish
-plunk add my-lib
+export KNARR_HOME=$(mktemp -d)
+knarr publish
+knarr add my-lib
 ```
 
 Or inline:
 
 ```bash
-PLUNK_HOME=/tmp/plunk-ci plunk publish
-PLUNK_HOME=/tmp/plunk-ci plunk add my-lib
+KNARR_HOME=/tmp/knarr-ci knarr publish
+KNARR_HOME=/tmp/knarr-ci knarr add my-lib
 ```
 
 Everything (store, registry, metadata) goes under that directory.
@@ -120,27 +120,27 @@ jobs:
       - name: Build library
         run: pnpm --filter my-lib build
 
-      - name: Set up plunk
+      - name: Set up Knarr
         env:
-          PLUNK_HOME: ${{ runner.temp }}/plunk
+          KNARR_HOME: ${{ runner.temp }}/knarr
         run: |
           cd apps/my-app
-          npx plunk init -y
+          npx knarr init -y
 
       - name: Publish and link
         env:
-          PLUNK_HOME: ${{ runner.temp }}/plunk
+          KNARR_HOME: ${{ runner.temp }}/knarr
         run: |
-          npx plunk publish packages/my-lib
+          npx knarr publish packages/my-lib
           cd apps/my-app
-          npx plunk add my-lib
+          npx knarr add my-lib
 
       - name: Verify link
         env:
-          PLUNK_HOME: ${{ runner.temp }}/plunk
+          KNARR_HOME: ${{ runner.temp }}/knarr
         run: |
           cd apps/my-app
-          npx plunk status --json
+          npx knarr status --json
 
       - name: Run consumer tests
         run: pnpm --filter my-app test
@@ -151,10 +151,10 @@ jobs:
 
 Key points:
 
-- `PLUNK_HOME` is set to `${{ runner.temp }}/plunk` so the store is isolated to the job and cleaned up automatically.
-- `plunk init -y` skips interactive prompts.
-- `plunk status --json` is used as a verification step.
-- The library is built before publishing, since plunk copies built output.
+- `KNARR_HOME` is set to `${{ runner.temp }}/knarr` so the store is isolated to the job and cleaned up automatically.
+- `knarr init -y` skips interactive prompts.
+- `knarr status --json` is used as a verification step.
+- The library is built before publishing, since Knarr copies built output.
 
 ## Testing multiple consumers
 
@@ -163,17 +163,17 @@ If you have several apps that depend on the same library, you can push to all of
 ```yaml
       - name: Publish library
         env:
-          PLUNK_HOME: ${{ runner.temp }}/plunk
-        run: npx plunk publish packages/my-lib
+          KNARR_HOME: ${{ runner.temp }}/knarr
+        run: npx knarr publish packages/my-lib
 
       - name: Link to all consumers
         env:
-          PLUNK_HOME: ${{ runner.temp }}/plunk
+          KNARR_HOME: ${{ runner.temp }}/knarr
         run: |
           for app in apps/app-1 apps/app-2 apps/app-3; do
             cd $app
-            npx plunk init -y
-            npx plunk add my-lib
+            npx knarr init -y
+            npx knarr add my-lib
             cd ${{ github.workspace }}
           done
 
@@ -187,15 +187,15 @@ Add a dry-run step to catch packaging issues without modifying anything:
 
 ```yaml
       - name: Validate packaging
-        run: npx plunk publish packages/my-lib --dry-run --json
+        run: npx knarr publish packages/my-lib --dry-run --json
 ```
 
 Catches `files` field or `.npmignore` mistakes before writing to the store.
 
 ## Tips
 
-- Always set `PLUNK_HOME` in CI. The default `~/.plunk/` may persist across cached runners and cause stale state.
+- Always set `KNARR_HOME` in CI. The default `~/.knarr/` may persist across cached runners and cause stale state.
 - Use `--json` for any step where you need to parse output or check results programmatically.
-- Run `plunk doctor --json` as a diagnostic step if link verification fails.
-- plunk does not require global installation. `npx plunk` works in any step.
-- The `postinstall` hook (`plunk restore || true`) is safe in CI -- if plunk is not installed globally, `|| true` prevents the hook from failing.
+- Run `knarr doctor --json` as a diagnostic step if link verification fails.
+- Knarr does not require global installation. `npx knarr` works in any step.
+- The `postinstall` hook (`knarr restore || true`) is safe in CI -- if Knarr is not installed globally, `|| true` prevents the hook from failing.

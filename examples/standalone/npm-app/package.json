@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node --import tsx src/main.ts",
-    "postinstall": "plunk restore || true"
+    "postinstall": "knarr restore || true"
   },
   "devDependencies": {
     "tsx": "^4.7.0",

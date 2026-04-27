@@ -23,7 +23,7 @@ type ProjectRole = "consumer" | "library";
 export default defineCommand({
   meta: {
     name: "init",
-    description: "Set up plunk in the current project",
+    description: "Set up knarr in the current project",
   },
   args: {
     yes: {
@@ -42,7 +42,7 @@ export default defineCommand({
     const timer = new Timer();
     const projectDir = resolve(".");
     const skipPrompts = args.yes;
-    consola.info(`Initializing plunk in ${pc.cyan(projectDir)}\n`);
+    consola.info(`Initializing knarr in ${pc.cyan(projectDir)}\n`);
 
     // 1. Detect and confirm package manager
     const detectedPm = await detectPackageManager(projectDir);
@@ -85,16 +85,16 @@ export default defineCommand({
       role = args.role;
     } else if (!skipPrompts) {
       const selected = await consola.prompt(
-        "How will you use plunk in this project?",
+        "How will you use knarr in this project?",
         {
           type: "select",
           options: [
             {
-              label: "Consumer (app) — I want to link packages INTO this project",
+              label: "Consumer (app) - I want to link packages INTO this project",
               value: "consumer",
             },
             {
-              label: "Library (package) — I want to publish this package FOR other projects",
+              label: "Library (package) - I want to publish this package FOR other projects",
               value: "library",
             },
           ],
@@ -107,11 +107,11 @@ export default defineCommand({
 
     consola.success(`Project role: ${pc.cyan(role)}`);
 
-    // 3. Add .plunk/ to .gitignore
+    // 3. Add .knarr/ to .gitignore
     const gitignorePath = join(projectDir, ".gitignore");
     const gitignoreUpdated = await ensureGitignore(gitignorePath);
     if (gitignoreUpdated) {
-      consola.success("Added .plunk/ to .gitignore");
+      consola.success("Added .knarr/ to .gitignore");
     }
 
     // 4. Add scripts based on role
@@ -122,7 +122,7 @@ export default defineCommand({
         const postinstallAdded = await addPostinstall(pkgPath);
         if (postinstallAdded) {
           consola.success(
-            'Added "postinstall": "plunk restore" to package.json scripts'
+            'Added "postinstall": "knarr restore" to package.json scripts'
           );
         }
 
@@ -136,12 +136,12 @@ export default defineCommand({
             const packageName = input.trim();
             const addScriptAdded = await addScript(
               pkgPath,
-              "plunk:add",
-              `plunk add ${packageName}`
+              "knarr:add",
+              `knarr add ${packageName}`
             );
             if (addScriptAdded) {
               consola.success(
-                `Added "plunk:add": "plunk add ${packageName}" to package.json scripts`
+                `Added "knarr:add": "knarr add ${packageName}" to package.json scripts`
               );
             }
           }
@@ -156,19 +156,19 @@ export default defineCommand({
       }
     }
 
-    // 5. Create .plunk/ directory and state
-    const plunkDir = join(projectDir, ".plunk");
-    if (!(await exists(plunkDir))) {
-      await ensureDir(plunkDir);
+    // 5. Create .knarr/ directory and state
+    const knarrDir = join(projectDir, ".knarr");
+    if (!(await exists(knarrDir))) {
+      await ensureDir(knarrDir);
       await writeFile(
-        join(plunkDir, "state.json"),
+        join(knarrDir, "state.json"),
         JSON.stringify(
           { version: "1", packageManager: pm, role, links: {} },
           null,
           2
         )
       );
-      consola.success("Created .plunk/ state directory");
+      consola.success("Created .knarr/ state directory");
     } else {
       // Update existing state with package manager and role
       const state = await readConsumerState(projectDir);
@@ -184,15 +184,15 @@ export default defineCommand({
         consola.success(
           `Detected bundler: ${pc.cyan("Vite")} (${basename(bundler.configFile)})`
         );
-        const { addPlunkVitePlugin } = await import("../utils/vite-config.js");
-        const viteResult = await addPlunkVitePlugin(bundler.configFile);
+        const { addKnarrVitePlugin } = await import("../utils/vite-config.js");
+        const viteResult = await addKnarrVitePlugin(bundler.configFile);
         if (viteResult.modified) {
-          consola.success(`Added plunk plugin to ${basename(bundler.configFile)}`);
+          consola.success(`Added knarr plugin to ${basename(bundler.configFile)}`);
         } else if (viteResult.error) {
           consola.info(
             `Add the Vite plugin for automatic dev server restarts:\n` +
-              `  ${pc.cyan('import plunk from "@olegkuibar/plunk/vite"')}\n` +
-              `  ${pc.cyan("plugins: [plunk()]")}`
+              `  ${pc.cyan('import knarr from "knarr/vite"')}\n` +
+              `  ${pc.cyan("plugins: [knarr()]")}`
           );
         }
       } else if (bundler.type === "next" && bundler.configFile) {
@@ -200,7 +200,7 @@ export default defineCommand({
           `Detected bundler: ${pc.cyan("Next.js")} (${basename(bundler.configFile)})`
         );
         consola.info(
-          `Next.js transpilePackages will be auto-configured when you run ${pc.cyan("plunk add")}`
+          `Next.js transpilePackages will be auto-configured when you run ${pc.cyan("knarr add")}`
         );
       } else if (bundler.type) {
         const names: Record<string, string> = {
@@ -209,7 +209,7 @@ export default defineCommand({
           rollup: "Rollup",
         };
         consola.success(
-          `Detected bundler: ${pc.cyan(names[bundler.type] || bundler.type)} — no config needed, works out of the box`
+          `Detected bundler: ${pc.cyan(names[bundler.type] || bundler.type)} - no config needed, works out of the box`
         );
       }
 
@@ -217,26 +217,23 @@ export default defineCommand({
       consola.log("");
       consola.info(`${pc.bold("Next steps:")}`);
       consola.log(
-        `  1. ${pc.cyan("cd ../my-lib && plunk publish")}`
+        `  1. ${pc.cyan("knarr use ../my-lib")}                 <- publish + link a local package`
       );
       consola.log(
-        `  2. ${pc.cyan("plunk add my-lib")}${bundler.type === "vite" ? "                     ← auto-updates vite config" : bundler.type === "next" ? "                     ← auto-updates next config" : ""}`
-      );
-      consola.log(
-        `  3. ${pc.cyan("cd ../my-lib && plunk dev")}                  ← watch + rebuild + auto-push`
+        `  2. ${pc.cyan("cd ../my-lib && knarr dev")}          <- watch + rebuild + auto-push`
       );
     } else {
       // Library next steps
       consola.log("");
       consola.info(`${pc.bold("Next steps:")}`);
       consola.log(
-        `  1. ${pc.cyan("plunk publish")}                    ← copy built files to plunk store`
+        `  1. ${pc.cyan("knarr publish")}                    <- copy built files to knarr store`
       );
       consola.log(
-        `  2. ${pc.cyan(`${pm} run plunk:dev`)}               ← watch + rebuild + auto-push to consumers`
+        `  2. ${pc.cyan(`${pm} run knarr:dev`)}               <- watch + rebuild + auto-push to consumers`
       );
       consola.log(
-        `  3. In consumer project: ${pc.cyan("plunk add " + (await readPkgName(pkgPath)))}`
+        `  3. In consumer project: ${pc.cyan("knarr use " + projectDir)}`
       );
     }
 
@@ -290,7 +287,7 @@ async function detectBuildCommand(
     return detected;
   }
 
-  // No build script found — ask the user
+  // No build script found - ask the user
   const runPrefix = pm === "npm" ? "npm run " : `${pm} `;
   if (!skipPrompts) {
     consola.warn("No build script found in package.json");
@@ -306,13 +303,13 @@ async function detectBuildCommand(
   // Fallback placeholder
   const fallback = `${runPrefix}build`;
   consola.warn(
-    `Using ${pc.cyan(fallback)} as placeholder — add a "build" script to package.json`
+    `Using ${pc.cyan(fallback)} as placeholder - add a "build" script to package.json`
   );
   return fallback;
 }
 
 /**
- * Add library-mode scripts (plunk:publish, plunk:dev) to package.json.
+ * Add library-mode scripts (knarr:publish, knarr:dev) to package.json.
  * Returns array of script names that were added.
  */
 async function addLibraryScripts(
@@ -320,18 +317,18 @@ async function addLibraryScripts(
 ): Promise<string[]> {
   const added: string[] = [];
 
-  if (await addScript(pkgPath, "plunk:publish", "plunk publish")) {
-    added.push("plunk:publish");
+  if (await addScript(pkgPath, "knarr:publish", "knarr publish")) {
+    added.push("knarr:publish");
   }
 
   if (
     await addScript(
       pkgPath,
-      "plunk:dev",
-      "plunk dev"
+      "knarr:dev",
+      "knarr dev"
     )
   ) {
-    added.push("plunk:dev");
+    added.push("knarr:dev");
   }
 
   return added;

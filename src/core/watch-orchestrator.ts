@@ -1,7 +1,7 @@
 import pLimit from "../utils/concurrency.js";
 import { consola } from "../utils/console.js";
 import { verbose } from "../utils/logger.js";
-import { loadPlunkConfig } from "../utils/config.js";
+import { loadKnarrConfig } from "../utils/config.js";
 import { doPush, resolveWatchConfig } from "./push-engine.js";
 import type { WatchArgs, PushOptions } from "./push-engine.js";
 
@@ -76,7 +76,7 @@ export class WatchOrchestrator {
       const dir = nameToDir.get(name);
       if (!dir) continue;
 
-      const config = await loadPlunkConfig(dir);
+      const config = await loadKnarrConfig(dir);
       const { buildCmd, patterns } = await resolveWatchConfig(dir, args, config);
       const notify = args.notify ?? config.notify ?? false;
 
@@ -153,7 +153,7 @@ export class WatchOrchestrator {
     verbose(`[cascade] Rebuilding ${name}`);
 
     try {
-      const config = await loadPlunkConfig(entry.dir);
+      const config = await loadKnarrConfig(entry.dir);
       const buildCmd = config.buildCmd;
 
       if (buildCmd) {

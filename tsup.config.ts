@@ -18,7 +18,7 @@ export default defineConfig([
     minify: true,
     treeshake: true,
     define: {
-      __PLUNK_VERSION__: JSON.stringify(version),
+      __KNARR_VERSION__: JSON.stringify(version),
     },
     esbuildOptions(options) {
       options.keepNames = true;

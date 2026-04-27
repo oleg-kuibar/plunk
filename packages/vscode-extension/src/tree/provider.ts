@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import type { PlunkStateWatcher } from "../state-watcher";
+import type { KnarrStateWatcher } from "../state-watcher";
 import type { LinkEntry } from "../types";
 import {
   ProjectItem,
@@ -10,13 +10,13 @@ import {
 
 type TreeNode = ProjectItem | PackageItem | MetadataItem;
 
-export class PlunkTreeProvider implements vscode.TreeDataProvider<TreeNode> {
+export class KnarrTreeProvider implements vscode.TreeDataProvider<TreeNode> {
   private readonly _onDidChangeTreeData = new vscode.EventEmitter<
     TreeNode | undefined | void
   >();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
-  constructor(private readonly watcher: PlunkStateWatcher) {}
+  constructor(private readonly watcher: KnarrStateWatcher) {}
 
   refresh(): void {
     this._onDidChangeTreeData.fire();

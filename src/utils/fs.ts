@@ -45,7 +45,7 @@ function volumeRoot(filePath: string): string {
  * for reflink support. If it fails, caches the result and all subsequent
  * copies on that volume go straight to a plain copy — no wasted syscalls.
  *
- * Note: hardlinks are intentionally NOT used as a fallback because plunk's
+ * Note: hardlinks are intentionally NOT used as a fallback because Knarr's
  * incremental copy model compares source vs destination content. Hardlinks
  * share an inode, so source mutations silently propagate to the destination,
  * breaking change detection.
@@ -153,7 +153,7 @@ export async function incrementalCopy(
             if (srcStat.size !== destStat.size) {
               verbose(`[copy] ${rel} (size differs: ${srcStat.size} vs ${destStat.size})`);
             } else if (srcStat.mtimeMs === destStat.mtimeMs) {
-              // Same size + same mtime: plunk is the sole writer, so skip without hashing
+              // Same size + same mtime: Knarr is the sole writer, so skip without hashing
               needsCopy = false;
               verbose(`[skip] ${rel} (size+mtime match)`);
             } else {

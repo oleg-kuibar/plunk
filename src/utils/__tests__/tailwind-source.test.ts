@@ -12,7 +12,7 @@ describe("findTailwindCss", () => {
   let tempDir: string;
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), "plunk-test-tw-"));
+    tempDir = await mkdtemp(join(tmpdir(), "KNARR-test-tw-"));
   });
 
   afterEach(async () => {
@@ -69,7 +69,7 @@ describe("addTailwindSource", () => {
   let tempDir: string;
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), "plunk-test-tw-"));
+    tempDir = await mkdtemp(join(tmpdir(), "KNARR-test-tw-"));
   });
 
   afterEach(async () => {
@@ -170,7 +170,7 @@ describe("removeTailwindSource", () => {
   let tempDir: string;
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), "plunk-test-tw-"));
+    tempDir = await mkdtemp(join(tmpdir(), "KNARR-test-tw-"));
   });
 
   afterEach(async () => {

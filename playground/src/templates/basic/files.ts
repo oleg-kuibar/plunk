@@ -22,10 +22,10 @@ function generateFunnyName(): string {
 // Store the name in sessionStorage to keep it consistent across HMR reloads
 function getOrCreatePlaygroundName(): string {
   if (typeof window !== 'undefined' && window.sessionStorage) {
-    const stored = sessionStorage.getItem('plunk-playground-name');
+    const stored = sessionStorage.getItem('KNARR-playground-name');
     if (stored) return stored;
     const name = generateFunnyName();
-    sessionStorage.setItem('plunk-playground-name', name);
+    sessionStorage.setItem('KNARR-playground-name', name);
     return name;
   }
   return generateFunnyName();
@@ -34,25 +34,25 @@ function getOrCreatePlaygroundName(): string {
 // Generate a consistent name for this session (stable across HMR)
 export const PLAYGROUND_NAME = getOrCreatePlaygroundName();
 
-export function createBasicTemplate(plunkVersion: string): FileSystemTree {
+export function createBasicTemplate(KNARRVersion: string): FileSystemTree {
   return {
   'package.json': {
     file: {
       contents: JSON.stringify(
         {
-          name: 'plunk-playground-workspace',
+          name: 'KNARR-playground-workspace',
           private: true,
           scripts: {
-            'publish:all': 'cd packages/api-client && npx -y @olegkuibar/plunk publish && cd ../ui-kit && npx -y @olegkuibar/plunk publish',
-            'link:all': 'cd consumer-app && npx -y @olegkuibar/plunk add @example/api-client && npx -y @olegkuibar/plunk add @example/ui-kit',
+            'publish:all': 'cd packages/api-client && npx -y knarr publish && cd ../ui-kit && npx -y knarr publish',
+            'link:all': 'cd consumer-app && npx -y knarr add @example/api-client && npx -y knarr add @example/ui-kit',
             'start': 'cd consumer-app && npm run dev',
             'build:api': 'cd packages/api-client && npm run build',
             'build:ui': 'cd packages/ui-kit && npm run build',
-            'push:api': 'cd packages/api-client && npm run build && npx -y @olegkuibar/plunk push',
-            'push:ui': 'cd packages/ui-kit && npm run build && npx -y @olegkuibar/plunk push',
+            'push:api': 'cd packages/api-client && npm run build && npx -y knarr push',
+            'push:ui': 'cd packages/ui-kit && npm run build && npx -y knarr push',
           },
           devDependencies: {
-            '@olegkuibar/plunk': plunkVersion,
+            'knarr': KNARRVersion,
           },
         },
         null,
@@ -143,7 +143,7 @@ export const users: User[] = [
 
 /**
  * Fetch a user by ID
- * Try changing the greeting message and run \`plunk push\` to see HMR!
+ * Try changing the greeting message and run .knarr push\` to see HMR!
  */
 export async function getUser(id: number): Promise<ApiResponse<User | null>> {
   await delay(100);
@@ -169,10 +169,10 @@ export async function getUsers(): Promise<ApiResponse<User[]>> {
 
 /**
  * Get a greeting message for a user
- * ✨ Edit this function and run \`plunk push\` to see live updates!
+ * ✨ Edit this function and run .knarr push\` to see live updates!
  */
 export function getGreeting(user: User): string {
-  return \`Hello, \${user.name}! Welcome to the Plunk Playground.\`;
+  return \`Hello, \${user.name}! Welcome to the KNARR Playground.\`;
 }
 
 export const VERSION = '1.0.0';
@@ -214,7 +214,7 @@ export async function getUsers() {
 }
 
 export function getGreeting(user) {
-  return \`Hello, \${user.name}! Welcome to the Plunk Playground.\`;
+  return \`Hello, \${user.name}! Welcome to the KNARR Playground.\`;
 }
 
 export const VERSION = '1.0.0';
@@ -319,7 +319,7 @@ export interface CardProps {
 
 /**
  * Card with left-border accent.
- * Try changing the borderColor and run \`plunk push\`!
+ * Try changing the borderColor and run .knarr push\`!
  */
 export function Card({ title, children, variant = 'default' }: CardProps) {
   const variantStyles = {
@@ -603,13 +603,13 @@ export declare const UI_VERSION: string;
                 react: '^18.3.1',
                 'react-dom': '^18.3.1',
               },
-              // @example packages are linked via plunk, not installed from npm
+              // @example packages are linked via KNARR, not installed from npm
               optionalDependencies: {
                 '@example/api-client': '*',
                 '@example/ui-kit': '*',
               },
               devDependencies: {
-                '@olegkuibar/plunk': '*',
+                'knarr': '*',
                 '@types/react': '^18.3.0',
                 '@types/react-dom': '^18.3.0',
                 '@vitejs/plugin-react': '^4.3.0',
@@ -625,10 +625,10 @@ export declare const UI_VERSION: string;
         file: {
           contents: `import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import plunkPlugin from '@olegkuibar/plunk/vite';
+import KNARRPlugin from 'knarr/vite';
 
 export default defineConfig({
-  plugins: [react(), plunkPlugin()],
+  plugins: [react(), KNARRPlugin()],
   server: {
     port: 3000,
     host: true,
@@ -697,7 +697,7 @@ function App() {
   return (
     <div>
       <h1 style={{ marginBottom: '8px', color: '#58a6ff' }}>
-        Plunk Demo App
+        KNARR Demo App
       </h1>
       <p style={{ color: '#8b949e', marginBottom: '24px' }}>
         Using @example/api-client v{VERSION} and @example/ui-kit v{UI_VERSION}
@@ -707,7 +707,7 @@ function App() {
         <Card title="Welcome Message" variant="success">
           <p style={{ fontSize: '16px' }}>{greeting}</p>
           <p style={{ marginTop: '8px', fontSize: '12px', color: '#8b949e' }}>
-            Edit packages/api-client/src/index.ts and run <code>plunk push</code> to update this!
+            Edit packages/api-client/src/index.ts and run <code>knarr push</code> to update this!
           </p>
         </Card>
       )}

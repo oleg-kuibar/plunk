@@ -27,12 +27,12 @@ export function Footer() {
         ))}
       </div>
       <a
-        href="https://github.com/oleg-kuibar/plunk"
+        href="https://github.com/oleg-kuibar/KNARR"
         target="_blank"
         rel="noopener noreferrer"
         className="hover:text-text transition-colors"
       >
-        plunk v0.7.3
+        KNARR v0.7.3
       </a>
     </footer>
   );

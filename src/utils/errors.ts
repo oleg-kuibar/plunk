@@ -9,11 +9,11 @@ interface Suggestion {
 const SUGGESTIONS: Suggestion[] = [
   {
     pattern: /not found in store/i,
-    message: "Run 'plunk publish' in the package directory first, or use --from <path>.",
+    message: "Run 'knarr publish' in the package directory first, or use --from <path>.",
   },
   {
     pattern: /is not linked/i,
-    message: "Run 'plunk add <package>' to link it first.",
+    message: "Run 'knarr add <package>' to link it first.",
   },
   {
     pattern: /No package\.json/i,
@@ -29,7 +29,7 @@ const SUGGESTIONS: Suggestion[] = [
   },
   {
     pattern: /store entry missing/i,
-    message: "Re-publish the package with 'plunk publish'.",
+    message: "Re-publish the package with 'knarr publish'.",
   },
   {
     pattern: /EACCES|EPERM/i,
@@ -49,11 +49,11 @@ const SUGGESTIONS: Suggestion[] = [
   },
   {
     pattern: /Failed to read store entry/i,
-    message: "The store may be corrupted. Try 'plunk clean' then re-publish.",
+    message: "The store may be corrupted. Try 'knarr clean' then re-publish.",
   },
   {
     pattern: /Failed to acquire lock/i,
-    message: "Another plunk process may be running. Wait or delete stale .lk directories.",
+    message: "Another Knarr process may be running. Wait or delete stale .lk directories.",
   },
   {
     pattern: /not a directory/i,
@@ -61,11 +61,11 @@ const SUGGESTIONS: Suggestion[] = [
   },
   {
     pattern: /timed out/i,
-    message: "Set PLUNK_HOOK_TIMEOUT to a higher value (in ms) if your scripts need more time.",
+    message: "Set KNARR_HOOK_TIMEOUT to a higher value (in ms) if your scripts need more time.",
   },
   {
     pattern: /state.*corrupt|corrupt.*state/i,
-    message: "Delete .plunk/state.json and re-run 'plunk add' for each package.",
+    message: "Delete .knarr/state.json and re-run 'knarr add' for each package.",
   },
   {
     pattern: /EBUSY/i,

@@ -11,10 +11,10 @@ import type { PackageJson, StoreEntry } from "../types.js";
 
 const API_CLIENT_DIR = resolve(__dirname, "../../examples/packages/api-client");
 
-let plunkHome: string;
+let KNARRHome: string;
 let consumerDir: string;
 let apiPkg: PackageJson;
-let savedPlunkHome: string | undefined;
+let savedKNARRHome: string | undefined;
 
 beforeAll(async () => {
   // Verify fixture is built
@@ -33,12 +33,12 @@ beforeAll(async () => {
   ) as PackageJson;
 
   // Isolate store
-  savedPlunkHome = process.env.PLUNK_HOME;
-  plunkHome = await mkdtemp(join(tmpdir(), "plunk-bench-home-"));
-  process.env.PLUNK_HOME = plunkHome;
+  savedKNARRHome = process.env.KNARR_HOME;
+  KNARRHome = await mkdtemp(join(tmpdir(), "KNARR-bench-home-"));
+  process.env.KNARR_HOME = KNARRHome;
 
   // Set up consumer with node_modules and a lockfile (npm-style)
-  consumerDir = await mkdtemp(join(tmpdir(), "plunk-bench-consumer-"));
+  consumerDir = await mkdtemp(join(tmpdir(), "KNARR-bench-consumer-"));
   await writeFile(
     join(consumerDir, "package.json"),
     JSON.stringify({ name: "bench-consumer", version: "1.0.0" })
@@ -51,12 +51,12 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  if (savedPlunkHome !== undefined) {
-    process.env.PLUNK_HOME = savedPlunkHome;
+  if (savedKNARRHome !== undefined) {
+    process.env.KNARR_HOME = savedKNARRHome;
   } else {
-    delete process.env.PLUNK_HOME;
+    delete process.env.KNARR_HOME;
   }
-  await rm(plunkHome, { recursive: true, force: true });
+  await rm(KNARRHome, { recursive: true, force: true });
   await rm(consumerDir, { recursive: true, force: true });
 });
 
@@ -75,7 +75,7 @@ describe("publish", () => {
     {
       async setup() {
         // Clear store to force a real publish each iteration
-        const entryPath = join(plunkHome, "store");
+        const entryPath = join(KNARRHome, "store");
         if (await exists(entryPath)) {
           await removeDir(entryPath);
         }
@@ -149,7 +149,7 @@ describe("push (publish + inject)", () => {
     {
       async setup() {
         // Clear store and consumer for a full push each iteration
-        const entryPath = join(plunkHome, "store");
+        const entryPath = join(KNARRHome, "store");
         if (await exists(entryPath)) {
           await removeDir(entryPath);
         }

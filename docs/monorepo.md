@@ -1,10 +1,10 @@
 # Monorepo and multi-consumer setup
 
-plunk works with monorepos and multi-project setups where a library is consumed by several apps.
+Knarr works with monorepos and multi-project setups where a library is consumed by several apps.
 
-## How plunk handles multiple consumers
+## How Knarr handles multiple consumers
 
-When you run `plunk add my-lib` in different projects, each one is registered in the global consumers registry at `~/.plunk/consumers.json`:
+When you run `knarr add my-lib` in different projects, each one is registered in the global consumers registry at `~/.knarr/consumers.json`:
 
 ```json
 {
@@ -16,11 +16,11 @@ When you run `plunk add my-lib` in different projects, each one is registered in
 }
 ```
 
-When you run `plunk push` from the library directory, plunk publishes to the store once and then copies changed files into every registered consumer in parallel (up to 4 concurrent injections).
+When you run `knarr push` from the library directory, knarr publishes to the store once and then copies changed files into every registered consumer in parallel (up to 4 concurrent injections).
 
 ```
 my-lib/
-  plunk push
+  knarr push
     -> publish to store (once)
     -> inject into app-1/node_modules/my-lib/
     -> inject into app-2/node_modules/my-lib/
@@ -29,9 +29,9 @@ my-lib/
 
 Each consumer gets its own backup, state tracking, and content hash. Consumers can even be on different package managers.
 
-## pnpm workspaces with plunk
+## pnpm workspaces with Knarr
 
-In a pnpm workspace, internal packages are typically linked via `workspace:*` protocol. plunk is useful when you want to test a package as it would appear after publishing to npm -- with built output, resolved workspace versions, and the `files` field applied -- rather than using the raw source link.
+In a pnpm workspace, internal packages are typically linked via `workspace:*` protocol. Knarr is useful when you want to test a package as it would appear after publishing to npm -- with built output, resolved workspace versions, and the `files` field applied -- rather than using the raw source link.
 
 ### Setup
 
@@ -49,23 +49,23 @@ monorepo/
 # Build and publish the library
 cd packages/my-lib
 pnpm build
-plunk publish
+knarr publish
 
 # Set up each consumer
 cd ../../apps/web-app
-plunk init -y
-plunk add my-lib
+knarr init -y
+knarr add my-lib
 
 cd ../mobile-app
-plunk init -y
-plunk add my-lib
+knarr init -y
+knarr add my-lib
 ```
 
-Now `plunk push` from `packages/my-lib/` will update both apps.
+Now `knarr push` from `packages/my-lib/` will update both apps.
 
 ### workspace:* protocol
 
-When plunk publishes a package, it rewrites `workspace:*`, `workspace:^`, and `workspace:~` version specifiers to the actual resolved versions in the store copy. Your source `package.json` is never modified.
+When knarr publishes a package, it rewrites `workspace:*`, `workspace:^`, and `workspace:~` version specifiers to the actual resolved versions in the store copy. Your source `package.json` is never modified.
 
 For example, if `my-lib/package.json` has:
 
@@ -91,14 +91,14 @@ This means the injected version in `node_modules/` behaves like a real published
 
 ## Watch mode with multiple consumers
 
-Use `plunk dev` to continuously push changes to all consumers as you edit:
+Use `knarr dev` to continuously push changes to all consumers as you edit:
 
 ```bash
 cd packages/my-lib
-plunk dev
+knarr dev
 ```
 
-`plunk dev` auto-detects the build command from `package.json` scripts. For explicit control, use `plunk push --watch --build "pnpm build"`.
+`knarr dev` auto-detects the build command from `package.json` scripts. For explicit control, use `knarr push --watch --build "pnpm build"`.
 
 The flow is:
 
@@ -117,33 +117,33 @@ cd apps/web-app
 pnpm dev
 ```
 
-If a build fails, plunk logs the error and keeps watching. Fix the code and save again.
+If a build fails, Knarr logs the error and keeps watching. Fix the code and save again.
 
 ### Coalesce tuning
 
 For large builds, increase the coalesce window to avoid redundant rebuilds while you are making rapid edits:
 
 ```bash
-plunk dev --debounce 500
+knarr dev --debounce 500
 ```
 
 ## Multiple libraries
 
 ### Workspace-wide watch (`--all`)
 
-When developing multiple libraries at once, use `plunk dev --all` to watch the entire workspace from any package directory:
+When developing multiple libraries at once, use `knarr dev --all` to watch the entire workspace from any package directory:
 
 ```bash
 # Terminal 1: watch all workspace packages
 cd packages/my-lib    # or any workspace package
-plunk dev --all
+knarr dev --all
 
 # Terminal 2: run your app
 cd apps/web-app
 pnpm dev
 ```
 
-`plunk dev --all` discovers all workspace packages, sorts them by dependency order, and starts a watcher for each. When a package changes, it rebuilds and pushes to all consumers.
+`knarr dev --all` discovers all workspace packages, sorts them by dependency order, and starts a watcher for each. When a package changes, it rebuilds and pushes to all consumers.
 
 ### Cascading rebuilds
 
@@ -160,21 +160,21 @@ A state machine per package (idle/building/queued) prevents infinite rebuild loo
 To disable cascading and watch packages independently:
 
 ```bash
-plunk dev --all --no-cascade
+knarr dev --all --no-cascade
 ```
 
 ### Separate terminals
 
-Alternatively, you can run `plunk dev` for each library in its own terminal:
+Alternatively, you can run `knarr dev` for each library in its own terminal:
 
 ```bash
 # Terminal 1
 cd packages/my-lib
-plunk dev
+knarr dev
 
 # Terminal 2
 cd packages/shared-utils
-plunk dev
+knarr dev
 
 # Terminal 3
 cd apps/web-app
@@ -189,7 +189,7 @@ Each library tracks its own consumers independently. This approach gives you mor
 
 ```bash
 for app in apps/*/; do
-  (cd "$app" && plunk init -y)
+  (cd "$app" && knarr init -y)
 done
 ```
 
@@ -198,10 +198,10 @@ done
 ```bash
 cd packages/my-lib
 pnpm build
-plunk publish
+knarr publish
 
 for app in apps/*/; do
-  (cd "$app" && plunk add my-lib)
+  (cd "$app" && knarr add my-lib)
 done
 ```
 
@@ -210,34 +210,34 @@ done
 From any consumer:
 
 ```bash
-plunk status
-plunk doctor
+knarr status
+knarr doctor
 ```
 
 ### After pnpm install
 
-Running `pnpm install` in a workspace can wipe `node_modules/` overrides. If `plunk init` was run in each consumer, the `postinstall` hook (`plunk restore || true`) will re-inject automatically.
+Running `pnpm install` in a workspace can wipe `node_modules/` overrides. If `knarr init` was run in each consumer, the `postinstall` hook (`knarr restore || true`) will re-inject automatically.
 
 If you need to re-inject manually:
 
 ```bash
 for app in apps/*/; do
-  (cd "$app" && plunk restore)
+  (cd "$app" && knarr restore)
 done
 ```
 
 ### Clean up stale state
 
-When you remove a consumer project or stop using plunk in one, the global registry may still reference it. Run:
+When you remove a consumer project or stop using Knarr in one, the global registry may still reference it. Run:
 
 ```bash
-plunk clean
+knarr clean
 ```
 
 This removes stale consumer registrations (directories that no longer exist) and unreferenced store entries.
 
-## Mixing plunk with workspace protocol
+## Mixing Knarr with workspace protocol
 
-plunk and pnpm workspace links can coexist. You might use `workspace:*` for packages that are consumed as raw source (with shared `tsconfig` paths), and plunk for packages you want to test as published builds.
+Knarr and pnpm workspace links can coexist. You might use `workspace:*` for packages that are consumed as raw source (with shared `tsconfig` paths), and Knarr for packages you want to test as published builds.
 
-The general rule: if you want to test the "npm publish" output of a package locally, use plunk. If you want live source links with your bundler handling the transpilation, use the regular workspace protocol.
+The general rule: if you want to test the "npm publish" output of a package locally, use Knarr. If you want live source links with your bundler handling the transpilation, use the regular workspace protocol.

@@ -18,7 +18,7 @@ const card = renderCard({
 });
 
 app.innerHTML = `
-  <h1>pnpm-app — plunk demo</h1>
+  <h1>pnpm-app — Knarr demo</h1>
   <p>Product: ${product.name} — ${formatPrice(product)}</p>
   ${card}
 `;

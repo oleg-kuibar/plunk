@@ -6,11 +6,9 @@
   "type": "module",
   "scripts": {
     "start": "bun run src/main.ts",
-    "postinstall": "plunk restore || true",
-    "plunk:add": "plunk add @example/ui-kit"
+    "postinstall": "knarr restore || true"
   },
   "devDependencies": {
-    "typescript": "^5.3.0",
-    "@olegkuibar/plunk": "^0.2.0"
+    "typescript": "^5.3.0"
   }
 }

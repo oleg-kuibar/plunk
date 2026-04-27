@@ -11,17 +11,17 @@ import { tmpdir } from "node:os";
 import { exists } from "../utils/fs.js";
 import { detectYarnNodeLinker } from "../utils/pm-detect.js";
 
-let testPlunkHome: string;
+let testKNARRHome: string;
 let testLib: string;
 let testConsumer: string;
 
 beforeEach(async () => {
-  testPlunkHome = await mkdtemp(join(tmpdir(), "plunk-home-"));
-  testLib = await mkdtemp(join(tmpdir(), "plunk-lib-"));
-  testConsumer = await mkdtemp(join(tmpdir(), "plunk-consumer-"));
+  testKNARRHome = await mkdtemp(join(tmpdir(), "KNARR-home-"));
+  testLib = await mkdtemp(join(tmpdir(), "KNARR-lib-"));
+  testConsumer = await mkdtemp(join(tmpdir(), "KNARR-consumer-"));
 
-  // Point plunk store to temp dir
-  process.env.PLUNK_HOME = testPlunkHome;
+  // Point Knarr store to temp dir
+  process.env.KNARR_HOME = testKNARRHome;
 
   // Create a test library
   await writeFile(
@@ -46,8 +46,8 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-  delete process.env.PLUNK_HOME;
-  await rm(testPlunkHome, { recursive: true, force: true });
+  delete process.env.KNARR_HOME;
+  await rm(testKNARRHome, { recursive: true, force: true });
   await rm(testLib, { recursive: true, force: true });
   await rm(testConsumer, { recursive: true, force: true });
 });
@@ -64,7 +64,7 @@ describe("publish", () => {
 
     // Verify store structure
     const storePkg = join(
-      testPlunkHome,
+      testKNARRHome,
       "store",
       "test-lib@1.0.0",
       "package"
@@ -76,7 +76,7 @@ describe("publish", () => {
     // Verify meta
     const meta = JSON.parse(
       await readFile(
-        join(testPlunkHome, "store", "test-lib@1.0.0", ".plunk-meta.json"),
+        join(testKNARRHome, "store", "test-lib@1.0.0", ".knarr-meta.json"),
         "utf-8"
       )
     );
@@ -124,7 +124,7 @@ describe("publish", () => {
 
     const storePkg = JSON.parse(
       await readFile(
-        join(testPlunkHome, "store", "test-lib@1.0.0", "package", "package.json"),
+        join(testKNARRHome, "store", "test-lib@1.0.0", "package", "package.json"),
         "utf-8"
       )
     );
@@ -157,7 +157,7 @@ describe("publish", () => {
 
     // Files should come from dist/
     const storeIndex = join(
-      testPlunkHome, "store", "test-lib@1.0.0", "package", "index.js"
+      testKNARRHome, "store", "test-lib@1.0.0", "package", "index.js"
     );
     expect(await exists(storeIndex)).toBe(true);
     expect(await readFile(storeIndex, "utf-8")).toBe('module.exports = "from-dist";');
@@ -267,7 +267,7 @@ describe("backup and restore", () => {
     await mkdir(nmDir, { recursive: true });
     await writeFile(join(nmDir, "index.js"), "original");
 
-    // Backup, then inject plunk version
+    // Backup, then inject Knarr version
     const hasBackup = await backupExisting(testConsumer, "test-lib", "npm");
     expect(hasBackup).toBe(true);
 
@@ -275,7 +275,7 @@ describe("backup and restore", () => {
     const entry = await getStoreEntry("test-lib", "1.0.0");
     await inject(entry!, testConsumer, "npm");
 
-    // Verify plunk version is injected
+    // Verify Knarr version is injected
     expect(
       await readFile(join(nmDir, "dist", "index.js"), "utf-8")
     ).toBe('module.exports = "hello";');
@@ -309,6 +309,56 @@ describe("scoped packages", () => {
     const entry = await findStoreEntry("@my-scope/my-lib");
     expect(entry).not.toBeNull();
     expect(entry!.version).toBe("2.0.0");
+  });
+});
+
+describe("use command flow", () => {
+  it("infers a local package name and links it into the current consumer", async () => {
+    const { addPackageToConsumer, readPackageNameFromSource } = await import(
+      "../commands/add-flow.js"
+    );
+    const { readConsumerState } = await import("../core/tracker.js");
+    const originalCwd = process.cwd();
+
+    process.chdir(testConsumer);
+    try {
+      const packageName = await readPackageNameFromSource(testLib);
+      expect(packageName).toBe("test-lib");
+
+      await addPackageToConsumer({
+        packageArg: packageName,
+        from: testLib,
+        yes: true,
+      });
+
+      expect(
+        await exists(join(testConsumer, "node_modules", "test-lib", "dist", "index.js"))
+      ).toBe(true);
+
+      const state = await readConsumerState(testConsumer);
+      expect(state.links["test-lib"]).toMatchObject({
+        version: "1.0.0",
+        sourcePath: testLib,
+        packageManager: "npm",
+      });
+    } finally {
+      process.chdir(originalCwd);
+    }
+  });
+
+  it("infers scoped package names from a local package path", async () => {
+    const { readPackageNameFromSource } = await import("../commands/add-flow.js");
+
+    await writeFile(
+      join(testLib, "package.json"),
+      JSON.stringify({
+        name: "@my-scope/my-lib",
+        version: "2.0.0",
+        files: ["dist"],
+      })
+    );
+
+    await expect(readPackageNameFromSource(testLib)).resolves.toBe("@my-scope/my-lib");
   });
 });
 

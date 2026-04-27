@@ -8,7 +8,7 @@ import type { PackageJson } from "../../types.js";
 let tempDir: string;
 
 beforeEach(async () => {
-  tempDir = await mkdtemp(join(tmpdir(), "plunk-pack-"));
+  tempDir = await mkdtemp(join(tmpdir(), "KNARR-pack-"));
 });
 
 afterEach(async () => {
@@ -238,7 +238,7 @@ describe("resolvePackFiles", () => {
   // Symlink tests only work reliably on non-Windows (Windows needs SeCreateSymbolicLinkPrivilege)
   it.skipIf(platform() === "win32")("excludes symlinks pointing outside package directory", async () => {
     // Create a file outside the package
-    const outsideDir = await mkdtemp(join(tmpdir(), "plunk-outside-"));
+    const outsideDir = await mkdtemp(join(tmpdir(), "KNARR-outside-"));
     await writeFile(join(outsideDir, "secret.txt"), "secret data");
 
     await writeFile(join(tempDir, "package.json"), "{}");
@@ -258,7 +258,7 @@ describe("resolvePackFiles", () => {
   });
 
   it.skipIf(platform() === "win32")("excludes symlinked directories", async () => {
-    const outsideDir = await mkdtemp(join(tmpdir(), "plunk-outside-"));
+    const outsideDir = await mkdtemp(join(tmpdir(), "KNARR-outside-"));
     await mkdir(join(outsideDir, "data"), { recursive: true });
     await writeFile(join(outsideDir, "data", "secret.txt"), "secret");
 

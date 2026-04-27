@@ -45,7 +45,7 @@ export default defineCommand({
       : links;
 
     if (args.package && toUpdate.length === 0) {
-      errorWithSuggestion(`Package "${args.package}" is not linked in this project. Run 'plunk list' to see linked packages.`);
+      errorWithSuggestion(`Package "${args.package}" is not linked in this project. Run 'knarr list' to see linked packages.`);
       process.exit(1);
     }
 

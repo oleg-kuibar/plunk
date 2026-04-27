@@ -8,25 +8,25 @@ import { fileURLToPath } from 'node:url';
 const __dir = dirname(fileURLToPath(import.meta.url));
 
 /**
- * Embeds the locally-built plunk dist into a virtual module so the
+ * Embeds the locally-built KNARR dist into a virtual module so the
  * WebContainer uses local code instead of the npm-published package.
  * Run `pnpm build` in the repo root before starting the playground.
  */
-function localPlunkDev(): Plugin {
-  const plunkRoot = join(__dir, '..');
-  const distDir = join(plunkRoot, 'dist');
-  const pkgPath = join(plunkRoot, 'package.json');
+function localKNARRDev(): Plugin {
+  const KNARRRoot = join(__dir, '..');
+  const distDir = join(KNARRRoot, 'dist');
+  const pkgPath = join(KNARRRoot, 'package.json');
 
   return {
-    name: 'local-plunk-dev',
+    name: 'local-KNARR-dev',
     resolveId(id) {
-      if (id === 'virtual:local-plunk') return '\0virtual:local-plunk';
+      if (id === 'virtual:local-KNARR') return '\0virtual:local-KNARR';
     },
     load(id) {
-      if (id !== '\0virtual:local-plunk') return;
+      if (id !== '\0virtual:local-KNARR') return;
 
       if (!existsSync(distDir)) {
-        console.warn('[local-plunk-dev] dist/ not found — run `pnpm build` in repo root first');
+        console.warn('[local-KNARR-dev] dist/ not found — run `pnpm build` in repo root first');
         return 'export default null;';
       }
 
@@ -48,7 +48,7 @@ function localPlunkDev(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), localPlunkDev()],
+  plugins: [react(), tailwindcss(), localKNARRDev()],
   server: {
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin',

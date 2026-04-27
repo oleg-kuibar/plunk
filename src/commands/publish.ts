@@ -14,7 +14,7 @@ const publishLimit = pLimit(4);
 export default defineCommand({
   meta: {
     name: "publish",
-    description: "Publish current package to the plunk store",
+    description: "Publish current package to the Knarr store",
   },
   args: {
     dir: {

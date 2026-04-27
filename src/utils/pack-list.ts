@@ -112,7 +112,7 @@ const DEFAULT_IGNORES = new Set([
   ".hg",
   ".DS_Store",
   ".npmrc",
-  ".plunk",
+  ".knarr",
   "test",
   "tests",
   "__tests__",

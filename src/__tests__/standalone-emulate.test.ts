@@ -4,22 +4,22 @@
  * These tests run the REAL workflow a user would follow from the docs:
  * 1. Copy a standalone example app to a temp directory
  * 2. Run the real package manager install (npm install, bun install, etc.)
- * 3. Run real `plunk` CLI commands (publish, add, list, status, etc.)
+ * 3. Run real `KNARR` CLI commands (publish, add, list, status, etc.)
  * 4. Run the app and verify it produces the expected output
- * 5. Simulate `npm install` wiping node_modules, then `plunk restore`
+ * 5. Simulate `npm install` wiping node_modules, then `knarr restore`
  * 6. Run the app again to verify restore worked
  * 7. Test remove, clean, and other lifecycle commands
  * 8. Clean up temp directories
  *
  * False-positive guards:
- * - Pre-condition: verify @example packages DON'T exist before plunk add
+ * - Pre-condition: verify @example packages DON'T exist before knarr add
  * - App execution: verify stdout contains expected output strings
  * - Post-wipe: verify app FAILS after wipe, then SUCCEEDS after restore
  * - Byte-for-byte: injected content matches source dist
  * - Exit codes: every CLI command asserted
  *
  * Prerequisites:
- * - plunk must be built (pnpm build → dist/cli.mjs)
+ * - KNARR must be built (pnpm build → dist/cli.mjs)
  * - Example packages must be built (cd examples/packages/... && npx tsup)
  * - npm and bun must be available in PATH
  */
@@ -49,14 +49,14 @@ const API_CLIENT_DIR = join(PACKAGES_DIR, "api-client");
 const UI_KIT_DIR = join(PACKAGES_DIR, "ui-kit");
 const STANDALONE_DIR = join(EXAMPLES_ROOT, "standalone");
 
-let plunkHome: string;
+let KNARRHome: string;
 
 // ── Shell helpers ───────────────────────────────────────────────────────────
 
 function makeEnv(): NodeJS.ProcessEnv {
   return {
     ...process.env,
-    PLUNK_HOME: plunkHome,
+    KNARR_HOME: KNARRHome,
     CI: "1",
     // Force no color to simplify output assertions
     NO_COLOR: "1",
@@ -105,13 +105,13 @@ function tryRun(
   }
 }
 
-/** Run a plunk CLI command. Returns stdout. Throws on non-zero exit. */
-function plunk(args: string, cwd: string): string {
+/** Run a KNARR CLI command. Returns stdout. Throws on non-zero exit. */
+function KNARR(args: string, cwd: string): string {
   return run(`node "${CLI}" ${args}`, cwd);
 }
 
-/** Run a plunk CLI command. Returns { stdout, stderr, exitCode }. */
-function tryPlunk(
+/** Run a KNARR CLI command. Returns { stdout, stderr, exitCode }. */
+function tryKNARR(
   args: string,
   cwd: string
 ): { stdout: string; stderr: string; exitCode: number } {
@@ -126,7 +126,7 @@ beforeAll(async () => {
   TMPDIR = realpathSync.native(tmpdir());
   if (!(await exists(CLI))) {
     throw new Error(
-      "plunk CLI must be built before running E2E tests.\nRun: pnpm build"
+      "KNARR CLI must be built before running E2E tests.\nRun: pnpm build"
     );
   }
   if (
@@ -142,11 +142,11 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  plunkHome = await mkdtemp(join(TMPDIR, "plunk-e2e-home-"));
+  KNARRHome = await mkdtemp(join(TMPDIR, "KNARR-e2e-home-"));
 });
 
 afterEach(async () => {
-  await cleanDir(plunkHome);
+  await cleanDir(KNARRHome);
 });
 
 // ── npm-app: full E2E ───────────────────────────────────────────────────────
@@ -156,7 +156,7 @@ describe("standalone E2E: npm-app", { timeout: 120_000 }, () => {
 
   beforeEach(async () => {
     // Copy the real npm-app example to a temp directory
-    appDir = await mkdtemp(join(TMPDIR, "plunk-e2e-npm-app-"));
+    appDir = await mkdtemp(join(TMPDIR, "KNARR-e2e-npm-app-"));
     await cp(join(STANDALONE_DIR, "npm-app"), appDir, { recursive: true });
   });
 
@@ -165,7 +165,7 @@ describe("standalone E2E: npm-app", { timeout: 120_000 }, () => {
   });
 
   it("install → publish → add → run → wipe → install → restore → run → remove", async () => {
-    // ── Step 1: npm install (skip postinstall to avoid plunk not-in-PATH error) ──
+    // ── Step 1: npm install (skip postinstall to avoid KNARR not-in-PATH error) ──
     run("npm install --ignore-scripts", appDir);
 
     // Pre-condition: @example packages must NOT be in node_modules
@@ -187,15 +187,15 @@ describe("standalone E2E: npm-app", { timeout: 120_000 }, () => {
 
     // Pre-condition: app should FAIL without @example packages
     const failRun = tryRun("node --import tsx src/main.ts", appDir);
-    expect(failRun.exitCode, "app should fail without plunk packages").not.toBe(0);
+    expect(failRun.exitCode, "app should fail without KNARR packages").not.toBe(0);
 
-    // ── Step 2: plunk publish example packages ──
-    plunk(`publish "${API_CLIENT_DIR}"`, appDir);
-    plunk(`publish "${UI_KIT_DIR}"`, appDir);
+    // ── Step 2: knarr publish example packages ──
+    KNARR(`publish "${API_CLIENT_DIR}"`, appDir);
+    KNARR(`publish "${UI_KIT_DIR}"`, appDir);
 
-    // ── Step 3: plunk add both packages ──
-    plunk(`add @example/api-client --from "${API_CLIENT_DIR}" --yes`, appDir);
-    plunk(`add @example/ui-kit --from "${UI_KIT_DIR}" --yes`, appDir);
+    // ── Step 3: knarr add both packages ──
+    KNARR(`add @example/api-client --from "${API_CLIENT_DIR}" --yes`, appDir);
+    KNARR(`add @example/ui-kit --from "${UI_KIT_DIR}" --yes`, appDir);
 
     // Verify files were injected
     const apiIndex = join(appDir, "node_modules", "@example", "api-client", "dist", "index.js");
@@ -216,25 +216,25 @@ describe("standalone E2E: npm-app", { timeout: 120_000 }, () => {
     expect(appOutput).toContain("USD 79.99");
     expect(appOutput).toContain("btn btn-primary");
     expect(appOutput).toContain('<div class="card">');
-    expect(appOutput).toContain("npm-app is working with plunk-linked packages!");
+    expect(appOutput).toContain("npm-app is working with Knarr-linked packages!");
 
-    // ── Step 5: plunk list should show both packages ──
-    const listOutput = plunk("list", appDir);
+    // ── Step 5: knarr list should show both packages ──
+    const listOutput = KNARR("list", appDir);
     expect(listOutput).toContain("@example/api-client");
     expect(listOutput).toContain("@example/ui-kit");
 
-    // ── Step 6: plunk status should pass ──
-    const { exitCode: statusExit } = tryPlunk("status", appDir);
-    expect(statusExit, "plunk status should exit 0").toBe(0);
+    // ── Step 6: knarr status should pass ──
+    const { exitCode: statusExit } = tryKNARR("status", appDir);
+    expect(statusExit, "knarr status should exit 0").toBe(0);
 
-    // ── Step 7: plunk doctor should pass ──
-    const { exitCode: doctorExit } = tryPlunk("doctor", appDir);
-    expect(doctorExit, "plunk doctor should exit 0").toBe(0);
+    // ── Step 7: knarr doctor should pass ──
+    const { exitCode: doctorExit } = tryKNARR("doctor", appDir);
+    expect(doctorExit, "knarr doctor should exit 0").toBe(0);
 
     // ── Step 8: Simulate npm install wiping node_modules ──
     run("npm install --ignore-scripts", appDir);
 
-    // After npm install, the plunk-injected packages are gone
+    // After npm install, the KNARR-injected packages are gone
     // (npm restores the lockfile-based node_modules, which doesn't have @example)
     expect(
       await exists(apiIndex),
@@ -245,8 +245,8 @@ describe("standalone E2E: npm-app", { timeout: 120_000 }, () => {
     const failAfterWipe = tryRun("node --import tsx src/main.ts", appDir);
     expect(failAfterWipe.exitCode, "app should fail after wipe").not.toBe(0);
 
-    // ── Step 9: plunk restore ──
-    plunk("restore", appDir);
+    // ── Step 9: knarr restore ──
+    KNARR("restore", appDir);
 
     // Files should be back
     expect(await exists(apiIndex), "api-client restored").toBe(true);
@@ -255,11 +255,11 @@ describe("standalone E2E: npm-app", { timeout: 120_000 }, () => {
 
     // ── Step 10: App should work again after restore ──
     const appAfterRestore = run("node --import tsx src/main.ts", appDir);
-    expect(appAfterRestore).toContain("npm-app is working with plunk-linked packages!");
+    expect(appAfterRestore).toContain("npm-app is working with Knarr-linked packages!");
     expect(appAfterRestore).toContain("USD 79.99");
 
-    // ── Step 11: plunk remove @example/api-client ──
-    plunk("remove @example/api-client", appDir);
+    // ── Step 11: knarr remove @example/api-client ──
+    KNARR("remove @example/api-client", appDir);
 
     expect(
       await exists(join(appDir, "node_modules", "@example", "api-client")),
@@ -275,13 +275,13 @@ describe("standalone E2E: npm-app", { timeout: 120_000 }, () => {
     expect(failAfterRemove.exitCode, "app should fail with api-client removed").not.toBe(0);
 
     // list should only show ui-kit
-    const listAfterRemove = plunk("list", appDir);
+    const listAfterRemove = KNARR("list", appDir);
     expect(listAfterRemove).toContain("@example/ui-kit");
     expect(listAfterRemove).not.toContain("@example/api-client");
 
-    // ── Step 12: plunk clean ──
-    const { exitCode: cleanExit } = tryPlunk("clean", appDir);
-    expect(cleanExit, "plunk clean should exit 0").toBe(0);
+    // ── Step 12: knarr clean ──
+    const { exitCode: cleanExit } = tryKNARR("clean", appDir);
+    expect(cleanExit, "knarr clean should exit 0").toBe(0);
   });
 });
 
@@ -297,7 +297,7 @@ describe("standalone E2E: bun-app", { timeout: 120_000 }, () => {
   });
 
   beforeEach(async () => {
-    appDir = await mkdtemp(join(TMPDIR, "plunk-e2e-bun-app-"));
+    appDir = await mkdtemp(join(TMPDIR, "KNARR-e2e-bun-app-"));
     await cp(join(STANDALONE_DIR, "bun-app"), appDir, { recursive: true });
   });
 
@@ -320,13 +320,13 @@ describe("standalone E2E: bun-app", { timeout: 120_000 }, () => {
       "api-client must NOT exist after bun install"
     ).toBe(false);
 
-    // App should fail without plunk packages
+    // App should fail without KNARR packages
     const failRun = tryRun("bun run src/main.ts", appDir);
-    expect(failRun.exitCode, "app should fail without plunk packages").not.toBe(0);
+    expect(failRun.exitCode, "app should fail without KNARR packages").not.toBe(0);
 
-    // ── plunk add ──
-    plunk(`add @example/api-client --from "${API_CLIENT_DIR}" --yes`, appDir);
-    plunk(`add @example/ui-kit --from "${UI_KIT_DIR}" --yes`, appDir);
+    // ── knarr add ──
+    KNARR(`add @example/api-client --from "${API_CLIENT_DIR}" --yes`, appDir);
+    KNARR(`add @example/ui-kit --from "${UI_KIT_DIR}" --yes`, appDir);
 
     // Verify injection
     const apiIndex = join(appDir, "node_modules", "@example", "api-client", "dist", "index.js");
@@ -340,7 +340,7 @@ describe("standalone E2E: bun-app", { timeout: 120_000 }, () => {
     const appOutput = run("bun run src/main.ts", appDir);
     expect(appOutput).toContain("User: Alice (admin)");
     expect(appOutput).toContain("USD 79.99");
-    expect(appOutput).toContain("bun-app is working with plunk-linked packages!");
+    expect(appOutput).toContain("bun-app is working with Knarr-linked packages!");
 
     // ── Wipe → restore → run again ──
     // Unlike npm, bun install preserves packages not in its lockfile.
@@ -355,11 +355,11 @@ describe("standalone E2E: bun-app", { timeout: 120_000 }, () => {
     const failAfterWipe = tryRun("bun run src/main.ts", appDir);
     expect(failAfterWipe.exitCode, "app should fail after wipe").not.toBe(0);
 
-    plunk("restore", appDir);
+    KNARR("restore", appDir);
     expect(await exists(apiIndex), "api-client restored").toBe(true);
 
     const appAfterRestore = run("bun run src/main.ts", appDir);
-    expect(appAfterRestore).toContain("bun-app is working with plunk-linked packages!");
+    expect(appAfterRestore).toContain("bun-app is working with Knarr-linked packages!");
   });
 });
 
@@ -369,7 +369,7 @@ describe("standalone E2E: pnpm-app (vite build)", { timeout: 120_000 }, () => {
   let appDir: string;
 
   beforeEach(async () => {
-    appDir = await mkdtemp(join(TMPDIR, "plunk-e2e-pnpm-app-"));
+    appDir = await mkdtemp(join(TMPDIR, "KNARR-e2e-pnpm-app-"));
     await cp(join(STANDALONE_DIR, "pnpm-app"), appDir, { recursive: true });
   });
 
@@ -389,18 +389,18 @@ describe("standalone E2E: pnpm-app (vite build)", { timeout: 120_000 }, () => {
 
     // Build should fail without @example packages
     const failBuild = tryRun("npx vite build", appDir);
-    expect(failBuild.exitCode, "vite build should fail without plunk packages").not.toBe(0);
+    expect(failBuild.exitCode, "vite build should fail without KNARR packages").not.toBe(0);
 
-    // Save original vite.config.ts before plunk add modifies it
+    // Save original vite.config.ts before knarr add modifies it
     const viteConfigPath = join(appDir, "vite.config.ts");
     const originalViteConfig = await readFile(viteConfigPath, "utf-8");
 
-    // ── plunk add ──
-    plunk(`add @example/api-client --from "${API_CLIENT_DIR}" --yes`, appDir);
-    plunk(`add @example/ui-kit --from "${UI_KIT_DIR}" --yes`, appDir);
+    // ── knarr add ──
+    KNARR(`add @example/api-client --from "${API_CLIENT_DIR}" --yes`, appDir);
+    KNARR(`add @example/ui-kit --from "${UI_KIT_DIR}" --yes`, appDir);
 
-    // Restore original vite.config.ts — plunk add auto-injects the plunk Vite
-    // plugin import, but @olegkuibar/plunk isn't installed in this temp dir.
+    // Restore original vite.config.ts — knarr add auto-injects the KNARR Vite
+    // plugin import, but knarr isn't installed in this temp dir.
     // We're testing core injection, not the Vite plugin integration.
     const { writeFile } = await import("node:fs/promises");
     await writeFile(viteConfigPath, originalViteConfig);
@@ -438,7 +438,7 @@ describe("standalone E2E: pnpm-app (vite build)", { timeout: 120_000 }, () => {
     const failAfterWipe = tryRun("npx vite build", appDir);
     expect(failAfterWipe.exitCode, "vite build should fail after wipe").not.toBe(0);
 
-    plunk("restore", appDir);
+    KNARR("restore", appDir);
     expect(await exists(apiIndex), "api-client restored").toBe(true);
 
     const buildAfterRestore = run("npx vite build", appDir);
@@ -459,10 +459,10 @@ describe("standalone E2E: push to multiple consumers", { timeout: 120_000 }, () 
   });
 
   beforeEach(async () => {
-    npmApp = await mkdtemp(join(TMPDIR, "plunk-e2e-push-npm-"));
+    npmApp = await mkdtemp(join(TMPDIR, "KNARR-e2e-push-npm-"));
     await cp(join(STANDALONE_DIR, "npm-app"), npmApp, { recursive: true });
 
-    bunApp = await mkdtemp(join(TMPDIR, "plunk-e2e-push-bun-"));
+    bunApp = await mkdtemp(join(TMPDIR, "KNARR-e2e-push-bun-"));
     await cp(join(STANDALONE_DIR, "bun-app"), bunApp, { recursive: true });
   });
 
@@ -482,12 +482,12 @@ describe("standalone E2E: push to multiple consumers", { timeout: 120_000 }, () 
     run("bun install --ignore-scripts", bunApp);
 
     // Add @example/api-client to both consumers
-    plunk(`add @example/api-client --from "${API_CLIENT_DIR}" --yes`, npmApp);
-    plunk(`add @example/api-client --from "${API_CLIENT_DIR}" --yes`, bunApp);
+    KNARR(`add @example/api-client --from "${API_CLIENT_DIR}" --yes`, npmApp);
+    KNARR(`add @example/api-client --from "${API_CLIENT_DIR}" --yes`, bunApp);
 
     // Also add ui-kit so the apps can run
-    plunk(`add @example/ui-kit --from "${UI_KIT_DIR}" --yes`, npmApp);
-    plunk(`add @example/ui-kit --from "${UI_KIT_DIR}" --yes`, bunApp);
+    KNARR(`add @example/ui-kit --from "${UI_KIT_DIR}" --yes`, npmApp);
+    KNARR(`add @example/ui-kit --from "${UI_KIT_DIR}" --yes`, bunApp);
 
     // Both apps should work
     const npmOutput = run("node --import tsx src/main.ts", npmApp);
@@ -496,7 +496,7 @@ describe("standalone E2E: push to multiple consumers", { timeout: 120_000 }, () 
     expect(bunOutput).toContain("USD 79.99");
 
     // Now create a modified api-client and push
-    const tempLib = await mkdtemp(join(TMPDIR, "plunk-e2e-modified-lib-"));
+    const tempLib = await mkdtemp(join(TMPDIR, "KNARR-e2e-modified-lib-"));
     await cp(API_CLIENT_DIR, tempLib, { recursive: true });
 
     // Modify the dist output to change formatPrice
@@ -523,7 +523,7 @@ export {
     await writeFile(join(tempLib, "dist", "index.js"), modifiedDist);
 
     // Push from the modified lib
-    plunk("push", tempLib);
+    KNARR("push", tempLib);
 
     // Both consumers should now have the updated content
     const npmAfterPush = run("node --import tsx src/main.ts", npmApp);
@@ -553,7 +553,7 @@ describe("standalone E2E: error handling", { timeout: 30_000 }, () => {
   let appDir: string;
 
   beforeEach(async () => {
-    appDir = await mkdtemp(join(TMPDIR, "plunk-e2e-errors-"));
+    appDir = await mkdtemp(join(TMPDIR, "KNARR-e2e-errors-"));
     await cp(join(STANDALONE_DIR, "npm-app"), appDir, { recursive: true });
     run("npm install --ignore-scripts", appDir);
   });
@@ -562,25 +562,25 @@ describe("standalone E2E: error handling", { timeout: 30_000 }, () => {
     await cleanDir(appDir);
   });
 
-  it("plunk add fails for package not in store", () => {
-    const result = tryPlunk("add does-not-exist --yes", appDir);
+  it("knarr add fails for package not in store", () => {
+    const result = tryKNARR("add does-not-exist --yes", appDir);
     expect(result.exitCode).not.toBe(0);
   });
 
-  it("plunk publish fails for directory without package.json", async () => {
-    const emptyDir = await mkdtemp(join(TMPDIR, "plunk-empty-"));
-    const result = tryPlunk(`publish "${emptyDir}"`, appDir);
+  it("knarr publish fails for directory without package.json", async () => {
+    const emptyDir = await mkdtemp(join(TMPDIR, "KNARR-empty-"));
+    const result = tryKNARR(`publish "${emptyDir}"`, appDir);
     expect(result.exitCode).not.toBe(0);
     await cleanDir(emptyDir);
   });
 
-  it("plunk restore is no-op with no linked packages", () => {
-    const result = tryPlunk("restore --silent", appDir);
+  it("knarr restore is no-op with no linked packages", () => {
+    const result = tryKNARR("restore --silent", appDir);
     expect(result.exitCode).toBe(0);
   });
 
-  it("plunk list is empty with no linked packages", () => {
-    const result = tryPlunk("list", appDir);
+  it("knarr list is empty with no linked packages", () => {
+    const result = tryKNARR("list", appDir);
     expect(result.exitCode).toBe(0);
   });
 });

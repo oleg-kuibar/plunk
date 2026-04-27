@@ -18,7 +18,7 @@ export function killActiveBuild(): void {
   }
 }
 
-const IGNORED_DIRS = new Set(["node_modules", ".git", ".plunk"]);
+const IGNORED_DIRS = new Set(["node_modules", ".git", ".knarr"]);
 
 /** Recursively walk a directory, collecting file paths and their mtimeMs. */
 async function walkDir(
@@ -199,7 +199,7 @@ export async function startWatcher(
     ignored: [
       /[/\\]node_modules[/\\]/,
       /[/\\]\.git[/\\]/,
-      /[/\\]\.plunk[/\\]/,
+      /[/\\]\.knarr[/\\]/,
     ],
     awaitWriteFinish: awfOption,
     usePolling,

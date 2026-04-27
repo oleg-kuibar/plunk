@@ -5,7 +5,7 @@ import { readConsumerState } from "../core/tracker.js";
 import { removeSinglePackage } from "./remove.js";
 import { removeDir, exists } from "../utils/fs.js";
 import { removePostinstall } from "../utils/init-helpers.js";
-import { getConsumerPlunkDir } from "../utils/paths.js";
+import { getConsumerKnarrDir } from "../utils/paths.js";
 import { Timer } from "../utils/timer.js";
 import { suppressHumanOutput, output } from "../utils/output.js";
 import { isDryRun, verbose } from "../utils/logger.js";
@@ -15,7 +15,7 @@ export default defineCommand({
   meta: {
     name: "reset",
     description:
-      "Remove all plunk links and teardown plunk from this project",
+      "Remove all Knarr links and teardown Knarr from this project",
   },
   args: {
     yes: {
@@ -29,10 +29,10 @@ export default defineCommand({
     suppressHumanOutput();
     const timer = new Timer();
     const consumerPath = resolve(".");
-    const plunkDir = getConsumerPlunkDir(consumerPath);
+    const knarrDir = getConsumerKnarrDir(consumerPath);
 
-    if (!(await exists(plunkDir))) {
-      consola.info("No plunk setup found in this project");
+    if (!(await exists(knarrDir))) {
+      consola.info("No Knarr setup found in this project");
       output({ reset: false });
       return;
     }
@@ -45,10 +45,10 @@ export default defineCommand({
       if (links.length > 0) {
         parts.push(`remove ${links.length} linked package(s)`);
       }
-      parts.push("delete .plunk/ directory", "remove postinstall hook");
+      parts.push("delete .knarr/ directory", "remove postinstall hook");
 
       const confirmed = await consola.prompt(
-        `Reset plunk? This will ${parts.join(", ")}.`,
+        `Reset Knarr? This will ${parts.join(", ")}.`,
         { type: "confirm" }
       );
       if (!confirmed || typeof confirmed === "symbol") {
@@ -71,9 +71,9 @@ export default defineCommand({
       }
     }
 
-    // Delete .plunk/ directory
-    await removeDir(plunkDir);
-    consola.success("Removed .plunk/ directory");
+    // Delete .knarr/ directory
+    await removeDir(knarrDir);
+    consola.success("Removed .knarr/ directory");
 
     // Remove postinstall hook
     const pkgPath = join(consumerPath, "package.json");

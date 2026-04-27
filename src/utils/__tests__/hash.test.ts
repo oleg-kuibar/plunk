@@ -8,7 +8,7 @@ describe("hashFile", () => {
   let tempDir: string;
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), "plunk-test-"));
+    tempDir = await mkdtemp(join(tmpdir(), "KNARR-test-"));
   });
 
   afterEach(async () => {
@@ -55,7 +55,7 @@ describe("computeContentHash", () => {
   let tempDir: string;
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), "plunk-test-"));
+    tempDir = await mkdtemp(join(tmpdir(), "KNARR-test-"));
   });
 
   afterEach(async () => {

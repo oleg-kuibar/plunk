@@ -38,9 +38,9 @@ export default defineCommand({
       const linker = await detectYarnNodeLinker(consumerPath);
       if (linker === "pnp" || (linker === null && await hasYarnrcYml(consumerPath))) {
         consola.error(
-          `Yarn PnP mode is not compatible with plunk.\n\n` +
-          `plunk works by copying files into node_modules/, but PnP eliminates\n` +
-          `node_modules/ entirely. To use plunk with Yarn Berry, add this to\n` +
+          `Yarn PnP mode is not compatible with Knarr.\n\n` +
+          `Knarr works by copying files into node_modules/, but PnP eliminates\n` +
+          `node_modules/ entirely. To use Knarr with Yarn Berry, add this to\n` +
           `.yarnrc.yml:\n\n` +
           `  nodeLinker: node-modules\n\n` +
           `Then run: yarn install`

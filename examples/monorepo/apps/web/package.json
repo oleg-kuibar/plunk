@@ -2,13 +2,13 @@
   "name": "@mono/web",
   "version": "1.0.0",
   "private": true,
-  "description": "Vite app — uses shared-utils (workspace) + api-client (plunk)",
+  "description": "Vite app — uses shared-utils (workspace) + api-client (Knarr)",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "postinstall": "plunk restore || true"
+    "postinstall": "knarr restore || true"
   },
   "dependencies": {
     "@mono/shared-utils": "workspace:*"

@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
-import type { LinkEntry, PlunkMeta } from "../types";
+import type { LinkEntry, KnarrMeta } from "../types";
 
-/** Top-level node: a project folder that has .plunk/state.json */
+/** Top-level node: a project folder that has .knarr/state.json */
 export class ProjectItem extends vscode.TreeItem {
   constructor(
     public readonly projectLabel: string,
@@ -11,7 +11,7 @@ export class ProjectItem extends vscode.TreeItem {
     super(projectLabel, vscode.TreeItemCollapsibleState.Expanded);
     this.description = packageNames.join(", ");
     this.iconPath = new vscode.ThemeIcon("folder");
-    this.contextValue = "plunkProject";
+    this.contextValue = "knarrProject";
     this.resourceUri = vscode.Uri.file(projectPath);
   }
 }
@@ -22,7 +22,7 @@ export class PackageItem extends vscode.TreeItem {
     public readonly packageName: string,
     public readonly link: LinkEntry,
     public readonly projectPath: string,
-    storeMeta?: PlunkMeta
+    storeMeta?: KnarrMeta
   ) {
     super(packageName, vscode.TreeItemCollapsibleState.Collapsed);
 
@@ -35,11 +35,11 @@ export class PackageItem extends vscode.TreeItem {
         ? new vscode.ThemeColor("editorWarning.foreground")
         : undefined
     );
-    this.contextValue = "plunkPackage";
+    this.contextValue = "knarrPackage";
 
     // Click → open source folder
     this.command = {
-      command: "plunk.openSource",
+      command: "knarr.openSource",
       title: "Open Source Folder",
       arguments: [link.sourcePath],
     };
@@ -54,7 +54,7 @@ export class PackageItem extends vscode.TreeItem {
     if (link.buildId) lines.push(`Build: \`${link.buildId}\``);
     if (stale && storeMeta?.buildId) {
       lines.push(``, `Store has newer build: \`${storeMeta.buildId}\``);
-      lines.push(`Run \`plunk update\` or \`plunk push\` to sync`);
+      lines.push("Run `knarr update` or `knarr push` to sync");
     } else if (storeMeta) {
       lines.push(``, `In sync with store`);
     }
@@ -71,12 +71,12 @@ export class MetadataItem extends vscode.TreeItem {
   constructor(label: string, value: string, icon?: string) {
     super(`${label}: ${value}`, vscode.TreeItemCollapsibleState.None);
     this.iconPath = icon ? new vscode.ThemeIcon(icon) : undefined;
-    this.contextValue = "plunkMetadata";
+    this.contextValue = "knarrMetadata";
   }
 }
 
 /** Helper: build metadata children for a linked package */
-export function buildMetadataItems(link: LinkEntry, storeMeta?: PlunkMeta): MetadataItem[] {
+export function buildMetadataItems(link: LinkEntry, storeMeta?: KnarrMeta): MetadataItem[] {
   const items: MetadataItem[] = [];
   items.push(new MetadataItem("Source", shortenPath(link.sourcePath), "folder"));
   items.push(new MetadataItem("Linked", formatRelativeTime(link.linkedAt), "clock"));

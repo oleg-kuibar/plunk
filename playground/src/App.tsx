@@ -15,8 +15,8 @@ function BrowserWarning() {
   return (
     <div className="flex flex-col items-center justify-center h-screen bg-bg text-text p-6 text-center">
       <motion.img
-        src="/plunk_logo.png"
-        alt="Plunk mascot"
+        src="/KNARR_logo.png"
+        alt="KNARR mascot"
         className="w-24 h-24 rounded-full mb-6 object-cover"
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -25,7 +25,7 @@ function BrowserWarning() {
         Browser Not Supported
       </h1>
       <p className="max-w-md text-text-muted leading-relaxed mb-6">
-        The Plunk Playground requires SharedArrayBuffer, which is not available in
+        The KNARR Playground requires SharedArrayBuffer, which is not available in
         your browser. Please use one of the following browsers:
       </p>
       <div className="flex gap-4">
@@ -53,8 +53,8 @@ function ErrorScreen({ error }: { error: string }) {
     <div className="flex flex-col items-center justify-center h-screen bg-bg text-text p-6">
       <div className="bg-bg-elevated border border-danger/30 rounded-xl p-10 max-w-md text-center">
         <motion.img
-          src="/plunk_logo.png"
-          alt="Plunk"
+          src="/KNARR_logo.png"
+          alt="KNARR"
           className="w-20 h-20 rounded-full mx-auto mb-4 grayscale opacity-60 object-cover"
           initial={{ scale: 0.9 }}
           animate={{ scale: 1 }}
@@ -87,7 +87,7 @@ export default function App() {
   const [openFiles, setOpenFiles] = useState<OpenFile[]>([]);
   const [activeFile, setActiveFile] = useState<string | null>(null);
   const [tutorialCollapsed, setTutorialCollapsed] = useState(() => {
-    return localStorage.getItem('plunk-tutorial-collapsed') === 'true';
+    return localStorage.getItem('KNARR-tutorial-collapsed') === 'true';
   });
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -166,7 +166,7 @@ export default function App() {
   const handleTutorialToggle = useCallback(() => {
     setTutorialCollapsed(prev => {
       const next = !prev;
-      localStorage.setItem('plunk-tutorial-collapsed', String(next));
+      localStorage.setItem('KNARR-tutorial-collapsed', String(next));
       return next;
     });
   }, []);
@@ -235,7 +235,7 @@ export default function App() {
 
       {/* Main content */}
       <div className="flex-1 overflow-hidden">
-        <PanelGroup direction="horizontal" autoSaveId="plunk-playground-main">
+        <PanelGroup direction="horizontal" autoSaveId="KNARR-playground-main">
           {/* Left sidebar - File tree & Scripts */}
           <Panel
             ref={sidebarRef}

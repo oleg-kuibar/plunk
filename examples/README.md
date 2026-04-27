@@ -1,6 +1,6 @@
 # Examples
 
-Runnable demos showing plunk with different package managers and project setups.
+Runnable demos showing Knarr with different package managers and project setups.
 
 ## What's here
 
@@ -16,16 +16,16 @@ examples/
 │   ├── yarn-app/              # yarn v4 (nodeLinker: node-modules) — Node.js CLI
 │   └── bun-app/               # bun — Node.js/Bun CLI
 │
-└── monorepo/                  # pnpm workspace — workspace links + plunk side by side
+└── monorepo/                  # pnpm workspace — workspace links + Knarr side by side
     ├── packages/shared-utils/ # @mono/shared-utils — workspace package
     └── apps/
-        ├── web/               # Vite app — shared-utils (workspace) + api-client (plunk)
-        └── server/            # Node app — shared-utils (workspace) + ui-kit (plunk)
+        ├── web/               # Vite app — shared-utils (workspace) + api-client (Knarr)
+        └── server/            # Node app — shared-utils (workspace) + ui-kit (Knarr)
 ```
 
 ## Quick start
 
-### 1. Build plunk
+### 1. Build Knarr
 
 ```bash
 # From the repo root
@@ -44,11 +44,11 @@ cd ../ui-kit
 npm install && npx tsup
 ```
 
-### 3. Publish to plunk store
+### 3. Publish to Knarr store
 
 ```bash
-cd ../api-client && plunk publish
-cd ../ui-kit && plunk publish
+cd ../api-client && knarr publish
+cd ../ui-kit && knarr publish
 ```
 
 ### 4. Try a standalone app
@@ -56,8 +56,8 @@ cd ../ui-kit && plunk publish
 ```bash
 cd ../../standalone/npm-app
 npm install
-plunk add @example/api-client --from ../../packages/api-client
-plunk add @example/ui-kit --from ../../packages/ui-kit
+knarr add @example/api-client --from ../../packages/api-client
+knarr add @example/ui-kit --from ../../packages/ui-kit
 npm start
 ```
 
@@ -70,7 +70,7 @@ cd ../../monorepo
 pnpm install
 cd packages/shared-utils && pnpm build
 cd ../../apps/web
-plunk add @example/api-client --from ../../../packages/api-client
+knarr add @example/api-client --from ../../../packages/api-client
 pnpm dev
 ```
 
@@ -82,10 +82,10 @@ Make changes to a package and see them propagate automatically:
 
 ```bash
 cd packages/api-client
-plunk push --watch --build "npx tsup"
+knarr push --watch --build "npx tsup"
 ```
 
-Edit `src/client.ts`, save. plunk rebuilds, publishes, and copies to all consumers.
+Edit `src/client.ts`, save. Knarr rebuilds, publishes, and copies to all consumers.
 
 ## More
 

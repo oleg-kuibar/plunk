@@ -16,7 +16,7 @@ export interface UseTerminalResult {
 }
 
 // GitHub-inspired terminal theme with amber cursor
-const plunkTerminalTheme = {
+const KNARRTerminalTheme = {
   background: '#0d1117',
   foreground: '#e6edf3',
   cursor: '#f59e0b',
@@ -49,7 +49,7 @@ export function useTerminal(options: UseTerminalOptions = {}): UseTerminalResult
     if (!terminalRef.current) return;
 
     const terminal = new Terminal({
-      theme: plunkTerminalTheme,
+      theme: KNARRTerminalTheme,
       fontFamily: 'var(--font-mono)',
       fontSize: 13,
       lineHeight: 1.4,

@@ -19,14 +19,14 @@ interface CheckResult {
 export default defineCommand({
   meta: {
     name: "doctor",
-    description: "Run diagnostic checks on your plunk setup",
+    description: "Run diagnostic checks on your Knarr setup",
   },
   async run() {
     suppressHumanOutput();
     const consumerPath = resolve(".");
     const results: CheckResult[] = [];
 
-    consola.info("Running plunk diagnostics...\n");
+    consola.info("Running Knarr diagnostics...\n");
 
     // Check 1: Store directory exists
     const storePath = getStorePath();
@@ -41,7 +41,7 @@ export default defineCommand({
       results.push({
         name: "Store directory",
         status: "warn",
-        message: `Store not found at ${storePath}. Run 'plunk publish' to create it.`,
+        message: `Store not found at ${storePath}. Run 'knarr publish' to create it.`,
       });
     }
 
@@ -59,7 +59,7 @@ export default defineCommand({
       results.push({
         name: "Global registry",
         status: "warn",
-        message: "No consumers registered yet. Use 'plunk add' to link packages.",
+        message: "No consumers registered yet. Use 'knarr add' to link packages.",
       });
     }
 
@@ -69,7 +69,7 @@ export default defineCommand({
       results.push({
         name: "Consumer state",
         status: "fail",
-        message: "state.json is corrupt or unreadable. Delete .plunk/state.json and re-run 'plunk add' for each package.",
+        message: "state.json is corrupt or unreadable. Delete .knarr/state.json and re-run 'knarr add' for each package.",
       });
     }
     const links = Object.entries(state.links);
@@ -93,7 +93,7 @@ export default defineCommand({
           results.push({
             name: `Store: ${name}`,
             status: "warn",
-            message: `Store has newer content. Run 'plunk update' to sync.`,
+            message: `Store has newer content. Run 'knarr update' to sync.`,
           });
         } else {
           results.push({
@@ -109,10 +109,10 @@ export default defineCommand({
           results.push({
             name: `node_modules: ${name}`,
             status: "fail",
-            message: `Missing from node_modules. Run 'plunk restore'.`,
+            message: `Missing from node_modules. Run 'knarr restore'.`,
           });
         } else {
-          // Verify the installed version matches what plunk injected
+          // Verify the installed version matches what KNARR injected
           try {
             const { readFile: rf } = await import("node:fs/promises");
             const nmPkg = JSON.parse(await rf(join(nmPath, "package.json"), "utf-8"));
@@ -120,7 +120,7 @@ export default defineCommand({
               results.push({
                 name: `node_modules: ${name}`,
                 status: "warn",
-                message: `node_modules has v${nmPkg.version} but plunk linked v${link.version}. Run 'plunk restore'.`,
+                message: `node_modules has v${nmPkg.version} but Knarr linked v${link.version}. Run 'knarr restore'.`,
               });
             }
           } catch {
@@ -132,7 +132,7 @@ export default defineCommand({
       results.push({
         name: "Consumer state",
         status: "warn",
-        message: "No packages linked. Use 'plunk add' to link a package.",
+        message: "No packages linked. Use 'knarr add' to link a package.",
       });
     }
 
@@ -165,7 +165,7 @@ export default defineCommand({
         results.push({
           name: "Yarn linker",
           status: "pass",
-          message: "Yarn pnpm linker mode (plunk handles this)",
+          message: "Yarn pnpm linker mode (Knarr handles this)",
         });
       } else if (linker === "pnp") {
         results.push({
@@ -199,22 +199,22 @@ export default defineCommand({
       });
     }
 
-    // Check 9: .gitignore includes .plunk/
+    // Check 9: .gitignore includes .knarr/
     const gitignorePath = join(consumerPath, ".gitignore");
     if (await exists(gitignorePath)) {
       const { readFile } = await import("node:fs/promises");
       const content = await readFile(gitignorePath, "utf-8");
-      if (content.includes(".plunk")) {
+      if (content.includes(".knarr")) {
         results.push({
           name: ".gitignore",
           status: "pass",
-          message: ".plunk/ is ignored",
+          message: ".knarr/ is ignored",
         });
       } else {
         results.push({
           name: ".gitignore",
           status: "warn",
-          message: ".plunk/ not in .gitignore. Run 'plunk init' to fix.",
+          message: ".knarr/ not in .gitignore. Run 'knarr init' to fix.",
         });
       }
     }
@@ -231,7 +231,7 @@ export default defineCommand({
       results.push({
         name: "Node.js version",
         status: "fail",
-        message: `v${process.versions.node} — plunk requires Node.js >= 22`,
+        message: `v${process.versions.node} — Knarr requires Node.js >= 22`,
       });
     }
 

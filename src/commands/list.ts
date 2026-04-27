@@ -18,7 +18,7 @@ export default defineCommand({
   args: {
     store: {
       type: "boolean",
-      description: "List all packages in the global plunk store",
+      description: "List all packages in the global Knarr store",
       default: false,
     },
     history: {
@@ -80,7 +80,7 @@ async function listStore() {
   ]);
 
   if (entries.length === 0) {
-    consola.info("Plunk store is empty");
+    consola.info("Knarr store is empty");
     output({ entries: [], totalSize: 0 });
     return;
   }

@@ -9,14 +9,14 @@ import { initFlags } from "./utils/logger.js";
 import { showBanner } from "./utils/banner.js";
 import { consola } from "./utils/console.js";
 
-declare const __PLUNK_VERSION__: string;
+declare const __KNARR_VERSION__: string;
 
 initFlags();
 
 // Show banner when running without subcommand or with --help
 const args = process.argv.slice(2);
 const KNOWN_COMMANDS = [
-  "init", "publish", "add", "remove", "push", "dev",
+  "init", "publish", "add", "use", "remove", "push", "dev",
   "restore", "list", "status", "update", "clean", "gc",
   "doctor", "migrate", "reset", "rollback", "check",
 ];
@@ -54,14 +54,15 @@ async function showInteractiveMenu(): Promise<string | null> {
   const selected = await consola.prompt("What would you like to do?", {
     type: "select",
     options: [
-      { label: "init     — Set up plunk in this project", value: "init" },
-      { label: "publish  — Publish package to the plunk store", value: "publish" },
-      { label: "add      — Link a package from the store", value: "add" },
-      { label: "push     — Publish and push to all consumers", value: "push" },
-      { label: "dev      — Watch, rebuild, and push continuously", value: "dev" },
-      { label: "list     — Show linked packages", value: "list" },
-      { label: "status   — Show project status", value: "status" },
-      { label: "help     — Show help", value: "--help" },
+      { label: "init     - Set up knarr in this project", value: "init" },
+      { label: "publish  - Publish package to the knarr store", value: "publish" },
+      { label: "add      - Link a package from the store", value: "add" },
+      { label: "use      - Link a local package path", value: "use" },
+      { label: "push     - Publish and push to all consumers", value: "push" },
+      { label: "dev      - Watch, rebuild, and push continuously", value: "dev" },
+      { label: "list     - Show linked packages", value: "list" },
+      { label: "status   - Show project status", value: "status" },
+      { label: "help     - Show help", value: "--help" },
     ],
   });
 
@@ -70,9 +71,9 @@ async function showInteractiveMenu(): Promise<string | null> {
 
 const main = defineCommand({
   meta: {
-    name: "plunk",
-    version: typeof __PLUNK_VERSION__ !== "undefined" ? __PLUNK_VERSION__ : "0.0.0-dev",
-    description: "Local npm package development — copies built files into consumer node_modules",
+    name: "knarr",
+    version: typeof __KNARR_VERSION__ !== "undefined" ? __KNARR_VERSION__ : "0.0.0-dev",
+    description: "Local npm package development - copies built files into consumer node_modules",
   },
   args: {
     verbose: {
@@ -96,6 +97,7 @@ const main = defineCommand({
     init: () => import("./commands/init.js").then((m) => m.default),
     publish: () => import("./commands/publish.js").then((m) => m.default),
     add: () => import("./commands/add.js").then((m) => m.default),
+    use: () => import("./commands/use.js").then((m) => m.default),
     remove: () => import("./commands/remove.js").then((m) => m.default),
     push: () => import("./commands/push.js").then((m) => m.default),
     dev: () => import("./commands/dev.js").then((m) => m.default),

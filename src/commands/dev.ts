@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { suppressHumanOutput } from "../utils/output.js";
 import { doPush, startWatchMode, startMultiWatchMode } from "../core/push-engine.js";
 import { doPushAll } from "../core/batch-push.js";
-import { loadPlunkConfig } from "../utils/config.js";
+import { loadKnarrConfig } from "../utils/config.js";
 import { isDryRun } from "../utils/logger.js";
 import { printDryRunReport } from "../utils/dry-run.js";
 
@@ -61,7 +61,7 @@ export default defineCommand({
   async run({ args }) {
     suppressHumanOutput();
     const packageDir = resolve(".");
-    const config = await loadPlunkConfig(packageDir);
+    const config = await loadKnarrConfig(packageDir);
     const pushOptions = {
       runScripts: !args["no-scripts"],
       force: args.force,

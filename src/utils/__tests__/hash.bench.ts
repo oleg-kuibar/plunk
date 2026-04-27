@@ -12,7 +12,7 @@ let largeFile: string; // 2 MB (above STREAM_THRESHOLD)
 let aggregateFiles: string[]; // 50 files for computeContentHash
 
 beforeAll(async () => {
-  tempDir = await mkdtemp(join(tmpdir(), "plunk-bench-hash-"));
+  tempDir = await mkdtemp(join(tmpdir(), "KNARR-bench-hash-"));
 
   smallFile = join(tempDir, "small.bin");
   await writeFile(smallFile, randomBytes(1024));

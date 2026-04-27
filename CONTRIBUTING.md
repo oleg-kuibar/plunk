@@ -3,8 +3,8 @@
 ## Development setup
 
 ```bash
-git clone https://github.com/oleg-kuibar/plunk.git
-cd plunk
+git clone https://github.com/oleg-kuibar/knarr.git
+cd knarr
 pnpm install
 pnpm build
 ```
@@ -15,8 +15,8 @@ pnpm build
 # Link the CLI globally for testing
 pnpm link --global
 
-# Now you can use `plunk` anywhere
-plunk --help
+# Now you can use `knarr` anywhere
+knarr --help
 ```
 
 ### Scripts
@@ -34,13 +34,13 @@ plunk --help
 
 ```
 src/
-├── cli.ts                # Entry point, citty command routing
-├── commands/             # CLI command definitions (one file per command)
-├── core/                 # Core logic (publisher, injector, store, tracker, watcher)
-├── utils/                # Shared utilities (fs, hash, paths, pack-list, pm-detect, bin-linker)
-├── vite-plugin.ts        # Vite plugin entry (exported as @olegkuibar/plunk/vite)
-├── types.ts              # Shared TypeScript types
-└── index.ts              # Public API exports
+|-- cli.ts                # Entry point, citty command routing
+|-- commands/             # CLI command definitions (one file per command)
+|-- core/                 # Core logic (publisher, injector, store, tracker, watcher)
+|-- utils/                # Shared utilities (fs, hash, paths, pack-list, pm-detect, bin-linker)
+|-- vite-plugin.ts        # Vite plugin entry (exported as knarr/vite)
+|-- types.ts              # Shared TypeScript types
+`-- index.ts              # Public API exports
 ```
 
 See [How it works](docs/how-it-works.md) for details on the store, injection, and copy strategy.
@@ -74,13 +74,13 @@ pnpm test
 
 | Directory | Purpose |
 |---|---|
-| `examples/packages/` | Test fixture packages (`api-client`, `ui-kit`) — used by e2e tests |
+| `examples/packages/` | Test fixture packages (`api-client`, `ui-kit`) - used by e2e tests |
 | `examples/standalone/` | Package manager demo apps (npm, pnpm, yarn, bun) for manual testing |
 | `examples/monorepo/` | Workspace example with multiple packages |
 
 ### Writing tests
 
-- Tests use `PLUNK_HOME` env var to redirect the store to a temp directory
+- Tests use `KNARR_HOME` env var to redirect the store to a temp directory
 - Each test creates fresh temp dirs and cleans up in `afterEach`
 - Prefer testing through the core module APIs rather than CLI
 
@@ -99,25 +99,25 @@ pnpm test
 Every push to `master` automatically publishes a canary version to npmjs.org:
 
 ```
-0.2.0-canary.<short-sha>
+0.0.1-canary.<short-sha>
 ```
 
-Install with `npm install @olegkuibar/plunk@canary`.
+Install with `npm install knarr@canary`.
 
 ### Stable releases
 
 Two options:
 
-**Option A — GitHub Actions UI (recommended)**
+**Option A - GitHub Actions UI (recommended)**
 
-1. Go to Actions → Release → Run workflow
+1. Go to Actions -> Release -> Run workflow
 2. Pick a bump type (`patch` / `minor` / `major` / `custom`)
-3. Optionally check **Dry run** to build & test without publishing
+3. Optionally check **Dry run** to build and test without publishing
 4. Click **Run workflow**
 
 The workflow bumps `package.json`, commits, tags, pushes to `master`, publishes to npm, and creates a GitHub Release.
 
-**Option B — Manual tag push**
+**Option B - Manual tag push**
 
 ```bash
 # Bump locally
@@ -129,7 +129,7 @@ The tag push triggers the same publish pipeline.
 
 ### Prerequisites
 
-Publishing uses npm Trusted Publishing (OIDC) — no secrets needed. The `@olegkuibar/plunk` package must have the GitHub repo configured as a trusted publisher on npmjs.com.
+Publishing uses npm Trusted Publishing (OIDC) - no secrets needed. The `knarr` package must have the GitHub repo configured as a trusted publisher on npmjs.com.
 
 ## Code style
 

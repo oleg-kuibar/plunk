@@ -10,14 +10,14 @@ import type {
 import {
   getConsumersPath,
   getConsumerStatePath,
-  getConsumerPlunkDir,
+  getConsumerKNARRDir,
   normalizePath,
 } from "../utils/paths.js";
 import { ensureDir, ensurePrivateDir, exists, atomicWriteFile, isNodeError } from "../utils/fs.js";
 import { withFileLock } from "../utils/lockfile.js";
 import { isConsumerState, isConsumersRegistry } from "../utils/validators.js";
 
-// ── Consumer State (.plunk/state.json in each consumer project) ──
+// ── Consumer State (.knarr/state.json in each consumer project) ──
 
 /** Read the consumer state file, or return an empty state if not found */
 export async function readConsumerState(
@@ -60,7 +60,7 @@ export async function writeConsumerState(
   consumerPath: string,
   state: ConsumerState
 ): Promise<void> {
-  await ensureDir(getConsumerPlunkDir(consumerPath));
+  await ensureDir(getConsumerKNARRDir(consumerPath));
   const statePath = getConsumerStatePath(consumerPath);
   await atomicWriteFile(statePath, JSON.stringify(state, null, 2));
 }
@@ -77,7 +77,7 @@ export async function addLink(
     if (!reliable) {
       throw new Error(
         `Consumer state in ${statePath} is corrupt — refusing to write to avoid destroying existing links. ` +
-        `Delete .plunk/state.json and re-run 'plunk add' for each package.`
+        `Delete .knarr/state.json and re-run 'knarr add' for each package.`
       );
     }
     state.links[packageName] = entry;
@@ -96,7 +96,7 @@ export async function removeLink(
     if (!reliable) {
       throw new Error(
         `Consumer state in ${statePath} is corrupt — refusing to write to avoid destroying existing links. ` +
-        `Delete .plunk/state.json and re-run 'plunk add' for each package.`
+        `Delete .knarr/state.json and re-run 'knarr add' for each package.`
       );
     }
     delete state.links[packageName];
@@ -113,7 +113,7 @@ export async function getLink(
   return state.links[packageName] ?? null;
 }
 
-// ── Global Consumers Registry (~/.plunk/consumers.json) ──
+// ── Global Consumers Registry (~/.knarr/consumers.json) ──
 
 /** Read the global consumers registry */
 export async function readConsumersRegistry(): Promise<ConsumersRegistry> {

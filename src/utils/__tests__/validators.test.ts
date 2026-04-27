@@ -1,15 +1,15 @@
 import { describe, it, expect } from "vitest";
 import {
-  isPlunkMeta,
+  isKNARRMeta,
   isLinkEntry,
   isConsumerState,
   isConsumersRegistry,
 } from "../validators.js";
 
-describe("isPlunkMeta", () => {
+describe("isKNARRMeta", () => {
   it("returns true for valid meta", () => {
     expect(
-      isPlunkMeta({
+      isKNARRMeta({
         contentHash: "sha256:abc123",
         publishedAt: "2024-01-01T00:00:00Z",
         sourcePath: "/some/path",
@@ -18,21 +18,21 @@ describe("isPlunkMeta", () => {
   });
 
   it("returns false when fields are missing", () => {
-    expect(isPlunkMeta({ contentHash: "abc" })).toBe(false);
-    expect(isPlunkMeta({ contentHash: "abc", publishedAt: "now" })).toBe(false);
-    expect(isPlunkMeta({ publishedAt: "now", sourcePath: "/p" })).toBe(false);
+    expect(isKNARRMeta({ contentHash: "abc" })).toBe(false);
+    expect(isKNARRMeta({ contentHash: "abc", publishedAt: "now" })).toBe(false);
+    expect(isKNARRMeta({ publishedAt: "now", sourcePath: "/p" })).toBe(false);
   });
 
   it("returns false when fields have wrong types", () => {
     expect(
-      isPlunkMeta({
+      isKNARRMeta({
         contentHash: 123,
         publishedAt: "2024-01-01T00:00:00Z",
         sourcePath: "/some/path",
       })
     ).toBe(false);
     expect(
-      isPlunkMeta({
+      isKNARRMeta({
         contentHash: "abc",
         publishedAt: true,
         sourcePath: "/some/path",
@@ -41,11 +41,11 @@ describe("isPlunkMeta", () => {
   });
 
   it("returns false for null", () => {
-    expect(isPlunkMeta(null)).toBe(false);
+    expect(isKNARRMeta(null)).toBe(false);
   });
 
   it("returns false for undefined", () => {
-    expect(isPlunkMeta(undefined)).toBe(false);
+    expect(isKNARRMeta(undefined)).toBe(false);
   });
 });
 

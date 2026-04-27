@@ -28,7 +28,7 @@ interface TerminalContextValue {
 
 const TerminalContext = createContext<TerminalContextValue | null>(null);
 
-export const SENTINEL = '__PLUNK_DONE__';
+export const SENTINEL = '__KNARR_DONE__';
 
 export function TerminalProvider({ children }: { children: ReactNode }) {
   const shellWriteRef = useRef<((data: string) => void) | null>(null);

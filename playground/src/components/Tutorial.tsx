@@ -40,7 +40,7 @@ const STEPS: Step[] = [
     id: 'setup-and-start',
     title: 'Set up & start',
     description: 'Publish packages, link to consumer, and start the dev server.',
-    detail: 'Publishes both packages to the plunk store, links them into consumer-app, then starts the Vite dev server. This takes a moment.',
+    detail: 'Publishes both packages to the KNARR store, links them into consumer-app, then starts the Vite dev server. This takes a moment.',
     feedbackMessage: 'Setting up workspace and starting dev server...',
     action: {
       type: 'command',
@@ -77,7 +77,7 @@ const STEPS: Step[] = [
             { find: "'bob@example.com'", replace: "'lesia@example.com'" },
             { find: "'Charlie Brown'", replace: "'Ivan Franko'" },
             { find: "'charlie@example.com'", replace: "'ivan@example.com'" },
-            { find: 'Hello, ${user.name}! Welcome to the Plunk Playground.', replace: 'Hey ${user.name}! plunk is working.' },
+            { find: 'Hello, ${user.name}! Welcome to the KNARR Playground.', replace: 'Hey ${user.name}! KNARR is working.' },
           ],
         },
         {
@@ -105,7 +105,7 @@ const STEPS: Step[] = [
     description: 'Auto-push on file changes.',
     detail: 'Runs push with --watch. Now try editing a file in the editor — changes appear in the preview automatically.',
     feedbackMessage: 'Watch mode active — try editing!',
-    action: { type: 'command-new-terminal', command: 'cd packages/api-client && npx -y @olegkuibar/plunk push --watch --build "npm run build"', label: 'Start watch' },
+    action: { type: 'command-new-terminal', command: 'cd packages/api-client && npx -y knarr push --watch --build "npm run build"', label: 'Start watch' },
     completionCondition: { type: 'output-pattern', pattern: 'Watching for changes' },
   },
 ];
@@ -113,10 +113,10 @@ const STEPS: Step[] = [
 // --- Manual mode reference ---
 
 const MANUAL_COMMANDS = [
-  { label: 'Publish', command: 'cd packages/api-client && plunk publish' },
-  { label: 'Link', command: 'cd consumer-app && plunk add @example/api-client' },
-  { label: 'Push', command: 'cd packages/api-client && npm run build && plunk push' },
-  { label: 'Watch', command: 'plunk push --watch --build "npm run build"' },
+  { label: 'Publish', command: 'cd packages/api-client && KNARR publish' },
+  { label: 'Link', command: 'cd consumer-app && KNARR add @example/api-client' },
+  { label: 'Push', command: 'cd packages/api-client && npm run build && KNARR push' },
+  { label: 'Watch', command: 'KNARR push --watch --build "npm run build"' },
 ];
 
 const MANUAL_FILES = [

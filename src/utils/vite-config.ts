@@ -10,12 +10,12 @@ function detectIndent(content: string): string {
 }
 
 /**
- * Check if the content already has the plunk Vite plugin configured.
+ * Check if the content already has the knarr Vite plugin configured.
  */
-function hasPlunkPlugin(content: string): boolean {
+function hasKnarrPlugin(content: string): boolean {
   return (
-    content.includes("@olegkuibar/plunk/vite") ||
-    content.includes("vite-plugin-plunk")
+    content.includes("knarr/vite") ||
+    content.includes("vite-plugin-knarr")
   );
 }
 
@@ -294,10 +294,10 @@ export function isComplexConfig(content: string): { complex: boolean; reason?: s
 }
 
 /**
- * Add the plunk Vite plugin import and plugin call to a Vite config file.
+ * Add the knarr Vite plugin import and plugin call to a Vite config file.
  * Returns { modified: true } on success, { modified: false, error } on failure.
  */
-export async function addPlunkVitePlugin(
+export async function addKnarrVitePlugin(
   configPath: string,
 ): Promise<{ modified: boolean; error?: string }> {
   let content: string;
@@ -307,7 +307,7 @@ export async function addPlunkVitePlugin(
     return { modified: false, error: "could not read config file" };
   }
 
-  if (hasPlunkPlugin(content)) {
+  if (hasKnarrPlugin(content)) {
     return { modified: false }; // already configured
   }
 
@@ -319,12 +319,12 @@ export async function addPlunkVitePlugin(
 
   const indent = detectIndent(content);
 
-  // Phase 1: Add plunk() to plugins array
+  // Phase 1: Add knarr() to plugins array
   const pluginsArr = findPluginsArray(content);
 
   if (pluginsArr) {
     const items = parsePluginItems(pluginsArr.inner);
-    items.push("plunk()");
+    items.push("knarr()");
     const newPlugins = formatPlugins(items, indent);
     content =
       content.slice(0, pluginsArr.start) +
@@ -338,7 +338,7 @@ export async function addPlunkVitePlugin(
 
     if (configObjMatch) {
       const insertPos = configObjMatch.index + configObjMatch[0].length;
-      const newSection = `\n${indent}plugins: [plunk()],`;
+      const newSection = `\n${indent}plugins: [knarr()],`;
       content =
         content.slice(0, insertPos) + newSection + content.slice(insertPos);
     } else {
@@ -350,7 +350,7 @@ export async function addPlunkVitePlugin(
   }
 
   // Phase 2: Add import statement after the last existing import
-  const importLine = `import plunk from "@olegkuibar/plunk/vite";\n`;
+  const importLine = `import knarr from "knarr/vite";\n`;
   const lastEnd = findLastImportEnd(content);
 
   if (lastEnd > 0) {
@@ -370,8 +370,8 @@ export async function addPlunkVitePlugin(
 }
 
 /**
- * Remove the plunk Vite plugin from a config file.
- * Removes the import line and the plunk() call from the plugins array.
+ * Remove the knarr Vite plugin from a config file.
+ * Removes the import line and the knarr() call from the plugins array.
  */
 export async function removeFromViteConfig(
   configPath: string,
@@ -383,7 +383,7 @@ export async function removeFromViteConfig(
     return { modified: false };
   }
 
-  if (!hasPlunkPlugin(content)) {
+  if (!hasKnarrPlugin(content)) {
     return { modified: false };
   }
 
@@ -391,18 +391,18 @@ export async function removeFromViteConfig(
 
   // Remove the import line
   const importRegex =
-    /^import\s+\w+\s+from\s+["']@olegkuibar\/plunk\/vite["'];?\s*\n?/m;
+    /^import\s+\w+\s+from\s+["']knarr\/vite["'];?\s*\n?/m;
   if (importRegex.test(content)) {
     content = content.replace(importRegex, "");
     modified = true;
   }
 
-  // Remove plunk() from plugins array using balanced bracket parser
+  // Remove knarr() from plugins array using balanced bracket parser
   const pluginsArr = findPluginsArray(content);
   if (pluginsArr) {
     const items = parsePluginItems(pluginsArr.inner);
     const filtered = items.filter(
-      (item) => !item.startsWith("plunk("),
+      (item) => !item.startsWith("knarr("),
     );
     if (filtered.length !== items.length) {
       const indent = detectIndent(content);
@@ -421,3 +421,5 @@ export async function removeFromViteConfig(
 
   return { modified };
 }
+
+export const addKNARRVitePlugin = addKnarrVitePlugin;

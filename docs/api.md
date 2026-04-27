@@ -1,20 +1,20 @@
 # API Reference
 
-Everything exported from `@olegkuibar/plunk` (the `src/index.ts` entry point). Install as a dependency to use programmatically:
+Everything exported from `knarr` (the `src/index.ts` entry point). Install as a dependency to use programmatically:
 
 ```bash
-pnpm add @olegkuibar/plunk
+pnpm add knarr
 ```
 
 ```typescript
-import { publish, inject, getStoreEntry } from "@olegkuibar/plunk";
+import { publish, inject, getStoreEntry } from "knarr";
 ```
 
 ## Publishing
 
 ### `publish(packageDir, options?)`
 
-Publish a package to the plunk store.
+Publish a package to the Knarr store.
 
 ```typescript
 async function publish(
@@ -210,7 +210,7 @@ async function listStoreEntries(): Promise<StoreEntry[]>
 
 ### `readConsumerState(consumerPath)`
 
-Read the consumer state file (`.plunk/state.json`). Returns empty state if the file doesn't exist.
+Read the consumer state file (`.knarr/state.json`). Returns empty state if the file doesn't exist.
 
 ```typescript
 async function readConsumerState(
@@ -274,7 +274,7 @@ async function getConsumers(
 
 ### `registerConsumer(packageName, consumerPath)`
 
-Register a consumer in the global registry (`~/.plunk/consumers.json`).
+Register a consumer in the global registry (`~/.knarr/consumers.json`).
 
 ```typescript
 async function registerConsumer(
@@ -549,14 +549,14 @@ class CycleError extends Error {
 
 ## Config
 
-### `loadPlunkConfig(projectDir)`
+### `loadKnarrConfig(projectDir)`
 
-Load plunk configuration from `package.json#plunk`.
+Load Knarr configuration from `package.json#knarr`.
 
 ```typescript
-async function loadPlunkConfig(
+async function loadKnarrConfig(
   projectDir: string
-): Promise<PlunkConfig>
+): Promise<KnarrConfig>
 ```
 
 ### `isComplexConfig(content)`
@@ -607,7 +607,7 @@ function isNodeError(err: unknown): err is NodeJS.ErrnoException
 All types from `src/types.ts` are re-exported:
 
 ```typescript
-interface PlunkMeta {
+interface KnarrMeta {
   schemaVersion?: number;
   contentHash: string;
   publishedAt: string;
@@ -619,7 +619,7 @@ interface StoreEntry {
   name: string;
   version: string;
   packageDir: string;
-  meta: PlunkMeta;
+  meta: KnarrMeta;
 }
 
 interface LinkEntry {
@@ -673,7 +673,7 @@ interface DryRunMutation {
   detail?: string;
 }
 
-interface PlunkConfig {
+interface KnarrConfig {
   buildCmd?: string;
   watchPatterns?: string[];
   debounce?: number;

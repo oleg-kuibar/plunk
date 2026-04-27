@@ -1,22 +1,19 @@
 import { defineCommand } from "citty";
+import { resolve } from "node:path";
 import { Timer } from "../utils/timer.js";
 import { suppressHumanOutput } from "../utils/output.js";
-import { addPackageToConsumer } from "./add-flow.js";
+import { addPackageToConsumer, readPackageNameFromSource } from "./add-flow.js";
 
 export default defineCommand({
   meta: {
-    name: "add",
-    description: "Link a package from the Knarr store into this project",
+    name: "use",
+    description: "Publish a local package path and link it into this project",
   },
   args: {
-    package: {
+    path: {
       type: "positional",
-      description: "Package name to add",
+      description: "Path to the local package source",
       required: true,
-    },
-    from: {
-      type: "string",
-      description: "Path to package source (will publish first)",
     },
     yes: {
       type: "boolean",
@@ -27,11 +24,15 @@ export default defineCommand({
   },
   async run({ args }) {
     suppressHumanOutput();
+    const timer = new Timer();
+    const from = resolve(args.path);
+    const packageName = await readPackageNameFromSource(from);
+
     await addPackageToConsumer({
-      packageArg: args.package,
-      from: args.from,
+      packageArg: packageName,
+      from,
       yes: args.yes,
-      timer: new Timer(),
+      timer,
     });
   },
 });

@@ -14,8 +14,8 @@ body:
     attributes:
       label: Steps to reproduce
       placeholder: |
-        1. Run `plunk publish` in ...
-        2. Run `plunk add ...` in ...
+        1. Run `knarr publish` in ...
+        2. Run `knarr add ...` in ...
         3. See error
     validations:
       required: true
@@ -52,9 +52,9 @@ body:
     validations:
       required: true
   - type: input
-    id: plunk-version
+    id: knarr-version
     attributes:
-      label: plunk version
-      placeholder: e.g. 0.1.0
+      label: Knarr version
+      placeholder: e.g. 0.0.1
     validations:
       required: true

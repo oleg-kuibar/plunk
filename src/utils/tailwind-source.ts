@@ -3,7 +3,7 @@ import { atomicWriteFile } from "./fs.js";
 import { join, dirname, relative } from "node:path";
 import { normalizePath } from "./paths.js";
 
-const IGNORED_DIRS = new Set(["node_modules", ".plunk", "dist", ".git"]);
+const IGNORED_DIRS = new Set(["node_modules", ".knarr", "dist", ".git"]);
 
 /**
  * Find the first CSS file in a project that imports Tailwind v4.
@@ -47,7 +47,7 @@ export async function findTailwindCss(
 }
 
 /**
- * Add a `@source` directive for a plunk-linked package to a Tailwind v4 CSS file.
+ * Add a `@source` directive for a Knarr-linked package to a Tailwind v4 CSS file.
  * Idempotent — skips if the directive already exists.
  */
 export async function addTailwindSource(
@@ -93,7 +93,7 @@ export async function addTailwindSource(
 }
 
 /**
- * Remove a `@source` directive for a plunk-linked package from a Tailwind v4 CSS file.
+ * Remove a `@source` directive for a Knarr-linked package from a Tailwind v4 CSS file.
  */
 export async function removeTailwindSource(
   cssPath: string,

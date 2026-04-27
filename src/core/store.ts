@@ -1,7 +1,7 @@
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { consola } from "../utils/console.js";
-import type { PlunkMeta, StoreEntry } from "../types.js";
+import type { KnarrMeta, StoreEntry } from "../types.js";
 import {
   getStorePath,
   getStoreEntryPath,
@@ -11,18 +11,18 @@ import {
   decodePackageName,
 } from "../utils/paths.js";
 import { ensureDir, ensurePrivateDir, exists, removeDir, atomicWriteFile, isNodeError } from "../utils/fs.js";
-import { isPlunkMeta } from "../utils/validators.js";
+import { isKnarrMeta } from "../utils/validators.js";
 
-/** Read the .plunk-meta.json for a store entry */
+/** Read the .knarr-meta.json for a store entry */
 export async function readMeta(
   name: string,
   version: string
-): Promise<PlunkMeta | null> {
+): Promise<KnarrMeta | null> {
   const metaPath = getStoreMetaPath(name, version);
   try {
     const content = await readFile(metaPath, "utf-8");
     const parsed = JSON.parse(content);
-    if (!isPlunkMeta(parsed)) {
+    if (!isKnarrMeta(parsed)) {
       consola.warn(`Invalid metadata for ${name}@${version}, ignoring`);
       return null;
     }
@@ -35,11 +35,11 @@ export async function readMeta(
   }
 }
 
-/** Write .plunk-meta.json for a store entry */
+/** Write .knarr-meta.json for a store entry */
 export async function writeMeta(
   name: string,
   version: string,
-  meta: PlunkMeta
+  meta: KnarrMeta
 ): Promise<void> {
   const metaPath = getStoreMetaPath(name, version);
   await ensurePrivateDir(getStoreEntryPath(name, version));

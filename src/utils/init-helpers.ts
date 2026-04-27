@@ -3,12 +3,12 @@ import { join } from "node:path";
 import { consola } from "./console.js";
 import pc from "picocolors";
 import { exists, ensureDir } from "./fs.js";
-import { getConsumerStatePath, getConsumerPlunkDir } from "./paths.js";
+import { getConsumerStatePath, getConsumerKnarrDir } from "./paths.js";
 import { readConsumerState, writeConsumerState } from "../core/tracker.js";
 import type { PackageManager } from "../types.js";
 
 /**
- * Ensure .plunk/ is in .gitignore. Returns true if it was added.
+ * Ensure .knarr/ is in .gitignore. Returns true if it was added.
  */
 export async function ensureGitignore(
   gitignorePath: string,
@@ -23,10 +23,10 @@ export async function ensureGitignore(
   const lines = content.split("\n");
   const alreadyIgnored = lines.some(
     (line) =>
-      line.trim() === ".plunk/" ||
-      line.trim() === ".plunk" ||
-      line.trim() === "/.plunk/" ||
-      line.trim() === "/.plunk",
+      line.trim() === ".knarr/" ||
+      line.trim() === ".knarr" ||
+      line.trim() === "/.knarr/" ||
+      line.trim() === "/.knarr",
   );
 
   if (alreadyIgnored) return false;
@@ -35,15 +35,15 @@ export async function ensureGitignore(
     content.length > 0 && !content.endsWith("\n") ? "\n" : "";
   const section =
     content.length > 0
-      ? "\n# plunk local links\n.plunk/\n"
-      : "# plunk local links\n.plunk/\n";
+      ? "\n# knarr local links\n.knarr/\n"
+      : "# knarr local links\n.knarr/\n";
   await writeFile(gitignorePath, content + separator + section);
   return true;
 }
 
 /**
- * Add "postinstall": "npx @olegkuibar/plunk restore || true" to package.json scripts.
- * Uses npx to ensure the command works even if plunk isn't globally installed.
+ * Add "postinstall": "npx knarr restore || true" to package.json scripts.
+ * Uses npx to ensure the command works even if knarr isn't globally installed.
  * Returns true if it was added.
  */
 export async function addPostinstall(pkgPath: string): Promise<boolean> {
@@ -51,15 +51,15 @@ export async function addPostinstall(pkgPath: string): Promise<boolean> {
   const pkg = JSON.parse(content);
 
   if (pkg.scripts?.postinstall) {
-    if (pkg.scripts.postinstall.includes("plunk")) return false;
+    if (pkg.scripts.postinstall.includes("knarr")) return false;
     consola.warn(
-      `Existing postinstall script found. Add ${pc.cyan("npx @olegkuibar/plunk restore")} manually if needed.`,
+      `Existing postinstall script found. Add ${pc.cyan("npx knarr restore")} manually if needed.`,
     );
     return false;
   }
 
   if (!pkg.scripts) pkg.scripts = {};
-  pkg.scripts.postinstall = "npx @olegkuibar/plunk restore || true";
+  pkg.scripts.postinstall = "npx knarr restore || true";
 
   const indent = content.match(/^(\s+)"/m)?.[1] || "  ";
   await writeFile(pkgPath, JSON.stringify(pkg, null, indent) + "\n");
@@ -67,7 +67,7 @@ export async function addPostinstall(pkgPath: string): Promise<boolean> {
 }
 
 /**
- * Remove the plunk postinstall script from package.json.
+ * Remove the knarr postinstall script from package.json.
  * Returns true if it was removed.
  */
 export async function removePostinstall(pkgPath: string): Promise<boolean> {
@@ -78,7 +78,7 @@ export async function removePostinstall(pkgPath: string): Promise<boolean> {
     return false;
   }
   const pkg = JSON.parse(content);
-  if (!pkg.scripts?.postinstall?.includes("plunk")) return false;
+  if (!pkg.scripts?.postinstall?.includes("knarr")) return false;
 
   delete pkg.scripts.postinstall;
   // Clean up empty scripts object
@@ -91,18 +91,18 @@ export async function removePostinstall(pkgPath: string): Promise<boolean> {
 }
 
 /**
- * Auto-initialize a consumer project: create .plunk/state.json,
- * add .plunk/ to .gitignore, add postinstall script.
+ * Auto-initialize a consumer project: create .knarr/state.json,
+ * add .knarr/ to .gitignore, add postinstall script.
  */
 export async function ensureConsumerInit(
   projectDir: string,
   pm: PackageManager,
 ): Promise<void> {
-  const plunkDir = getConsumerPlunkDir(projectDir);
+  const knarrDir = getConsumerKnarrDir(projectDir);
   const statePath = getConsumerStatePath(projectDir);
 
   if (!(await exists(statePath))) {
-    await ensureDir(plunkDir);
+    await ensureDir(knarrDir);
     await writeConsumerState(projectDir, {
       version: "1",
       packageManager: pm,

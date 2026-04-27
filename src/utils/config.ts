@@ -3,38 +3,34 @@ import { join } from "node:path";
 import { verbose } from "./logger.js";
 
 /**
- * plunk configuration stored in package.json under the "plunk" key.
+ * knarr configuration stored in package.json under the "knarr" key.
  * Provides persistent defaults for watch/build/dev behavior.
  */
-export interface PlunkConfig {
-  /** Build command override (same as --build CLI flag) */
+export interface KnarrConfig {
   buildCmd?: string;
-  /** Glob patterns to watch (same as watch patterns) */
   watchPatterns?: string[];
-  /** Debounce delay in ms */
   debounce?: number;
-  /** Minimum time between builds in ms */
   cooldown?: number;
-  /** Max number of historical builds to keep per package (default: 3) */
   historyLimit?: number;
-  /** Ring terminal bell on push success/failure in watch mode */
   notify?: boolean;
 }
 
+export type KNARRConfig = KnarrConfig;
+
 /**
- * Load plunk configuration from package.json#plunk.
- * Returns an empty config if the field is missing or invalid.
+ * Load knarr configuration from package.json#knarr.
  */
-export async function loadPlunkConfig(
+export async function loadKnarrConfig(
   projectDir: string
-): Promise<PlunkConfig> {
+): Promise<KnarrConfig> {
   try {
     const raw = await readFile(join(projectDir, "package.json"), "utf-8");
     const pkg = JSON.parse(raw);
-    if (!pkg.plunk || typeof pkg.plunk !== "object") return {};
+    const source = pkg.knarr;
+    if (!source || typeof source !== "object") return {};
 
-    const config: PlunkConfig = {};
-    const p = pkg.plunk;
+    const config: KnarrConfig = {};
+    const p = source;
 
     if (typeof p.buildCmd === "string") config.buildCmd = p.buildCmd;
     if (Array.isArray(p.watchPatterns)) {
@@ -55,9 +51,11 @@ export async function loadPlunkConfig(
       config.notify = p.notify;
     }
 
-    verbose(`[config] Loaded plunk config from package.json: ${JSON.stringify(config)}`);
+    verbose(`[config] Loaded knarr config from package.json: ${JSON.stringify(config)}`);
     return config;
   } catch {
     return {};
   }
 }
+
+export const loadKNARRConfig = loadKnarrConfig;

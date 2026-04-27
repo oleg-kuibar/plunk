@@ -5,7 +5,7 @@ import { platform } from "node:os";
 import { consola } from "../utils/console.js";
 import pLimit from "../utils/concurrency.js";
 import { availableParallelism } from "node:os";
-import type { PackageJson, PlunkMeta, StoreEntry } from "../types.js";
+import type { PackageJson, KnarrMeta, StoreEntry } from "../types.js";
 import { getStorePackagePath, getStoreEntryPath } from "../utils/paths.js";
 import { resolvePackFiles } from "../utils/pack-list.js";
 import { computeContentHash } from "../utils/hash.js";
@@ -40,14 +40,14 @@ export interface PublishResult {
 const copyLimit = pLimit(Math.max(availableParallelism(), 8));
 
 /**
- * Publish a package from a directory to the plunk store.
+ * Publish a package from a directory to the Knarr store.
  *
  * 1. Read package.json, validate name and version
  * 2. Resolve publishable files
  * 3. Compute content hash
  * 4. Skip if hash matches existing store entry
  * 5. Copy files to temp dir, then atomic rename to store
- * 6. Write .plunk-meta.json
+ * 6. Write .knarr-meta.json
  */
 export async function publish(
   packageDir: string,
@@ -71,8 +71,8 @@ export async function publish(
     );
   }
 
-  // Run preplunk lifecycle hook
-  await runLifecycleHook(packageDir, pkg, "preplunk");
+  // Run knarr lifecycle hook.
+  await runLifecycleHook(packageDir, pkg, "preknarr");
 
   // Run prepack lifecycle hook (unless --no-scripts)
   if (options.runScripts !== false) {
@@ -200,7 +200,7 @@ export async function publish(
         }
 
         // Write metadata to temp dir
-        const meta: PlunkMeta = {
+        const meta: KnarrMeta = {
           schemaVersion: 1,
           contentHash,
           publishedAt: new Date().toISOString(),
@@ -208,7 +208,7 @@ export async function publish(
           buildId,
         };
         await writeFile(
-          join(tmpDir, ".plunk-meta.json"),
+          join(tmpDir, ".knarr-meta.json"),
           JSON.stringify(meta, null, 2)
         );
 
@@ -256,8 +256,8 @@ export async function publish(
     await runLifecycleHook(packageDir, pkg, "postpack");
   }
 
-  // Run postplunk lifecycle hook (outside the lock so slow scripts don't hold it)
-  await runLifecycleHook(packageDir, pkg, "postplunk");
+  // Run knarr lifecycle hook (outside the lock so slow scripts don't hold it).
+  await runLifecycleHook(packageDir, pkg, "postknarr");
 
   consola.success(
     `Published ${pkg.name}@${pkg.version} (${files.length} files) [${result.buildId}]`
@@ -266,7 +266,7 @@ export async function publish(
   return result;
 }
 
-const HOOK_TIMEOUT = parseInt(process.env.PLUNK_HOOK_TIMEOUT ?? "30000", 10);
+const HOOK_TIMEOUT = parseInt(process.env.KNARR_HOOK_TIMEOUT ?? "30000", 10);
 
 /**
  * Run a lifecycle hook script if defined in package.json scripts.
@@ -301,7 +301,7 @@ async function runLifecycleHook(
 
     const timer = setTimeout(() => {
       child.kill("SIGTERM");
-      reject(new Error(`${hookName} script timed out after ${HOOK_TIMEOUT / 1000}s. Increase PLUNK_HOOK_TIMEOUT env var if the script needs more time.`));
+      reject(new Error(`${hookName} script timed out after ${HOOK_TIMEOUT / 1000}s. Increase KNARR_HOOK_TIMEOUT env var if the script needs more time.`));
     }, HOOK_TIMEOUT);
 
     child.on("close", (code) => {

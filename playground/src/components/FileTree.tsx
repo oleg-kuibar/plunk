@@ -18,7 +18,7 @@ interface TreeNode {
 }
 
 // Special folders that should be shown but styled differently
-const SYSTEM_FOLDERS = ['node_modules', '.plunk', '.vite', 'dist'];
+const SYSTEM_FOLDERS = ['node_modules', '.KNARR', '.vite', 'dist'];
 
 // Hidden files/folders to always exclude (not useful for playground)
 const HIDDEN_ENTRIES = [
@@ -29,7 +29,7 @@ const HIDDEN_ENTRIES = [
 ];
 
 // In node_modules, only show these relevant entries
-const NODE_MODULES_ALLOWLIST = ['@example', '.plunk'];
+const NODE_MODULES_ALLOWLIST = ['@example', '.KNARR'];
 
 function FileIcon({ name, isDirectory }: { name: string; isDirectory: boolean }) {
   if (isDirectory) {
@@ -37,7 +37,7 @@ function FileIcon({ name, isDirectory }: { name: string; isDirectory: boolean })
     if (name === 'node_modules') {
       return <span className="mr-1.5 text-[10px] font-bold text-accent" aria-hidden="true">NM</span>;
     }
-    if (name === '.plunk') {
+    if (name === '.KNARR') {
       return <span className="mr-1.5 text-[10px] font-bold text-success" aria-hidden="true">PK</span>;
     }
     if (name === '.vite') {
@@ -211,7 +211,7 @@ export function FileTree({
         const nodes: TreeNode[] = entries
           .filter((name) => {
             const cleanName = name.replace(/\/$/, '');
-            // Always show system folders like .plunk
+            // Always show system folders like .KNARR
             if (SYSTEM_FOLDERS.includes(cleanName)) return true;
             // Hide specific useless entries
             if (HIDDEN_ENTRIES.includes(cleanName)) return false;

@@ -51,7 +51,7 @@ describe("createBinLinks and removeBinLinks", () => {
   let tempDir: string;
 
   beforeEach(async () => {
-    tempDir = await mkdtemp(join(tmpdir(), "plunk-bin-"));
+    tempDir = await mkdtemp(join(tmpdir(), "KNARR-bin-"));
     // Set up node_modules/my-cli/dist structure
     await mkdir(join(tempDir, "node_modules", "my-cli", "dist"), {
       recursive: true,

@@ -34,4 +34,4 @@ const productCard = renderCard({
 console.log("\nRendered product card:");
 console.log(productCard);
 
-console.log("\n--- yarn-app is working with plunk-linked packages! ---");
+console.log("\n--- yarn-app is working with Knarr-linked packages! ---");

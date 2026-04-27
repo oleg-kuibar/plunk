@@ -24,7 +24,7 @@ interface Compilation {
   contextDependencies: Set<string>;
 }
 
-interface PlunkState {
+interface KnarrState {
   links?: Record<string, unknown>;
 }
 
@@ -32,36 +32,36 @@ interface PlunkState {
 function readLinkedPackagesSync(stateFile: string): string[] {
   try {
     const content = readFileSync(stateFile, "utf-8");
-    const state = JSON.parse(content) as PlunkState;
+    const state = JSON.parse(content) as KnarrState;
     return Object.keys(state.links ?? {});
   } catch {
     return [];
   }
 }
 
-export interface PlunkWebpackPluginOptions {
+export interface KnarrWebpackPluginOptions {
   /** Project root (default: compiler.options.context or cwd) */
   root?: string;
 }
 
 /**
- * Webpack/rspack plugin for plunk.
+ * Webpack/rspack plugin for knarr.
  *
  * - Excludes linked packages from webpack's snapshot cache (managedPaths)
- * - Watches .plunk/state.json and linked package directories
+ * - Watches .knarr/state.json and linked package directories
  * - Invalidates the compiler on changes to trigger a rebuild
  * - Works with webpack 5 and rspack (uses loose typing, no webpack import)
  */
-export class PlunkWebpackPlugin {
-  private options: PlunkWebpackPluginOptions;
+export class KnarrWebpackPlugin {
+  private options: KnarrWebpackPluginOptions;
 
-  constructor(options: PlunkWebpackPluginOptions = {}) {
+  constructor(options: KnarrWebpackPluginOptions = {}) {
     this.options = options;
   }
 
   apply(compiler: Compiler): void {
     const root = this.options.root ?? compiler.options.context ?? process.cwd();
-    const stateFile = normalize(join(root, ".plunk", "state.json"));
+    const stateFile = normalize(join(root, ".knarr", "state.json"));
     const nodeModulesDir = join(root, "node_modules");
 
     let watcher: { close: () => Promise<void> } | null = null;
@@ -94,7 +94,7 @@ export class PlunkWebpackPlugin {
 
     // Exclude linked packages from webpack's snapshot managedPaths
     // so webpack doesn't cache them as immutable node_modules
-    compiler.hooks.afterEnvironment.tap("PlunkWebpackPlugin", () => {
+    compiler.hooks.afterEnvironment.tap("KnarrWebpackPlugin", () => {
       syncPackages();
       if (watchedPackages.size === 0) return;
 
@@ -124,7 +124,7 @@ export class PlunkWebpackPlugin {
 
     // Start watching state.json and linked package dirs
     compiler.hooks.watchRun.tapPromise(
-      "PlunkWebpackPlugin",
+      "KnarrWebpackPlugin",
       async () => {
         if (watcher) return;
 
@@ -171,7 +171,7 @@ export class PlunkWebpackPlugin {
           if (normalized === stateFile) {
             const changed = syncPackages();
             if (changed) {
-              // New packages linked — add their dirs to the watcher
+              // New packages linked - add their dirs to the watcher
               for (const pkg of watchedPackages) {
                 chokidarWatcher.add(join(nodeModulesDir, pkg));
               }
@@ -192,7 +192,7 @@ export class PlunkWebpackPlugin {
     // Add linked package directories as context dependencies so webpack
     // watches them for changes (belt-and-suspenders with chokidar)
     compiler.hooks.afterCompile.tapPromise(
-      "PlunkWebpackPlugin",
+      "KnarrWebpackPlugin",
       async (compilation) => {
         for (const pkg of watchedPackages) {
           compilation.contextDependencies.add(join(nodeModulesDir, pkg));
@@ -201,7 +201,7 @@ export class PlunkWebpackPlugin {
     );
 
     // Cleanup on watch close
-    compiler.hooks.watchClose.tap("PlunkWebpackPlugin", () => {
+    compiler.hooks.watchClose.tap("KnarrWebpackPlugin", () => {
       if (debounceTimer) {
         clearTimeout(debounceTimer);
         debounceTimer = null;
@@ -218,4 +218,7 @@ export class PlunkWebpackPlugin {
   }
 }
 
-export default PlunkWebpackPlugin;
+export type KNARRWebpackPluginOptions = KnarrWebpackPluginOptions;
+export const KNARRWebpackPlugin = KnarrWebpackPlugin;
+
+export default KnarrWebpackPlugin;

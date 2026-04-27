@@ -39,10 +39,10 @@ graph TD
 package.json → resolvePackFiles() → computeContentHash()
   → compare with store meta → copy files to temp dir
   → rewrite workspace:/catalog: versions → atomic rename to store
-  → write .plunk-meta.json
+  → write .knarr-meta.json
 ```
 
-Lifecycle hooks bracket the copy: `preplunk` → `prepack` → [copy] → `postpack` → `postplunk`.
+Lifecycle hooks bracket the copy: `preknarr` → `prepack` → [copy] → `postpack` → `postknarr`.
 
 ### Inject
 
@@ -97,7 +97,7 @@ State machine per package prevents infinite loops: `idle → building → idle` 
 | Hash | Algorithm | Use | Stored? |
 |---|---|---|---|
 | Per-file | xxHash64 (xxhash-wasm) | Incremental copy change detection (fallback when mtime differs) | No |
-| Aggregate | SHA-256 | Content identity (`sha256v2:` prefix in `.plunk-meta.json`) | Yes |
+| Aggregate | SHA-256 | Content identity (`sha256v2:` prefix in `.knarr-meta.json`) | Yes |
 
 xxHash64 is lazy-initialized as a WASM singleton. Files >1 MB use streaming to cap memory usage.
 
@@ -117,7 +117,7 @@ The `buildId` is `contentHash.slice(9, 17)` — the first 8 hex characters after
 | `src/core/push-engine.ts` | `doPush()` — publish + inject to all consumers. `resolveWatchConfig()` for build/watch setup. |
 | `src/core/batch-push.ts` | `doPushAll()` — workspace batch push in topological order |
 | `src/core/watch-orchestrator.ts` | `WatchOrchestrator` — cascading rebuild orchestrator for `dev --all` |
-| `src/core/history.ts` | Build history capture, list, restore, prune for `plunk rollback` |
+| `src/core/history.ts` | Build history capture, list, restore, prune for `knarr rollback` |
 | `src/utils/hash.ts` | `computeContentHash()` (SHA-256 aggregate), `hashFile()` (xxHash64 per-file) |
 | `src/utils/fs.ts` | `copyWithCoW()`, `incrementalCopy()`, `ensureDir()`, `isNodeError()` |
 | `src/utils/pack-list.ts` | `resolvePackFiles()` — npm-pack-compatible file resolution from `files` field |
@@ -127,11 +127,11 @@ The `buildId` is `contentHash.slice(9, 17)` — the first 8 hex characters after
 | `src/utils/concurrency.ts` | Minimal `pLimit()` reimplementation |
 | `src/utils/dry-run.ts` | Mutation recorder and summary reporter for `--dry-run` mode |
 | `src/utils/preflight.ts` | Pre-flight validation (exports, types, entry points, bin paths) |
-| `src/utils/config.ts` | `loadPlunkConfig()` — reads `package.json#plunk` config |
+| `src/utils/config.ts` | `loadKnarrConfig()` — reads `package.json#knarr` config |
 | `src/utils/topo-sort.ts` | `topoSort()` — Kahn's algorithm for workspace dependency ordering |
-| `src/utils/vite-config.ts` | Auto-inject/remove plunk Vite plugin (balanced bracket parser, complexity detector) |
+| `src/utils/vite-config.ts` | Auto-inject/remove Knarr Vite plugin (balanced bracket parser, complexity detector) |
 | `src/utils/nextjs-config.ts` | Auto-add transpilePackages for Next.js (wrapper function detection) |
-| `src/vite-plugin.ts` | Vite plugin that watches `.plunk/state.json` and triggers full reload |
+| `src/vite-plugin.ts` | Vite plugin that watches `.knarr/state.json` and triggers full reload |
 | `src/webpack-plugin.ts` | Webpack/rspack plugin — excludes linked packages from snapshot cache, watches state.json |
 | `src/index.ts` | Public API re-exports for programmatic usage |
-| `src/types.ts` | Shared TypeScript interfaces (`PlunkMeta`, `StoreEntry`, `LinkEntry`, `ConsumerState`, etc.) |
+| `src/types.ts` | Shared TypeScript interfaces (`KnarrMeta`, `StoreEntry`, `LinkEntry`, `ConsumerState`, etc.) |

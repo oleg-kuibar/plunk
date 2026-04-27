@@ -1,20 +1,20 @@
 # Commands
 
-## `plunk init`
+## `knarr init`
 
-Set up plunk in the current project. Interactive — detects your package manager and bundler, and auto-configures where possible. Idempotent, safe to run repeatedly.
+Set up Knarr in the current project. Interactive — detects your package manager and bundler, and auto-configures where possible. Idempotent, safe to run repeatedly.
 
 ```bash
-npx plunk init
+npx knarr init
 ```
 
 What it does:
 
 1. **Detects package manager** from lockfiles (pnpm, bun, yarn, npm) and confirms with you
-2. **Adds `.plunk/` to `.gitignore`**
-3. **Wires up `"postinstall": "plunk restore || true"`** in `package.json`
-4. **Creates `.plunk/` state directory** and stores the confirmed package manager
-5. **Detects bundler** — if Vite, auto-injects the plunk Vite plugin into your config. Other bundlers (Webpack, Turbopack, etc.) need no config.
+2. **Adds `.knarr/` to `.gitignore`**
+3. **Wires up `"postinstall": "knarr restore || true"`** in `package.json`
+4. **Creates `.knarr/` state directory** and stores the confirmed package manager
+5. **Detects bundler** — if Vite, auto-injects the Knarr Vite plugin into your config. Other bundlers (Webpack, Turbopack, etc.) need no config.
 
 Flags:
 
@@ -25,14 +25,44 @@ Flags:
 
 ---
 
-## `plunk publish [dir]`
+## `knarr use <path>`
 
-Publish a package to the local plunk store (`~/.plunk/store/`).
+Publish a local package directory and link it into the current project in one step.
 
 ```bash
-plunk publish              # publish current directory
-plunk publish ../my-lib    # publish from a path
-plunk publish --private    # allow private packages
+cd my-app
+npx knarr use ../my-lib
+knarr use ../packages/ui-kit
+```
+
+`use` reads `<path>/package.json`, infers the package name, publishes that package to the Knarr store, auto-initializes the current consumer if needed, and injects the package into `node_modules/`.
+
+This is the recommended first-run workflow. It is equivalent to:
+
+```bash
+cd ../my-lib
+knarr publish
+
+cd ../my-app
+knarr add my-lib
+```
+
+Flags:
+
+| Flag | Description |
+|---|---|
+| `-y, --yes` | Auto-accept prompts (install missing deps, etc.) |
+
+---
+
+## `knarr publish [dir]`
+
+Publish a package to the local Knarr store (`~/.knarr/store/`).
+
+```bash
+knarr publish              # publish current directory
+knarr publish ../my-lib    # publish from a path
+knarr publish --private    # allow private packages
 ```
 
 Reads the `files` field from `package.json` to determine what to include (same logic as `npm pack`). Computes a content hash — if nothing changed since the last publish, it skips instantly.
@@ -54,17 +84,17 @@ Included files:
 - `workspace:*` and `catalog:` protocol versions get rewritten to real versions in the store copy (source is untouched)
 - When `publishConfig.directory` is set, files are read from that subdirectory
 
-Lifecycle hooks run in this order: `preplunk` → `prepack` → [publish] → `postpack` → `postplunk`. The `prepack`/`postpack` hooks are skipped with `--no-scripts`. Default timeout is 30s (override with `PLUNK_HOOK_TIMEOUT` env var).
+Lifecycle hooks run in this order: `preknarr` → `prepack` → [publish] → `postpack` → `postknarr`. The `prepack`/`postpack` hooks are skipped with `--no-scripts`. Default timeout is 30s (override with `KNARR_HOOK_TIMEOUT` env var).
 
 ---
 
-## `plunk add <package>`
+## `knarr add <package>`
 
 Link a package from the store into the current project's `node_modules/`.
 
 ```bash
-plunk add my-lib
-plunk add @scope/my-lib --from ../my-lib   # publish + add in one step
+knarr add my-lib
+knarr add @scope/my-lib --from ../my-lib   # publish + add in one step
 ```
 
 Flags:
@@ -76,29 +106,29 @@ Flags:
 
 Under the hood:
 
-1. **Auto-initializes** the consumer if `.plunk/state.json` is missing (creates state, adds `.plunk/` to `.gitignore`, wires up `postinstall` hook) — no need to run `plunk init` first
+1. **Auto-initializes** the consumer if `.knarr/state.json` is missing (creates state, adds `.knarr/` to `.gitignore`, wires up `postinstall` hook) — no need to run `knarr init` first
 2. Detects your package manager from lockfiles
-3. Backs up the existing npm-installed version to `.plunk/backups/`
+3. Backs up the existing npm-installed version to `.knarr/backups/`
 4. Copies files from store into `node_modules/`
 5. Creates `.bin/` entries if the package has a `bin` field
-6. Records the link in `.plunk/state.json` and `~/.plunk/consumers.json`
+6. Records the link in `.knarr/state.json` and `~/.knarr/consumers.json`
 7. **Prompts to install** missing transitive dependencies (use `--yes` to auto-install)
-8. **Auto-injects** the plunk Vite plugin into your Vite config if detected
+8. **Auto-injects** the Knarr Vite plugin into your Vite config if detected
 
 ---
 
-## `plunk push`
+## `knarr push`
 
 Publish and copy to all consumers that have this package linked.
 
 ```bash
-plunk push                                      # one-time push
-plunk push --all                               # push all workspace packages
-plunk push --watch                              # watch mode, auto-detects build command
-plunk push --watch --all                       # watch all workspace packages
-plunk push --watch --build "npx tsup"           # explicit build command
-plunk push --watch --skip-build                 # watch output dirs directly
-plunk push --watch --build "tsc" --debounce 500
+knarr push                                      # one-time push
+knarr push --all                               # push all workspace packages
+knarr push --watch                              # watch mode, auto-detects build command
+knarr push --watch --all                       # watch all workspace packages
+knarr push --watch --build "npx tsup"           # explicit build command
+knarr push --watch --skip-build                 # watch output dirs directly
+knarr push --watch --build "tsc" --debounce 500
 ```
 
 Flags:
@@ -118,9 +148,9 @@ Flags:
 
 Without `--watch`, it runs once: publish, then copy changed files to all consumers.
 
-With `--watch`, it runs continuously using a "debounce effects, not detection" strategy: file changes are detected immediately, then coalesced — rapid saves within the debounce window collapse into a single push. If new changes arrive while a push is in progress, plunk automatically re-pushes after it finishes so the final state is always pushed.
+With `--watch`, it runs continuously using a "debounce effects, not detection" strategy: file changes are detected immediately, then coalesced — rapid saves within the debounce window collapse into a single push. If new changes arrive while a push is in progress, Knarr automatically re-pushes after it finishes so the final state is always pushed.
 
-**Build command auto-detection:** When no `--build` command is specified and `--skip-build` is not set, plunk auto-detects the build command from `package.json` scripts (checks `build`, `compile`, `bundle`, `tsc` in order). If no build script is found, the watcher monitors paths from the `files` field (typically `dist/`). With a build command, it watches source directories (`src/`, `lib/`, `dist/`). Build failures get logged but don't kill the watcher.
+**Build command auto-detection:** When no `--build` command is specified and `--skip-build` is not set, Knarr auto-detects the build command from `package.json` scripts (checks `build`, `compile`, `bundle`, `tsc` in order). If no build script is found, the watcher monitors paths from the `files` field (typically `dist/`). With a build command, it watches source directories (`src/`, `lib/`, `dist/`). Build failures get logged but don't kill the watcher.
 
 When watching output dirs directly (no build command), `awaitWriteFinish` is auto-enabled (200ms stability threshold) to avoid triggering on partially-written files.
 
@@ -151,17 +181,17 @@ stateDiagram-v2
 
 ---
 
-## `plunk dev`
+## `knarr dev`
 
-Watch, rebuild, and push to all consumers. This is the recommended command for library development — equivalent to `plunk push --watch` with auto-detected build command.
+Watch, rebuild, and push to all consumers. This is the recommended command for library development — equivalent to `knarr push --watch` with auto-detected build command.
 
 ```bash
 cd my-lib
-plunk dev                              # auto-detects build command, enters watch mode
-plunk dev --all                        # watch all workspace packages
-plunk dev --build "npx tsup"           # explicit build command
-plunk dev --skip-build                 # watch output dirs directly
-plunk dev --debounce 500               # custom coalesce delay
+knarr dev                              # auto-detects build command, enters watch mode
+knarr dev --all                        # watch all workspace packages
+knarr dev --build "npx tsup"           # explicit build command
+knarr dev --skip-build                 # watch output dirs directly
+knarr dev --debounce 500               # custom coalesce delay
 ```
 
 Flags:
@@ -180,7 +210,7 @@ Flags:
 
 **Cascading rebuilds:** When using `--all` in a workspace, cascading rebuilds are enabled by default. When package A changes and is pushed, any workspace packages that depend on A are automatically rebuilt and pushed too. A state machine (idle/building/queued) per package prevents infinite loops. Use `--no-cascade` to disable this and watch packages independently.
 
-On startup, `plunk dev`:
+On startup, `knarr dev`:
 
 1. Auto-detects the build command from `package.json` scripts (`build`, `compile`, `bundle`, `tsc`)
 2. Runs an initial publish + push to all consumers
@@ -191,25 +221,27 @@ This is the ideal workflow for library authors:
 
 ```bash
 # One-time setup:
-cd my-lib && plunk dev
+cd my-app && npx knarr use ../my-lib
+cd ../my-lib && knarr dev
 
 # In another terminal:
-cd my-app && plunk add my-lib --from ../my-lib
-pnpm dev
+cd my-app && pnpm dev
 ```
+
+If Knarr is not installed globally, use `npx knarr dev`.
 
 Then just edit files in `my-lib` — the build, publish, and push happen automatically.
 
 ---
 
-## `plunk remove <package>`
+## `knarr remove <package>`
 
-Remove a plunk link and restore the original npm-installed version.
+Remove a Knarr link and restore the original npm-installed version.
 
 ```bash
-plunk remove my-lib
-plunk remove @scope/my-lib
-plunk remove --all              # remove all linked packages
+knarr remove my-lib
+knarr remove @scope/my-lib
+knarr remove --all              # remove all linked packages
 ```
 
 Flags:
@@ -220,17 +252,17 @@ Flags:
 | `--force` | Skip error checking (e.g., if the package isn't linked) |
 | `-y, --yes` | Skip confirmation prompts |
 
-Removes injected files from `node_modules/` and cleans up `.bin/` entries. Restores the backup (original npm-installed version) if one exists. Also removes the package from `transpilePackages` in next.config and cleans up tracking state. If this was the last plunk-linked package, removes the plunk Vite plugin from your Vite config.
+Removes injected files from `node_modules/` and cleans up `.bin/` entries. Restores the backup (original npm-installed version) if one exists. Also removes the package from `transpilePackages` in next.config and cleans up tracking state. If this was the last Knarr-linked package, removes the Knarr Vite plugin from your Vite config.
 
 ---
 
-## `plunk restore`
+## `knarr restore`
 
 Re-inject all linked packages after `npm install` wipes your overrides.
 
 ```bash
-pnpm install      # whoops, plunk links gone
-plunk restore     # all back
+pnpm install      # whoops, Knarr links gone
+knarr restore     # all back
 ```
 
 Flags:
@@ -239,65 +271,65 @@ Flags:
 |---|---|
 | `--silent` | Suppress output when no packages are linked (used by postinstall hook) |
 
-Reads `.plunk/state.json` and re-copies each linked package from the store. Missing store entries get a warning but don't stop the rest.
+Reads `.knarr/state.json` and re-copies each linked package from the store. Missing store entries get a warning but don't stop the rest.
 
 ---
 
-## `plunk list`
+## `knarr list`
 
 Show linked packages.
 
 ```bash
-plunk list             # linked packages in current project
-plunk list --store     # all packages in the global store
-plunk list --history   # build history for linked packages
+knarr list             # linked packages in current project
+knarr list --store     # all packages in the global store
+knarr list --history   # build history for linked packages
 ```
 
 Flags:
 
 | Flag | Description |
 |---|---|
-| `--store` | List all packages in `~/.plunk/store/` instead of project links |
+| `--store` | List all packages in `~/.knarr/store/` instead of project links |
 | `--history` | Show build history for linked packages |
 
 Project mode shows name, version, and source path. Store mode adds publish time. History mode shows available rollback targets.
 
 ---
 
-## `plunk status`
+## `knarr status`
 
 Check whether linked packages are healthy.
 
 ```bash
-plunk status
+knarr status
 ```
 
 For each linked package, checks that the store entry exists, the content hash still matches, and the files are present in `node_modules/`. Tells you what to do if something is off.
 
 ---
 
-## `plunk update [package]`
+## `knarr update [package]`
 
 Pull the latest versions from the store for linked packages.
 
 ```bash
-plunk update              # update all linked packages
-plunk update my-lib       # update a specific package
+knarr update              # update all linked packages
+knarr update my-lib       # update a specific package
 ```
 
 For each linked package, checks if the store has a newer content hash. If so, re-injects the updated files into `node_modules/`. Packages already up to date are skipped.
 
-Useful when another tool or teammate has published to the store, and you want to pull the changes without re-running `plunk add`.
+Useful when another tool or teammate has published to the store, and you want to pull the changes without re-running `knarr add`.
 
 ---
 
-## `plunk clean`
+## `knarr clean`
 
-Remove unreferenced store entries and stale consumer registrations. Also available as `plunk gc`.
+Remove unreferenced store entries and stale consumer registrations. Also available as `knarr gc`.
 
 ```bash
-plunk clean
-plunk gc          # alias for plunk clean
+knarr clean
+knarr gc          # alias for knarr clean
 ```
 
 Flags:
@@ -308,19 +340,19 @@ Flags:
 
 Performs two cleanup passes:
 
-1. **Stale consumers** — removes entries in `~/.plunk/consumers.json` that point to directories that no longer exist on disk.
-2. **Unreferenced store entries** — removes packages from `~/.plunk/store/` that are not linked by any active consumer.
+1. **Stale consumers** — removes entries in `~/.knarr/consumers.json` that point to directories that no longer exist on disk.
+2. **Unreferenced store entries** — removes packages from `~/.knarr/store/` that are not linked by any active consumer.
 
 Safe to run at any time. Does not affect packages that are actively linked. Reports reclaimed disk space after cleanup.
 
 ---
 
-## `plunk doctor`
+## `knarr doctor`
 
-Run diagnostic checks on your plunk setup.
+Run diagnostic checks on your Knarr setup.
 
 ```bash
-plunk doctor
+knarr doctor
 ```
 
 Checks performed:
@@ -329,24 +361,24 @@ Checks performed:
 |---|---|
 | Store directory | Exists and reports entry count |
 | Global registry | `consumers.json` exists and reports registration count |
-| Consumer state | `.plunk/state.json` has linked packages |
+| Consumer state | `.knarr/state.json` has linked packages |
 | Store entries | Each linked package has a matching store entry |
 | Content hash | Store and consumer hashes are in sync |
 | node_modules | Linked packages are present in `node_modules/` |
 | Package manager | Detected from lockfile |
 | Bundler | Detected from config files |
-| .gitignore | `.plunk/` is listed |
+| .gitignore | `.knarr/` is listed |
 
 Each check reports PASS, WARN, or FAIL with an actionable message. Use `--json` for machine-readable output.
 
 ---
 
-## `plunk migrate`
+## `knarr migrate`
 
-Migrate from yalc to plunk.
+Migrate from yalc to Knarr.
 
 ```bash
-plunk migrate
+knarr migrate
 ```
 
 Flags:
@@ -361,19 +393,19 @@ Detects yalc usage in the current project and cleans it up:
 2. Removes `file:.yalc/` references from `package.json`
 3. Deletes the `.yalc/` directory
 4. Deletes `yalc.lock`
-5. Prints next steps (`plunk init`, `plunk add`)
+5. Prints next steps (`knarr init`, `knarr add`)
 
 If no yalc usage is detected, it exits without changes. See [Migrating from yalc](migrating-from-yalc.md) for a full guide.
 
 ---
 
-## `plunk reset`
+## `knarr reset`
 
-Remove all plunk links and tear down plunk from the current project. This is the inverse of `plunk init` — it restores everything to a clean state.
+Remove all Knarr links and tear down Knarr from the current project. This is the inverse of `knarr init` — it restores everything to a clean state.
 
 ```bash
-plunk reset
-plunk reset --yes        # skip confirmation
+knarr reset
+knarr reset --yes        # skip confirmation
 ```
 
 Flags:
@@ -385,19 +417,19 @@ Flags:
 What it does:
 
 1. Removes all linked packages (restores backups if available)
-2. Deletes the `.plunk/` directory
+2. Deletes the `.knarr/` directory
 3. Removes the `postinstall` hook from `package.json`
 
 ---
 
-## `plunk rollback`
+## `knarr rollback`
 
-Restore a previous build from history. After publishing, plunk keeps the last 3 builds (configurable) so you can quickly revert.
+Restore a previous build from history. After publishing, Knarr keeps the last 3 builds (configurable) so you can quickly revert.
 
 ```bash
-plunk rollback                          # restore previous build
-plunk rollback --build-id abc12345     # restore a specific build
-plunk rollback --yes                   # skip confirmation
+knarr rollback                          # restore previous build
+knarr rollback --build-id abc12345     # restore a specific build
+knarr rollback --yes                   # skip confirmation
 ```
 
 Flags:
@@ -407,17 +439,17 @@ Flags:
 | `--build-id <id>` | Specific build ID to restore (default: previous build) |
 | `-y, --yes` | Skip confirmation prompts |
 
-After restoring, plunk automatically pushes the restored build to all consumers. Use `plunk list --history` to see available builds.
+After restoring, Knarr automatically pushes the restored build to all consumers. Use `knarr list --history` to see available builds.
 
 ---
 
-## `plunk check`
+## `knarr check`
 
 Validate package configuration before publishing. Checks that entry points, exports paths, types, and bin paths exist on disk.
 
 ```bash
-plunk check                # check current directory
-plunk check ../my-lib      # check a specific directory
+knarr check                # check current directory
+knarr check ../my-lib      # check a specific directory
 ```
 
 Checks performed:
@@ -430,13 +462,13 @@ Checks performed:
 | `TYPES_CONDITION_ORDER` | `types` condition comes before `import`/`require`/`default` |
 | `BIN_PATH_MISSING` | `bin` entry points exist on disk |
 
-Pre-flight checks also run automatically during `plunk publish` (suppress with `--no-check`).
+Pre-flight checks also run automatically during `knarr publish` (suppress with `--no-check`).
 
 ---
 
 ## Global flags
 
-These flags can be passed to any plunk command:
+These flags can be passed to any Knarr command:
 
 | Flag | Alias | Description |
 |---|---|---|
@@ -447,10 +479,10 @@ These flags can be passed to any plunk command:
 Examples:
 
 ```bash
-plunk push --verbose              # detailed debug output
-plunk publish --dry-run           # preview without writing (prints mutation summary)
-plunk status --json               # structured output for scripts
-plunk push --json --verbose 2>debug.log   # JSON to stdout, debug logs to stderr
+knarr push --verbose              # detailed debug output
+knarr publish --dry-run           # preview without writing (prints mutation summary)
+knarr status --json               # structured output for scripts
+knarr push --json --verbose 2>debug.log   # JSON to stdout, debug logs to stderr
 ```
 
 When `--json` is active, structured output goes to stdout and all human-readable messages from consola are suppressed. Verbose logs (when combined with `--json`) still go to stderr, so you can capture them separately.
@@ -461,9 +493,9 @@ When `--json` is active, structured output goes to stdout and all human-readable
 
 | Variable | Description |
 |---|---|
-| `PLUNK_HOME` | Override the store location (default: `~/.plunk/`) |
-| `PLUNK_HOOK_TIMEOUT` | Lifecycle hook timeout in milliseconds (default: `30000`) |
+| `KNARR_HOME` | Override the store location (default: `~/.knarr/`) |
+| `KNARR_HOOK_TIMEOUT` | Lifecycle hook timeout in milliseconds (default: `30000`) |
 
 ```bash
-PLUNK_HOME=/tmp/my-store plunk publish
+KNARR_HOME=/tmp/my-store knarr publish
 ```
